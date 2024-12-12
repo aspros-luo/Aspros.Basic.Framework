@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
+using static Grpc.Core.Metadata;
 
 namespace Aspros.Base.Framework.Infrastructure
 {
@@ -93,15 +94,53 @@ namespace Aspros.Base.Framework.Infrastructure
                 _dbContext.Entry(entity).Property("Modifier").CurrentValue = userId;
             if (_dbContext.Entry(entity).Property("GmtModified").CurrentValue != null)
                 _dbContext.Entry(entity).Property("GmtModified").CurrentValue = DateTime.Now;
-            _dbContext.Set<TEntity>().Add(entity);
+            await  _dbContext.Set<TEntity>().AddAsync(entity);
             if (DbContextTransaction != null)
                 return await _dbContext.SaveChangesAsync() > 0;
             return true;
         }
 
-        public async Task<bool> RegisterRangeDeleted<TEntity>(IEnumerable<TEntity> entities) where TEntity : class
+        public async Task<bool> RegisterRangeDeleted<TEntity>(IEnumerable<TEntity> entities, bool isDel = false) where TEntity : class
         {
-            _dbContext.Set<TEntity>().RemoveRange(entities);
+            if (isDel)
+                _dbContext.Set<TEntity>().RemoveRange(entities);
+            else
+                _dbContext.Set<TEntity>().UpdateRange(entities);
+            if (DbContextTransaction != null)
+                return await _dbContext.SaveChangesAsync() > 0;
+            return true;
+        }
+
+        public async Task<bool> RegisterRangeDirty<TEntity>(IEnumerable<TEntity> entities) where TEntity : class
+        {
+            var userId = await _workContext.GetUserId();
+            foreach (var entity in entities)
+            {
+                if (_dbContext.Entry(entity).Property("Modifier").CurrentValue != null)
+                    _dbContext.Entry(entity).Property("Modifier").CurrentValue = userId;
+                if (_dbContext.Entry(entity).Property("GmtModified").CurrentValue != null)
+                    _dbContext.Entry(entity).Property("GmtModified").CurrentValue = DateTime.Now;
+            }
+            _dbContext.Set<TEntity>().UpdateRange(entities);
+            if (DbContextTransaction != null)
+                return await _dbContext.SaveChangesAsync() > 0;
+            return true;            
+        }
+
+        public async Task<bool> RegisterRangeNew<TEntity>(IEnumerable<TEntity> entities) where TEntity : class
+        {
+            var userId = await _workContext.GetUserId();
+            foreach (var entity in entities) { 
+            if (_dbContext.Entry(entity).Property("Creator").CurrentValue != null)
+                _dbContext.Entry(entity).Property("Creator").CurrentValue = userId;
+            if (_dbContext.Entry(entity).Property("GmtCreated").CurrentValue != null)
+                _dbContext.Entry(entity).Property("GmtCreated").CurrentValue = DateTime.Now;
+            if (_dbContext.Entry(entity).Property("Modifier").CurrentValue != null)
+                _dbContext.Entry(entity).Property("Modifier").CurrentValue = userId;
+            if (_dbContext.Entry(entity).Property("GmtModified").CurrentValue != null)
+                _dbContext.Entry(entity).Property("GmtModified").CurrentValue = DateTime.Now;
+            }
+            await _dbContext.Set<TEntity>().AddRangeAsync(entities);
             if (DbContextTransaction != null)
                 return await _dbContext.SaveChangesAsync() > 0;
             return true;

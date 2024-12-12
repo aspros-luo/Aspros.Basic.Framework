@@ -29,12 +29,26 @@ namespace Aspros.Base.Framework.Infrastructure
         /// <returns></returns>
         Task<bool> RegisterNew<TEntity>(TEntity entity) where TEntity : class;
         /// <summary>
+        /// 批量新增
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="entity"></param>
+        /// <returns></returns>
+        Task<bool> RegisterRangeNew<TEntity>(IEnumerable<TEntity> entities) where TEntity : class;
+        /// <summary>
         /// 修改
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="entity"></param>
         /// <returns></returns>
         Task<bool> RegisterDirty<TEntity>(TEntity entity) where TEntity : class;
+        /// <summary>
+        /// 批量修改
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="entity"></param>
+        /// <returns></returns>
+        Task<bool> RegisterRangeDirty<TEntity>(IEnumerable<TEntity> entities) where TEntity : class;
         /// <summary>
         /// 删除
         /// </summary>
@@ -48,8 +62,9 @@ namespace Aspros.Base.Framework.Infrastructure
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="entities"></param>
+        /// <param name="isDel">是否物理删除 默认否</param>       
         /// <returns></returns>
-        Task<bool> RegisterRangeDeleted<TEntity>(IEnumerable<TEntity> entities) where TEntity : class;
+        Task<bool> RegisterRangeDeleted<TEntity>(IEnumerable<TEntity> entities, bool isDel = false) where TEntity : class;
         /// <summary>
         /// 提交 save change
         /// </summary>
