@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Nacos.V2;
+using Polly;
+
 
 
 namespace Aspros.SaaS.System.Infrastructure
@@ -43,10 +45,17 @@ namespace Aspros.SaaS.System.Infrastructure
 
                     var url = $"{baseUrl}/system/user.permission.valid?PermissionCode={code}&userId={userId}";
                     await Console.Out.WriteLineAsync($"权限接口地址:{url}");
-                    var result = await url.GetJsonAsync<bool>();
+                    var combinedPolicy = Policy.WrapAsync(PollyExtend.GetRetryPolicy(), PollyExtend.GetCircuitBreakerPolicy());  // 包装多个策略
 
-                    if (!result) throw new Exception("当前用户权限不够");
+                   var result =  await combinedPolicy.ExecuteAsync(async () =>
+                    {
+                        var response = await url.GetAsync();
+                        return response.ResponseMessage;
+                        //var result = await url.GetJsonAsync<bool>();
+                        //if (!result) throw new Exception("当前用户权限不够");
+                    });
 
+                    
                 }
             }
             await _next.Invoke(context);

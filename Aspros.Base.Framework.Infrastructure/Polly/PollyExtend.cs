@@ -1,12 +1,8 @@
 ﻿using Polly;
 using Polly.Timeout;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Net;
 
-namespace Aspros.Base.Framework.Infrastructure.Polly
+namespace Aspros.Base.Framework.Infrastructure
 {
     public static class PollyExtend
     {
@@ -28,7 +24,7 @@ namespace Aspros.Base.Framework.Infrastructure.Polly
                     onRetry: (outcome, timeSpan, retryCount, context) =>
                     {
                         // 重试回调
-                        Console.WriteLine($"Retry {retryCount} after {timeSpan.TotalSeconds} seconds due to {outcome.Result.StatusCode}");
+                        Console.WriteLine($"重试 {retryCount} 在 {timeSpan.TotalSeconds} 秒后， 结果 {outcome.Result.StatusCode}");
                     })
                 .WithPolicyKey(policyKey);  // 为策略指定一个键
         }
@@ -47,7 +43,7 @@ namespace Aspros.Base.Framework.Infrastructure.Polly
                              onBreak: (outcome, timespan) =>
                              {
                                  // Log circuit break
-                                 Console.WriteLine($"Circuit broken! We will try again after {timespan.TotalSeconds} seconds.");
+                                 Console.WriteLine($"请求熔断! 我们将在 {timespan.TotalSeconds} 后重试.");
                              },
                              onReset: () => Console.WriteLine("Circuit reset!"))
                          .WithPolicyKey(policyKey);  // 为策略指定一个键
@@ -61,16 +57,16 @@ namespace Aspros.Base.Framework.Infrastructure.Polly
         public static IAsyncPolicy<HttpResponseMessage> GetFallbackPolicy(string policyKey = "FallbackPolicy")
         {
             return Policy.HandleResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode)
-
                          .FallbackAsync(
-                            new HttpResponseMessage(System.Net.HttpStatusCode.OK)  // 默认的备用响应
+                            new HttpResponseMessage()  // 默认的备用响应
                             {
-                                Content = new StringContent("Fallback response")
+                                StatusCode = HttpStatusCode.OK,
+                                Content = new StringContent("返回降级信息")
                             },
                             onFallbackAsync: (exception, context) =>
                             {
-                                // 回退回调
-                                Console.WriteLine($"Request failed, falling back. Exception: ");
+                                // 失败回调
+                                Console.WriteLine($"Request failed, falling back. Exception: {exception}");
                                 return Task.CompletedTask;  // 你可以做一些异步操作
                             })
                          .WithPolicyKey(policyKey);  // 为策略指定一个键
