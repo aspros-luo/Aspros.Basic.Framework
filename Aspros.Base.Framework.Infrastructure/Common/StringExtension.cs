@@ -1,7 +1,4 @@
-﻿using System;
-using System.Linq;
-
-namespace Aspros.Base.Framework.Infrastructure
+﻿namespace Aspros.Base.Framework.Infrastructure
 {
     public static class StringExtension
     {

@@ -1,7 +1,7 @@
-﻿using System.Text;
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
+using System.Text;
 
 namespace Aspros.Base.Framework.Infrastructure
 {

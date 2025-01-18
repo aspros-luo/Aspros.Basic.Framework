@@ -24,18 +24,32 @@ namespace Aspros.Base.Framework.Infrastructure
             var allTypes = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(a => a.GetTypes()
                 .Where(t =>
-                    t.GetInterfaces().Contains(mediatRType) || t.GetInterfaces().Contains(transientType) ||
-                    t.GetInterfaces().Contains(scopedType) || t.GetInterfaces().Contains(singletonType)));
+                    t.GetInterfaces().Contains(mediatRType) ||
+                    t.GetInterfaces().Contains(transientType) ||
+                    t.GetInterfaces().Contains(scopedType) ||
+                    t.GetInterfaces().Contains(singletonType)));
             //class的程序集
             var classTypes = allTypes.Where(x => x.IsClass).ToArray();
             //接口的程序集
             var interfaceTypes = allTypes.Where(x => x.IsInterface).ToArray();
-            foreach ( var classType in classTypes) { 
-            
-            
+
+            // MediatR 服务注册一次
+            var mediatRAssemblies = classTypes
+                .Where(x => x.GetInterfaces().Contains(mediatRType))
+                .Select(x => x.Assembly)
+                .Distinct()
+                .ToArray();
+            // 注册 MediatR 服务，确保每个相关程序集只注册一次
+            if (mediatRAssemblies.Any())
+            {
+                services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(mediatRAssemblies));
+            }
+            foreach (var classType in classTypes)
+            {
+                // 获取类对应的接口
                 var interfaceType = interfaceTypes.FirstOrDefault(x => x.IsAssignableFrom(classType));
                 // 注入MediatR
-                if (classType.GetInterfaces().Contains(mediatRType)) services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(classType.Assembly));
+                //if (classType.GetInterfaces().Contains(mediatRType)) services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(classType.Assembly));
 
                 //判断class有接口，用接口注入
                 if (interfaceType != null)

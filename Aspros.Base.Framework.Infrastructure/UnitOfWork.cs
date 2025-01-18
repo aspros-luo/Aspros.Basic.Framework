@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
-using static Grpc.Core.Metadata;
 
 namespace Aspros.Base.Framework.Infrastructure
 {
@@ -57,12 +56,9 @@ namespace Aspros.Base.Framework.Infrastructure
             else
             {
                 var userId = await _workContext.GetUserId();
-                if (_dbContext.Entry(entity).Property("Modifier").CurrentValue != null)
-                    _dbContext.Entry(entity).Property("Modifier").CurrentValue = userId;
-                if (_dbContext.Entry(entity).Property("GmtModified").CurrentValue != null)
-                    _dbContext.Entry(entity).Property("GmtModified").CurrentValue = DateTime.Now;
-                if (_dbContext.Entry(entity).Property("IsDeleted").CurrentValue != null)
-                    _dbContext.Entry(entity).Property("IsDeleted").CurrentValue = true;
+                _dbContext.Entry(entity).Entity.GetType().GetProperty("Modifier")?.SetValue(entity, userId);
+                _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtModified")?.SetValue(entity, DateTime.Now);
+                _dbContext.Entry(entity).Entity.GetType().GetProperty("IsDeleted")?.SetValue(entity, true);
                 _dbContext.Set<TEntity>().Update(entity);
             }
             if (DbContextTransaction != null)
@@ -73,10 +69,8 @@ namespace Aspros.Base.Framework.Infrastructure
         public async Task<bool> RegisterDirty<TEntity>(TEntity entity) where TEntity : class
         {
             var userId = await _workContext.GetUserId();
-            if (_dbContext.Entry(entity).Property("Modifier").CurrentValue != null)
-                _dbContext.Entry(entity).Property("Modifier").CurrentValue = userId;
-            if (_dbContext.Entry(entity).Property("GmtModified").CurrentValue != null)
-                _dbContext.Entry(entity).Property("GmtModified").CurrentValue = DateTime.Now;
+            _dbContext.Entry(entity).Entity.GetType().GetProperty("Modifier")?.SetValue(entity, userId);
+            _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtModified")?.SetValue(entity, DateTime.Now);
             _dbContext.Set<TEntity>().Update(entity);
             if (DbContextTransaction != null)
                 return await _dbContext.SaveChangesAsync() > 0;
@@ -86,15 +80,19 @@ namespace Aspros.Base.Framework.Infrastructure
         public async Task<bool> RegisterNew<TEntity>(TEntity entity) where TEntity : class
         {
             var userId = await _workContext.GetUserId();
-            if(_dbContext.Entry(entity).Property("Creator").CurrentValue!=null)
-                _dbContext.Entry(entity).Property("Creator").CurrentValue = userId;
-            if (_dbContext.Entry(entity).Property("GmtCreated").CurrentValue!=null)
-                _dbContext.Entry(entity).Property("GmtCreated").CurrentValue = DateTime.Now;
-            if (_dbContext.Entry(entity).Property("Modifier").CurrentValue != null)
-                _dbContext.Entry(entity).Property("Modifier").CurrentValue = userId;
-            if (_dbContext.Entry(entity).Property("GmtModified").CurrentValue != null)
-                _dbContext.Entry(entity).Property("GmtModified").CurrentValue = DateTime.Now;
-            await  _dbContext.Set<TEntity>().AddAsync(entity);
+            _dbContext.Entry(entity).Entity.GetType().GetProperty("Creator")?.SetValue(entity, userId);
+            _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtCreated")?.SetValue(entity, DateTime.Now);
+            _dbContext.Entry(entity).Entity.GetType().GetProperty("Modifier")?.SetValue(entity, userId);
+            _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtModified")?.SetValue(entity, DateTime.Now);
+            //if (_dbContext.Entry(entity).Property("Creator").CurrentValue!=null)
+            //    _dbContext.Entry(entity).Property("Creator").CurrentValue = userId;
+            //if (_dbContext.Entry(entity).Property("GmtCreated")?.CurrentValue!=null)
+            //    _dbContext.Entry(entity).Property("GmtCreated").CurrentValue = DateTime.Now;
+            //if (_dbContext.Entry(entity).Property("Modifier").CurrentValue != null)
+            //    _dbContext.Entry(entity).Property("Modifier").CurrentValue = userId;
+            //if (_dbContext.Entry(entity).Property("GmtModified").CurrentValue != null)
+            //    _dbContext.Entry(entity).Property("GmtModified").CurrentValue = DateTime.Now;
+            await _dbContext.Set<TEntity>().AddAsync(entity);
             if (DbContextTransaction != null)
                 return await _dbContext.SaveChangesAsync() > 0;
             return true;
@@ -116,29 +114,24 @@ namespace Aspros.Base.Framework.Infrastructure
             var userId = await _workContext.GetUserId();
             foreach (var entity in entities)
             {
-                if (_dbContext.Entry(entity).Property("Modifier").CurrentValue != null)
-                    _dbContext.Entry(entity).Property("Modifier").CurrentValue = userId;
-                if (_dbContext.Entry(entity).Property("GmtModified").CurrentValue != null)
-                    _dbContext.Entry(entity).Property("GmtModified").CurrentValue = DateTime.Now;
+                _dbContext.Entry(entity).Entity.GetType().GetProperty("Modifier")?.SetValue(entity, userId);
+                _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtModified")?.SetValue(entity, DateTime.Now);
             }
             _dbContext.Set<TEntity>().UpdateRange(entities);
             if (DbContextTransaction != null)
                 return await _dbContext.SaveChangesAsync() > 0;
-            return true;            
+            return true;
         }
 
         public async Task<bool> RegisterRangeNew<TEntity>(IEnumerable<TEntity> entities) where TEntity : class
         {
             var userId = await _workContext.GetUserId();
-            foreach (var entity in entities) { 
-            if (_dbContext.Entry(entity).Property("Creator").CurrentValue != null)
-                _dbContext.Entry(entity).Property("Creator").CurrentValue = userId;
-            if (_dbContext.Entry(entity).Property("GmtCreated").CurrentValue != null)
-                _dbContext.Entry(entity).Property("GmtCreated").CurrentValue = DateTime.Now;
-            if (_dbContext.Entry(entity).Property("Modifier").CurrentValue != null)
-                _dbContext.Entry(entity).Property("Modifier").CurrentValue = userId;
-            if (_dbContext.Entry(entity).Property("GmtModified").CurrentValue != null)
-                _dbContext.Entry(entity).Property("GmtModified").CurrentValue = DateTime.Now;
+            foreach (var entity in entities)
+            {
+                _dbContext.Entry(entity).Entity.GetType().GetProperty("Creator")?.SetValue(entity, userId);
+                _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtCreated")?.SetValue(entity, DateTime.Now);
+                _dbContext.Entry(entity).Entity.GetType().GetProperty("Modifier")?.SetValue(entity, userId);
+                _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtModified")?.SetValue(entity, DateTime.Now);
             }
             await _dbContext.Set<TEntity>().AddRangeAsync(entities);
             if (DbContextTransaction != null)

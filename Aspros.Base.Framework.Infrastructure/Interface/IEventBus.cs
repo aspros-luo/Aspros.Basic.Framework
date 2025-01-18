@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-
-namespace Aspros.Base.Framework.Infrastructure
+﻿namespace Aspros.Base.Framework.Infrastructure
 {
     public interface IEventBus
     {
