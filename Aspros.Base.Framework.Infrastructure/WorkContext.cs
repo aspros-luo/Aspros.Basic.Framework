@@ -24,14 +24,15 @@ namespace Aspros.Base.Framework.Infrastructure
         {
             var tokenJson = await GetUserData();
             if (tokenJson == null) return 0;
-            else return tokenJson["tenant_id"].ToObject<long>();
+            else return tokenJson["tenant_id"] == null ? 0 : tokenJson["tenant_id"].ToObject<long>();
         }
 
         public async Task<long> GetUserId()
         {
             var tokenJson = await GetUserData();
             if (tokenJson == null) return 0;
-            else return tokenJson["user_id"].ToObject<long>();
+            else return tokenJson["user_id"] == null ? 0 : tokenJson["user_id"].ToObject<long>();
+
         }
 
         private async Task<JObject> GetUserData()

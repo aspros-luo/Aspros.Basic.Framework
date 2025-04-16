@@ -1,4 +1,4 @@
-﻿using Aspros.SaaS.System.Domain;
+﻿
 namespace Aspros.Base.Framework.Domain;
 
 public class BasicEntity

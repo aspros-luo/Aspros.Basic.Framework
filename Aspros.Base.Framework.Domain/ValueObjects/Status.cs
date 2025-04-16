@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Aspros.SaaS.System.Domain
+namespace Aspros.Base.Framework.Domain
 {
     public enum Status
     {
