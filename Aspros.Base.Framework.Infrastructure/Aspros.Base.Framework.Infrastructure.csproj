@@ -4,7 +4,7 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<Version>1.1.4</Version>
+		<Version>1.1.5</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -21,7 +21,6 @@
 		<PackageReference Include="jose-jwt" Version="5.1.0" />
 		<PackageReference Include="MediatR" Version="12.4.1" />
 		<PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.12" />
-		<!--<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.1" />-->
 		<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.12" />
 		<PackageReference Include="Microsoft.Extensions.Http.Polly" Version="8.0.12" />
 		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="8.10.0" />
@@ -31,10 +30,13 @@
 		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.12" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.12" />
+		<PackageReference Include="Dapper" Version="2.1.89" />
+		<PackageReference Include="ClickHouse.Driver" Version="1.5.0" />
 		<PackageReference Include="SkyAPM.Agent.AspNetCore" Version="2.2.0" />
 	</ItemGroup>
-\t<ItemGroup>
-\t\t<ProjectReference Include="..\\Aspros.Base.Framework.Application\\Aspros.Base.Framework.Application.csproj" />
-\t</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Aspros.Base.Framework.Application\Aspros.Base.Framework.Application.csproj" />
+	</ItemGroup>
 
 </Project>
