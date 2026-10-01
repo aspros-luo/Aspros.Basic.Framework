@@ -56,7 +56,7 @@ Domain Event and Integration Event are deliberately different concepts:
 - **Integration Event**: cross-process or cross-service communication.
 - A Domain Event Handler may publish an Integration Event when the business boundary requires it.
 
-When `ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the Unit of Work transaction. With CAP transaction integration enabled, the business data and Outbox record are committed together. CAP documents EF Core transaction integration through `ICapPublisher`.citeturn1search1
+When `ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the Unit of Work transaction. With CAP transaction integration enabled, the business data and Outbox record are committed together. CAP documents EF Core transaction integration through `ICapPublisher`.
 
 ## Persistence Strategy
 
@@ -154,7 +154,7 @@ SaveChanges
 Commit
 ```
 
-EF Core supports multiple SaveChanges calls inside an explicit transaction, which allows domain event handlers to participate in the same transaction boundary.citeturn0search4
+EF Core supports multiple SaveChanges calls inside an explicit transaction, which allows domain event handlers to participate in the same transaction boundary.
 
 ## Migration Principle
 
