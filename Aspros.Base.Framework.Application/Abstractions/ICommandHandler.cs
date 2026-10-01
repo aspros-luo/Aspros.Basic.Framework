@@ -11,12 +11,11 @@ public interface ICommandHandler<TCommand> : IRequestHandler<TCommand>
 {
     Task HandleAsync(TCommand command, CancellationToken cancellationToken = default);
 
-    async Task<Unit> IRequestHandler<TCommand>.Handle(
+    async Task IRequestHandler<TCommand>.Handle(
         TCommand request,
         CancellationToken cancellationToken)
     {
         await HandleAsync(request, cancellationToken);
-        return Unit.Value;
     }
 }
 
