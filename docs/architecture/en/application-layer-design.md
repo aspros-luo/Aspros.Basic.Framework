@@ -129,3 +129,12 @@ The framework intentionally does not define:
 These capabilities should be reused from the actual RPC technology in use. Common abstractions should be promoted into the framework only after multiple projects develop a stable repeated need.
 
 RPC does not change the core Application responsibility: the Handler orchestrates the use case, while RPC is only one possible infrastructure dependency.
+
+
+## Pipeline Runtime
+
+The Application Pipeline is backed by the existing MediatR runtime rather than a second Framework dispatcher.
+
+`ICommand`, `IQuery`, `ICommandHandler`, `IQueryHandler`, and `IPipelineBehavior` are directly compatible with MediatR. Business handlers may keep the Framework-level `HandleAsync(...)` method; default interface implementations adapt it to MediatR.
+
+Framework `AutoInject()` explicitly registers discovered open generic Pipeline Behaviors because MediatR 12.1+ no longer scans Behaviors automatically.
