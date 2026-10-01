@@ -34,10 +34,6 @@ namespace Aspros.Base.Framework.Infrastructure
                 .Where(t => t.IsClass && !t.IsAbstract)
                 .ToArray();
 
-            var interfaceTypes = allTypes
-                .Where(t => t.IsInterface)
-                .ToArray();
-
             var mediatRAssemblies = classTypes
                 .Where(t =>
                     t.GetInterfaces().Contains(mediatRType) ||
