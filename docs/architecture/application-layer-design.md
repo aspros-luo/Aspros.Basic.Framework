@@ -131,3 +131,12 @@ Infrastructure
 这些能力优先复用实际采用的 RPC 框架。只有多个业务项目形成稳定重复需求时，再向 Framework 上提公共抽象。
 
 RPC 不改变 Application 的核心职责：Handler 负责业务用例编排，RPC 只是其中一种基础设施依赖。
+
+
+## Pipeline Runtime
+
+The Application Pipeline is backed by the existing MediatR runtime rather than a second Framework dispatcher.
+
+`ICommand`, `IQuery`, `ICommandHandler`, `IQueryHandler`, and `IPipelineBehavior` are directly compatible with MediatR. Business handlers may keep the Framework-level `HandleAsync(...)` method; default interface implementations adapt it to MediatR.
+
+Framework `AutoInject()` explicitly registers discovered open generic Pipeline Behaviors because MediatR 12.1+ no longer scans Behaviors automatically.
