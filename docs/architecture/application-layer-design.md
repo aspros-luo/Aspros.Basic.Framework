@@ -53,3 +53,38 @@ Framework v10 当前只建立最小 Application 基础：
 Validation、Transaction、Idempotency、Outbox 等能力只有在实际业务出现稳定需求后再逐步接入。
 
 不会为了架构完整而一次性引入完整 Runtime、RPC、验证框架或消息抽象。
+
+
+## 8. RPC 调用边界
+
+Framework v10 保留 RPC 能力，但只在 Application 层定义最小调用契约：
+
+`IRpcClient`
+
+Application 通过该契约表达对远程服务的调用需求，不直接依赖 gRPC、Dubbo 或其他具体 RPC 框架。
+
+具体实现放在 Infrastructure 层：
+
+```
+Application
+    │
+    │ IRpcClient
+    ▼
+Infrastructure
+    │
+    ├── gRPC
+    ├── Dubbo
+    └── 其他 RPC 实现
+```
+
+当前不额外定义：
+
+- RPC 注册中心抽象
+- RPC 服务发现抽象
+- RPC 负载均衡抽象
+- RPC 重试/熔断框架
+- RPC 序列化协议抽象
+
+这些能力优先复用实际采用的 RPC 框架。只有多个业务项目形成稳定重复需求时，再向 Framework 上提公共抽象。
+
+RPC 不改变 Application 的核心职责：Handler 负责业务用例编排，RPC 只是其中一种基础设施依赖。
