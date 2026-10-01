@@ -66,7 +66,7 @@ public sealed class EfUnitOfWork(
             return dbContext.Database.BeginTransactionAsync(
                 capPublisher,
                 autoCommit: false,
-                cancellationToken);
+                cancellationToken: cancellationToken);
         }
 
         return dbContext.Database.BeginTransactionAsync(cancellationToken);
