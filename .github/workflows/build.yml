@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+      - feature/framework-v10-refactor
+  pull_request:
+    branches:
+      - master
+      - feature/framework-v10-refactor
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore Aspros.Base.Framework.sln
+
+      - name: Build
+        run: dotnet build Aspros.Base.Framework.sln --configuration Release --no-restore
