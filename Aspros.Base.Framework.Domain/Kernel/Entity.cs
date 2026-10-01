@@ -6,7 +6,7 @@ namespace Aspros.Base.Framework.Domain.Kernel;
 /// </summary>
 public abstract class Entity<TId>
 {
-    public TId Id { get; protected set; }
+    public TId Id { get; }
 
     protected Entity(TId id)
     {
@@ -15,7 +15,17 @@ public abstract class Entity<TId>
 
     public override bool Equals(object? obj)
     {
+        if (ReferenceEquals(this, obj))
+        {
+            return true;
+        }
+
         if (obj is not Entity<TId> entity)
+        {
+            return false;
+        }
+
+        if (GetType() != entity.GetType())
         {
             return false;
         }
@@ -25,6 +35,6 @@ public abstract class Entity<TId>
 
     public override int GetHashCode()
     {
-        return Id?.GetHashCode() ?? 0;
+        return HashCode.Combine(GetType(), Id);
     }
 }
