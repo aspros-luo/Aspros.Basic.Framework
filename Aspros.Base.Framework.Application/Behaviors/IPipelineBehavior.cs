@@ -2,7 +2,7 @@ namespace Aspros.Base.Framework.Application.Behaviors;
 
 /// <summary>
 /// 应用层请求处理管道行为。
-/// 用于在 Handler 执行前后插入横切逻辑，例如验证、事务、日志。
+/// Pipeline 负责 Command/Query 用例级横切能力的组合，不限定具体实现。
 /// </summary>
 public interface IPipelineBehavior<TRequest, TResponse>
 {
