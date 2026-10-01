@@ -33,4 +33,8 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.12" />
 		<PackageReference Include="SkyAPM.Agent.AspNetCore" Version="2.2.0" />
 	</ItemGroup>
+\t<ItemGroup>
+\t\t<ProjectReference Include="..\\Aspros.Base.Framework.Application\\Aspros.Base.Framework.Application.csproj" />
+\t</ItemGroup>
+
 </Project>
