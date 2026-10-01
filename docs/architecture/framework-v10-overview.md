@@ -52,9 +52,11 @@ Application Domain Event Handler
 
 Domain Event and Integration Event are deliberately different concepts:
 
-- **Domain Event**: in-process domain semantics.
-- **Integration Event**: cross-process or cross-service communication.
+- **Domain Event**: in-process domain semantics. It is not a reliable cross-service delivery mechanism.
+- **Integration Event**: cross-process or cross-service communication. When delivery must survive process failure, use the CAP / Outbox / MQ path.
 - A Domain Event Handler may publish an Integration Event when the business boundary requires it.
+- CommitAsync only performs the direct EF Core persistence commit and does not automatically dispatch Domain Events.
+- When persistence changes, Domain Event handling, and reliable Integration Event publication must share one transaction boundary, use ExecuteInTransactionAsync(...).
 
 When `ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the Unit of Work transaction. With CAP transaction integration enabled, the business data and Outbox record are committed together. CAP documents EF Core transaction integration through `ICapPublisher`.
 
