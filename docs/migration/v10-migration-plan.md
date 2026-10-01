@@ -46,6 +46,14 @@ Infrastructure 继续复用现有技术栈，仅在实际项目中出现明确�
 - 独立 Observability Framework
 - 完整验证 Runtime
 
+## Legacy Event Compatibility
+
+现有旧项目中的 `IEvent` / `IEventHandler` / `IEventBus` 等事件能力不在本次 v10 迁移中强制删除。它们作为兼容能力保留，避免一次性破坏已有业务。
+
+新业务优先使用 v10 的 `IDomainEvent` / `IDomainEventHandler` / `IDomainEventDispatcher` 与 `IIntegrationEventPublisher`。
+
+两套事件模型不应混用语义：旧事件总线不能被默认视为可靠的跨服务消息机制；需要跨服务可靠投递时，应使用 Integration Event + CAP Outbox + Message Broker。
+
 ## Domain Event 与 Outbox
 
 Domain Event 不直接依赖消息队列。
