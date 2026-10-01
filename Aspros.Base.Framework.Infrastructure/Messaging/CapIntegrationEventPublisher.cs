@@ -8,7 +8,7 @@ namespace Aspros.Base.Framework.Infrastructure.Messaging;
 /// CAP 负责本地消息表和 Outbox 投递，具体 Transport 由业务项目配置。
 /// </summary>
 public sealed class CapIntegrationEventPublisher(ICapPublisher publisher)
-    : IIntegrationEventPublisher
+    : IIntegrationEventPublisher, IScoped
 {
     public Task PublishAsync<TEvent>(
         string name,
