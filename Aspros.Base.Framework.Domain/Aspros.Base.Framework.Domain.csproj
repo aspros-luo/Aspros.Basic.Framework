@@ -7,8 +7,4 @@
 		<Version>1.0.5</Version>
 	</PropertyGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\Aspros.Base.Framework.Infrastructure\Aspros.Base.Framework.Infrastructure.csproj" />
-	</ItemGroup>
-
 </Project>
