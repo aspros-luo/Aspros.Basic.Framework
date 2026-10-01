@@ -174,3 +174,50 @@ Unit of Work 不负责：
 - 自定义数据库事务接口
 
 这样既提供了真正可用的 Domain Event → Integration Event → Outbox 闭环，又避免把 EF Core 和 CAP 再包装成一套重复的基础设施模型。
+
+
+## Runtime Implementation
+
+Framework does not maintain a second request dispatcher.
+
+The existing `ICommand`, `IQuery`, `ICommandHandler`, `IQueryHandler`, and `IPipelineBehavior` contracts are now directly wired into MediatR:
+
+```text
+HTTP / MQ / Job / RPC
+        |
+        v
+Command / Query
+        |
+        v
+MediatR
+        |
+        +--> IPipelineBehavior
+        |
+        v
+Handler
+        |
+        v
+Domain
+```
+
+Business handlers continue to expose `HandleAsync(...)`. Default interface implementations adapt them to MediatR's `Handle(...)`, so business code does not need a second handler method.
+
+MediatR 12.1+ no longer automatically scans Pipeline Behaviors, so Framework `AutoInject()` explicitly discovers open generic Behaviors and registers them in deterministic type-name order. This keeps the existing auto-injection model while making the Pipeline actually executable.
+
+### Handler Contracts
+
+- `ICommand`: state-changing request;
+- `ICommand<TResult>`: state-changing request with a response;
+- `IQuery<TResult>`: read-only request;
+- `ICommandHandler<TCommand>` / `ICommandHandler<TCommand, TResult>`: Command handlers;
+- `IQueryHandler<TQuery, TResult>`: Query handlers.
+
+Commands and Queries are MediatR Requests and can therefore enter the Pipeline through `IMediator` / `ISender`.
+
+### Pipeline Behavior
+
+Framework `IPipelineBehavior<TRequest, TResponse>` directly extends MediatR's Pipeline Behavior. The framework does not introduce another execution engine.
+
+Only concrete Behaviors required by real application scenarios should be added. Logging, validation, caching, idempotency, and transaction behaviors are not enabled speculatively.
+
+MediatR requires explicit Behavior registration from 12.1 onward; Framework handles that registration centrally. citeturn5search11turn5search0
