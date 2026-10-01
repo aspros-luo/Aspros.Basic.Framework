@@ -46,6 +46,14 @@ The framework does not default to introducing:
 - independent observability framework
 - complete validation runtime
 
+## Legacy Event Compatibility
+
+Existing projects may continue using legacy `IEvent` / `IEventHandler` / `IEventBus` capabilities during migration. They are not forcibly removed in v10 so existing business code can migrate incrementally.
+
+New business code should prefer the v10 `IDomainEvent` / `IDomainEventHandler` / `IDomainEventDispatcher` and `IIntegrationEventPublisher` contracts.
+
+The two event models should not be treated as interchangeable. The legacy event bus must not be assumed to provide reliable cross-service delivery; reliable cross-service communication should use Integration Event + CAP Outbox + Message Broker.
+
 ## Domain Events and Outbox
 
 Domain Events do not directly depend on a message broker.
