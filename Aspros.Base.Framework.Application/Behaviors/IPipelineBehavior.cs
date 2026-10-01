@@ -1,13 +1,13 @@
+using MediatR;
+
 namespace Aspros.Base.Framework.Application.Behaviors;
 
 /// <summary>
 /// 应用层请求处理管道行为。
-/// Pipeline 负责 Command/Query 用例级横切能力的组合，不限定具体实现。
+/// 直接接入 MediatR Pipeline，避免框架维护第二套请求执行器。
 /// </summary>
 public interface IPipelineBehavior<TRequest, TResponse>
+    : MediatR.IPipelineBehavior<TRequest, TResponse>
+    where TRequest : notnull
 {
-    Task<TResponse> Handle(
-        TRequest request,
-        RequestHandlerDelegate<TResponse> next,
-        CancellationToken cancellationToken = default);
 }
