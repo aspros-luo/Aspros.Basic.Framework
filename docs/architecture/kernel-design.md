@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-Kernel 是 Framework v10 的领域基础层，提供 DDD 开发所需的通用抽象。
+Kernel 是 Framework v10 的领域基础层，提供 DDD 开发所需的轻量通用抽象。
 
 设计原则：
 
@@ -10,12 +10,19 @@ Kernel 是 Framework v10 的领域基础层，提供 DDD 开发所需的通用�
 - 不依赖消息中间件
 - 不依赖 Web 框架
 - 保持 Domain 层纯净
+- 只提供已经验证有复用价值的基础能力，不为未来业务预先堆叠抽象
 
 ## 2. 核心组件
 
 ### Entity
 
 实体通过唯一标识区分对象身份。
+
+当前实现采用：
+
+- Id 只读，避免实体身份在生命周期中被意外修改
+- 只有相同具体实体类型且 Id 相等时才视为同一实体
+- HashCode 与实体具体类型、Id 保持一致
 
 适用于：
 
@@ -25,7 +32,15 @@ Kernel 是 Framework v10 的领域基础层，提供 DDD 开发所需的通用�
 
 ### AggregateRoot
 
-聚合根负责维护业务一致性边界，并保存领域事件。
+聚合根是聚合的一致性边界，并负责保存聚合内部产生的领域事件。
+
+当前实现只维护领域事件集合，不负责事件分发、消息发布或事务提交。
+
+### ValueObject
+
+值对象没有独立身份，通过内部值判断相等性。
+
+当前实现由具体值对象通过 GetEqualityComponents() 提供参与相等性比较的成员。
 
 ### Domain Event
 
@@ -37,15 +52,49 @@ Kernel 是 Framework v10 的领域基础层，提供 DDD 开发所需的通用�
 - OrderPaid
 - PaymentCompleted
 
-后续可以连接：
+当前 Kernel 只定义事件本身及发生时间，不负责事件分发。
 
-Domain Event -> Application Handler -> MQ
+后续如果真实业务出现跨聚合、跨进程消息一致性需求，再由 Application / Infrastructure 层接入对应机制。
 
-## 3. 演进方向
+### Result
 
-后续版本将增加：
+Result / Result<T> 用于表达可以预期的业务结果，避免使用异常控制正常业务分支。
 
+它不负责 HTTP 状态码、API 响应格式等传输层语义。
+
+## 3. 当前边界
+
+Kernel 当前只保留：
+
+- Entity
+- AggregateRoot
 - ValueObject
-- Result Pattern
+- Domain Event
+- Error
+- Result
+
+暂不加入：
+
 - Specification
+- Repository
+- Unit of Work
 - Domain Service
+- Event Bus
+- Message Bus
+- RPC
+- 复杂缓存抽象
+
+这些能力只有在实际业务形成稳定重复需求后，才进入 Framework 的公共层。
+
+## 4. 演进原则
+
+Kernel 的演进遵循：
+
+> 先解决真实重复问题，再抽象为 Framework 能力。
+
+因此，新增抽象需要同时满足：
+
+1. 已经出现真实业务场景；
+2. 多个业务模块存在重复实现；
+3. 抽象后能够降低长期维护成本；
+4. 不破坏 Domain 对具体基础设施的独立性。
