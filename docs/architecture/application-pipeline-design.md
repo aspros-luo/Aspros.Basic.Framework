@@ -35,13 +35,11 @@ Domain
 Pipeline 本身只提供组合机制，不默认实现大量横切功能。
 
 适合由 Framework 提供抽象的能力：
-
 - Transaction
 - Idempotency
 - Outbox / Domain Event integration
 
 适合作为扩展点的能力：
-
 - Validation
 - Authorization
 - Logging
@@ -50,33 +48,29 @@ Pipeline 本身只提供组合机制，不默认实现大量横切功能。
 
 原因是这些能力已经存在成熟的 .NET / ASP.NET Core 组件。Framework 不应该为了架构完整而重复实现。
 
-## 为什么不把 Validation 作为核心 Behavior
-
-字段校验属于输入边界问题，通常可以交给 ASP.NET Core Model Validation、DataAnnotations 或 FluentValidation 等组件。
-
-Application Behavior 可以支持验证扩展，但 Framework 不强制要求所有项目使用自带 Validator，也不提供一套完整的验证规则体系。
-
 ## Transaction
 
 Transaction 是 Framework 值得优先抽象的能力，因为它描述的是一次 Application Command 的一致性边界。
+
+当前通过 IUnitOfWork.ExecuteInTransactionAsync(...) 提供最小事务边界，而不是额外定义 ITransaction 或 ITransactionManager。
 
 典型流程：
 
 ```text
 Command
   ↓
-Begin Transaction
+ExecuteInTransactionAsync
   ↓
-Handler
+Handler / Persistence Operations
   ↓
-Domain State Change
+IUnitOfWork.CommitAsync()
   ↓
-Outbox / Domain Event
-  ↓
-Commit
+Commit Transaction
 ```
 
-具体数据库事务由 Infrastructure 实现，Application 层只依赖抽象。
+具体数据库事务由 Infrastructure 实现，Application 层只依赖 IUnitOfWork。
+
+对于单次 CommitAsync()，EF Core 自身负责单次 SaveChanges 的原子性；显式事务主要用于一个用例需要多个持久化操作必须作为一个整体提交的场景。
 
 ## Idempotency
 
@@ -92,6 +86,8 @@ Application 层负责决定何时处理这些事件，以及如何与事务边�
 
 Infrastructure 再负责具体持久化和消息发布实现。
 
+当前仓库已经依赖 DotNetCore.CAP。CAP 本身提供 Outbox / 本地消息表能力，并支持将 EF Core 数据库事务与消息发布绑定；因此后续真正接入 Outbox 时优先复用现有 CAP，而不是重新实现一套 Outbox 表和消息投递机制。
+
 ## 设计原则
 
 1. Application 层负责业务流程编排。
@@ -99,55 +95,47 @@ Infrastructure 再负责具体持久化和消息发布实现。
 3. Middleware 负责 Transport 生命周期。
 4. Pipeline 负责 Application 用例生命周期。
 5. Framework 提供抽象，不重复实现已有成熟组件。
-6. 没有真实业务需求时，不提前增加 RPC、复杂缓存、复杂验证等能力。
+6. 没有真实业务需求时，不提前增加复杂缓存、复杂验证等能力。
 7. 不把 Behavior 设计成“所有横切逻辑的垃圾桶”。
-
 
 ## 8. Unit of Work
 
 Framework v10 保留轻量 Unit of Work 能力，用于表达一次应用用例的持久化提交边界。
 
-当前只定义：
-
-`IUnitOfWork.CommitAsync()`
-
-其职责是：
-
-- 提交当前用例产生的持久化变更；
-- 返回实际提交的变更数量；
-- 接受 CancellationToken。
+当前定义：
+- CommitAsync()：提交当前工作单元中的持久化变更；
+- ExecuteInTransactionAsync(...)：在一个数据库事务中执行多个持久化操作；
+- 泛型事务版本：允许事务操作返回结果。
 
 Unit of Work 不负责：
-
 - 定义 Repository；
 - 暴露 DbContext；
 - 管理数据库连接；
 - 把 EF Core 类型泄漏到 Application；
-- 自己实现事务机制。
-
-事务的一致性由 Infrastructure 的具体持久化实现负责。
+- 在 Application 层定义具体数据库事务类型。
 
 典型调用关系：
 
-```
+```text
 Command Handler
       ↓
- Domain / Repository
+IUnitOfWork.ExecuteInTransactionAsync(...)
       ↓
- IUnitOfWork.CommitAsync()
+Domain / Persistence Operations
+      ↓
+IUnitOfWork.CommitAsync()
       ↓
 Infrastructure
       ↓
 EF Core / Database Transaction
 ```
 
-如果未来真实业务出现“一个用例需要多个持久化操作必须原子提交”的场景，再由 Infrastructure 为 Unit of Work 提供事务实现。
+当前 Infrastructure 使用 EF Core Database.BeginTransactionAsync() 实现显式事务；事务提交或异常回滚完全由 Infrastructure 管理。
 
-因此当前不额外增加：
-
+因此当前仍然不增加：
 - ITransaction
 - ITransactionManager
 - TransactionScope 抽象
 - 自定义数据库事务接口
 
-避免在没有实际业务需求时重复抽象 EF Core 已经提供的事务能力。
+这样既提供了真正可用的事务边界，又避免把 EF Core 已经提供的事务模型再次包装成一套框架类型。
