@@ -1,4 +1,6 @@
+using Aspros.Base.Framework.Application.Abstractions.Events;
 using Aspros.Base.Framework.Application.Abstractions.Persistence;
+using Aspros.Base.Framework.Domain.Kernel;
 using DotNetCore.CAP;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +12,8 @@ namespace Aspros.Base.Framework.Infrastructure.Persistence;
 /// </summary>
 public sealed class EfUnitOfWork(
     DbContext dbContext,
-    ICapPublisher? capPublisher = null) : IUnitOfWork
+    ICapPublisher? capPublisher = null,
+    IDomainEventDispatcher? domainEventDispatcher = null) : IUnitOfWork
 {
     public Task<int> CommitAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
@@ -26,7 +29,7 @@ public sealed class EfUnitOfWork(
         try
         {
             await operation(cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await SaveChangesAndDispatchDomainEventsAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
         catch
@@ -47,7 +50,7 @@ public sealed class EfUnitOfWork(
         try
         {
             var result = await operation(cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await SaveChangesAndDispatchDomainEventsAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return result;
         }
@@ -55,6 +58,45 @@ public sealed class EfUnitOfWork(
         {
             await transaction.RollbackAsync(cancellationToken);
             throw;
+        }
+    }
+
+    private async Task SaveChangesAndDispatchDomainEventsAsync(
+        CancellationToken cancellationToken)
+    {
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (domainEventDispatcher is null)
+        {
+            return;
+        }
+
+        while (true)
+        {
+            var aggregateRoots = dbContext.ChangeTracker
+                .Entries()
+                .Select(entry => entry.Entity)
+                .OfType<IAggregateRoot>()
+                .Distinct()
+                .ToArray();
+
+            var domainEvents = aggregateRoots
+                .SelectMany(aggregate => aggregate.DomainEvents)
+                .ToArray();
+
+            if (domainEvents.Length == 0)
+            {
+                return;
+            }
+
+            await domainEventDispatcher.DispatchAsync(domainEvents, cancellationToken);
+
+            foreach (var aggregateRoot in aggregateRoots)
+            {
+                aggregateRoot.ClearDomainEvents(domainEvents);
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
     }
 
