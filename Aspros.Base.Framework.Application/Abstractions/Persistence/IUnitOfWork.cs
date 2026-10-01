@@ -14,7 +14,7 @@ public interface IUnitOfWork
 
     /// <summary>
     /// 在一个数据库事务中执行多个持久化操作。
-    /// 具体事务实现由 Infrastructure 决定。
+    /// 事务成功时会自动提交当前 DbContext 中的变更。
     /// </summary>
     Task ExecuteInTransactionAsync(
         Func<CancellationToken, Task> operation,
@@ -22,7 +22,7 @@ public interface IUnitOfWork
 
     /// <summary>
     /// 在一个数据库事务中执行多个持久化操作并返回结果。
-    /// 具体事务实现由 Infrastructure 决定。
+    /// 事务成功时会自动提交当前 DbContext 中的变更。
     /// </summary>
     Task<TResult> ExecuteInTransactionAsync<TResult>(
         Func<CancellationToken, Task<TResult>> operation,
