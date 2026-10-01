@@ -1,14 +1,7 @@
 name: Build
 
 on:
-  push:
-    branches:
-      - master
-      - feature/framework-v10-refactor
-  pull_request:
-    branches:
-      - master
-      - feature/framework-v10-refactor
+  workflow_dispatch:
 
 jobs:
   build:
