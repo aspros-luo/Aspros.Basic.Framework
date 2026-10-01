@@ -13,7 +13,7 @@ namespace Aspros.Base.Framework.Infrastructure.Persistence;
 public sealed class EfUnitOfWork(
     DbContext dbContext,
     ICapPublisher? capPublisher = null,
-    IDomainEventDispatcher? domainEventDispatcher = null) : IUnitOfWork
+    IDomainEventDispatcher? domainEventDispatcher = null) : IUnitOfWork, IScoped
 {
     public Task<int> CommitAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
