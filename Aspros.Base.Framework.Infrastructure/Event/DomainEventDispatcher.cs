@@ -8,7 +8,7 @@ namespace Aspros.Base.Framework.Infrastructure.Event;
 /// 基于 Microsoft DI 的领域事件分发器。
 /// 不让 Domain 层依赖 MediatR、CAP 或其他具体消息框架。
 /// </summary>
-public sealed class DomainEventDispatcher(IServiceProvider serviceProvider) : IDomainEventDispatcher
+public sealed class DomainEventDispatcher(IServiceProvider serviceProvider) : IDomainEventDispatcher, IScoped
 {
     public async Task DispatchAsync(
         IReadOnlyCollection<IDomainEvent> domainEvents,
