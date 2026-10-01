@@ -7,7 +7,7 @@ namespace Aspros.Base.Framework.Application.Abstractions;
 /// Command 表示一次需要改变系统状态的业务操作。
 /// 通过 MediatR 请求契约进入现有 Application Pipeline。
 /// </summary>
-public interface ICommand : IRequest<Unit>
+public interface ICommand : IRequest
 {
 }
 
