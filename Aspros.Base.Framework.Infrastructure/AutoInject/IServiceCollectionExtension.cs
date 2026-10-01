@@ -74,33 +74,73 @@ namespace Aspros.Base.Framework.Infrastructure
 
             foreach (var classType in classTypes)
             {
-                var interfaceType = interfaceTypes.FirstOrDefault(x => x.IsAssignableFrom(classType));
+                var implementedInterfaces = classType.GetInterfaces();
 
-                if (interfaceType != null)
+                if (implementedInterfaces.Contains(transientType))
                 {
-                    if (interfaceType.GetInterfaces().Contains(transientType))
-                        services.AddTransient(interfaceType, classType);
-
-                    if (interfaceType.GetInterfaces().Contains(scopedType))
-                        services.AddScoped(interfaceType, classType);
-
-                    if (interfaceType.GetInterfaces().Contains(singletonType))
-                        services.AddSingleton(interfaceType, classType);
+                    RegisterServices(
+                        services,
+                        classType,
+                        implementedInterfaces,
+                        transientType,
+                        ServiceLifetime.Transient);
                 }
-                else
+
+                if (implementedInterfaces.Contains(scopedType))
                 {
-                    if (classType.GetInterfaces().Contains(transientType))
-                        services.AddTransient(classType);
+                    RegisterServices(
+                        services,
+                        classType,
+                        implementedInterfaces,
+                        scopedType,
+                        ServiceLifetime.Scoped);
+                }
 
-                    if (classType.GetInterfaces().Contains(scopedType))
-                        services.AddScoped(classType);
-
-                    if (classType.GetInterfaces().Contains(singletonType))
-                        services.AddSingleton(classType);
+                if (implementedInterfaces.Contains(singletonType))
+                {
+                    RegisterServices(
+                        services,
+                        classType,
+                        implementedInterfaces,
+                        singletonType,
+                        ServiceLifetime.Singleton);
                 }
             }
 
             #endregion
+        }
+
+        private static void RegisterServices(
+            IServiceCollection services,
+            Type implementationType,
+            IEnumerable<Type> implementedInterfaces,
+            Type markerType,
+            ServiceLifetime lifetime)
+        {
+            var serviceInterfaces = implementedInterfaces
+                .Where(interfaceType =>
+                    interfaceType != markerType &&
+                    !interfaceType.IsGenericTypeDefinition &&
+                    !interfaceType.GetInterfaces().Contains(markerType))
+                .ToArray();
+
+            if (serviceInterfaces.Length == 0)
+            {
+                services.Add(new ServiceDescriptor(
+                    implementationType,
+                    implementationType,
+                    lifetime));
+
+                return;
+            }
+
+            foreach (var serviceInterface in serviceInterfaces)
+            {
+                services.Add(new ServiceDescriptor(
+                    serviceInterface,
+                    implementationType,
+                    lifetime));
+            }
         }
     }
 }
