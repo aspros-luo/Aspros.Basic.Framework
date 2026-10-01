@@ -7,7 +7,6 @@ namespace Aspros.Base.Framework.Infrastructure
     {
         public static void AutoInject(this IServiceCollection services)
         {
-            // register assembly 
             services.InjectService();
         }
 
@@ -15,59 +14,92 @@ namespace Aspros.Base.Framework.Infrastructure
         {
             #region 依赖注入
 
-            var mediatRType = typeof(IBaseRequest); //MediatR
-            var transientType = typeof(ITransient); //每次新建
-            var scopedType = typeof(IScoped); //作用域
-            var singletonType = typeof(ISingleton); //全局唯一
+            var mediatRType = typeof(IBaseRequest);
+            var requestHandlerTypes = new[]
+            {
+                typeof(IRequestHandler<>),
+                typeof(IRequestHandler<,>)
+            };
+            var pipelineBehaviorType = typeof(IPipelineBehavior<,>);
 
-            //获取实现了接口自动注入接口 的程序集
+            var transientType = typeof(ITransient);
+            var scopedType = typeof(IScoped);
+            var singletonType = typeof(ISingleton);
+
             var allTypes = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes()
+                .SelectMany(a => a.GetTypes())
+                .ToArray();
+
+            var classTypes = allTypes
+                .Where(t => t.IsClass && !t.IsAbstract)
+                .ToArray();
+
+            var interfaceTypes = allTypes
+                .Where(t => t.IsInterface)
+                .ToArray();
+
+            var mediatRAssemblies = classTypes
                 .Where(t =>
                     t.GetInterfaces().Contains(mediatRType) ||
-                    t.GetInterfaces().Contains(transientType) ||
-                    t.GetInterfaces().Contains(scopedType) ||
-                    t.GetInterfaces().Contains(singletonType)));
-            //class的程序集
-            var classTypes = allTypes.Where(x => x.IsClass).ToArray();
-            //接口的程序集
-            var interfaceTypes = allTypes.Where(x => x.IsInterface).ToArray();
-
-            // MediatR 服务注册一次
-            var mediatRAssemblies = classTypes
-                .Where(x => x.GetInterfaces().Contains(mediatRType))
-                .Select(x => x.Assembly)
+                    t.GetInterfaces().Any(i =>
+                        i.IsGenericType &&
+                        requestHandlerTypes.Contains(i.GetGenericTypeDefinition())))
+                .Select(t => t.Assembly)
                 .Distinct()
                 .ToArray();
-            // 注册 MediatR 服务，确保每个相关程序集只注册一次
-            if (mediatRAssemblies.Any())
+
+            var pipelineBehaviors = classTypes
+                .Where(t => t.IsGenericTypeDefinition &&
+                            t.GetInterfaces().Any(i =>
+                                i.IsGenericType &&
+                                i.GetGenericTypeDefinition() == pipelineBehaviorType))
+                .OrderBy(t => t.FullName)
+                .ToArray();
+
+            if (mediatRAssemblies.Any() || pipelineBehaviors.Any())
             {
-                services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(mediatRAssemblies));
+                services.AddMediatR(cfg =>
+                {
+                    if (mediatRAssemblies.Any())
+                    {
+                        cfg.RegisterServicesFromAssemblies(mediatRAssemblies);
+                    }
+
+                    foreach (var behaviorType in pipelineBehaviors)
+                    {
+                        cfg.AddOpenBehavior(behaviorType);
+                    }
+                });
             }
+
             foreach (var classType in classTypes)
             {
-                // 获取类对应的接口
                 var interfaceType = interfaceTypes.FirstOrDefault(x => x.IsAssignableFrom(classType));
-                // 注入MediatR
-                //if (classType.GetInterfaces().Contains(mediatRType)) services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(classType.Assembly));
 
-                //判断class有接口，用接口注入
                 if (interfaceType != null)
                 {
-                    //判断用什么方式注入
-                    if (interfaceType.GetInterfaces().Contains(transientType)) services.AddTransient(interfaceType, classType);
-                    if (interfaceType.GetInterfaces().Contains(scopedType)) services.AddScoped(interfaceType, classType);
-                    if (interfaceType.GetInterfaces().Contains(singletonType)) services.AddSingleton(interfaceType, classType);
-                }
-                else //class没有接口，直接注入class
-                {
-                    //判断用什么方式注入
-                    if (classType.GetInterfaces().Contains(transientType)) services.AddTransient(classType);
-                    if (classType.GetInterfaces().Contains(scopedType)) services.AddScoped(classType);
-                    if (classType.GetInterfaces().Contains(singletonType)) services.AddSingleton(classType);
-                }
+                    if (interfaceType.GetInterfaces().Contains(transientType))
+                        services.AddTransient(interfaceType, classType);
 
+                    if (interfaceType.GetInterfaces().Contains(scopedType))
+                        services.AddScoped(interfaceType, classType);
+
+                    if (interfaceType.GetInterfaces().Contains(singletonType))
+                        services.AddSingleton(interfaceType, classType);
+                }
+                else
+                {
+                    if (classType.GetInterfaces().Contains(transientType))
+                        services.AddTransient(classType);
+
+                    if (classType.GetInterfaces().Contains(scopedType))
+                        services.AddScoped(classType);
+
+                    if (classType.GetInterfaces().Contains(singletonType))
+                        services.AddSingleton(classType);
+                }
             }
+
             #endregion
         }
     }
