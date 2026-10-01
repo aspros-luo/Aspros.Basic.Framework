@@ -225,4 +225,4 @@ Framework `IPipelineBehavior<TRequest, TResponse>` directly extends MediatR's Pi
 
 Only concrete Behaviors required by real application scenarios should be added. Logging, validation, caching, idempotency, and transaction behaviors are not enabled speculatively.
 
-MediatR requires explicit Behavior registration from 12.1 onward; Framework handles that registration centrally. citeturn5search11turn5search0
+MediatR requires explicit Behavior registration from 12.1 onward; Framework handles that registration centrally.
