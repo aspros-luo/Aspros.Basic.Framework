@@ -21,7 +21,9 @@ Application Pipeline
         |
         +--> Idempotency（按需）
         |
-        +--> Outbox / Domain Event（按需）
+        +--> Domain Event（事务内按需）
+        |
+        +--> Integration Event / Outbox（由 Domain Event Handler 按需触发）
         |
         v
 Handler
@@ -34,31 +36,111 @@ Domain
 
 Transaction 是 Framework 值得优先抽象的能力，因为它描述的是一次 Application Command 的一致性边界。
 
-当前通过 IUnitOfWork.ExecuteInTransactionAsync(...) 提供最小事务边界，而不是额外定义 ITransaction 或 ITransactionManager。
+当前通过 `IUnitOfWork.ExecuteInTransactionAsync(...)` 提供最小事务边界，而不是额外定义 `ITransaction` 或 `ITransactionManager`。
 
-事务操作成功后，Infrastructure 会自动执行一次 SaveChanges 并提交事务；异常则回滚。因此调用方不需要为了事务包装再次手动 Commit。
+事务操作成功后，Infrastructure 会自动执行持久化、领域事件分发以及最终 Commit；异常则回滚。
+
+## Domain Event
+
+Domain Event 由 AggregateRoot 在领域状态发生重要变化时产生。
+
+Domain 层只负责：
+
+- 定义 `IDomainEvent`；
+- 在 AggregateRoot 内产生事件；
+- 保存尚未处理的事件。
+
+Domain 层不依赖：
+
+- MediatR；
+- CAP；
+- RabbitMQ；
+- Kafka；
+- HTTP；
+- 其他基础设施。
+
+Application 层提供：
+
+- `IDomainEventHandler<TDomainEvent>`
+- `IDomainEventDispatcher`
+
+Infrastructure 提供默认 DI 分发实现。
+
+### 事务内处理顺序
 
 ```text
-Command
-  ↓
-ExecuteInTransactionAsync
-  ↓
-Handler / Persistence Operations
-  ↓
-SaveChanges
-  ↓
-Commit Transaction
+Command Handler
+      ↓
+IUnitOfWork.ExecuteInTransactionAsync(...)
+      ↓
+Domain / Persistence Operations
+      ↓
+EF Core SaveChanges
+      ↓
+Dispatch Domain Events
+      ↓
+Domain Event Handler
+      ↓
+IIntegrationEventPublisher（可选）
+      ↓
+再次 SaveChanges
+      ↓
+Commit
 ```
 
-## Outbox / Domain Event
+领域事件在显式 Unit of Work 事务中处理，因此领域事件 Handler 对当前 DbContext 的修改仍属于同一个数据库事务。
 
-Domain 层只负责产生领域事件。Application 层负责决定何时处理这些事件，以及如何与事务边界协作。Infrastructure 再负责具体持久化和消息发布实现。
+如果 Handler 发布 Integration Event，并且当前 Unit of Work 使用 CAP transaction integration，则业务数据与 CAP Outbox 记录一起提交或回滚。CAP 官方文档支持将 EF Core transaction 与 `ICapPublisher` 绑定。citeturn1search1
 
-Framework 已经依赖 DotNetCore.CAP。CAP 提供 Outbox / 本地消息表能力，并支持把 EF Core 数据库事务与消息发布绑定。
+Framework 不把 Domain Event 自动等同于 Integration Event：
 
-因此 Infrastructure 的 EfUnitOfWork 在检测到 ICapPublisher 时，会使用 CAP 的 EF Core transaction integration；在同一个事务中发布的集成事件与业务数据一起提交或回滚。CAP 的官方示例也采用 EF Core Database.BeginTransaction 与 ICapPublisher 绑定的方式。
+- **Domain Event**：进程内、领域语义、同步处理；
+- **Integration Event**：跨进程/跨服务通信，使用 `IIntegrationEventPublisher`；
+- Domain Event Handler 可以根据业务需要发布 Integration Event，但不是每个 Domain Event 都必须进入消息队列。
 
-Application 只看到 IIntegrationEventPublisher，不直接依赖 CAP。
+### 级联领域事件
+
+Domain Event Handler 可以继续产生新的 Domain Event。
+
+Infrastructure 会持续处理当前 AggregateRoot 上尚未分发的事件，直到事件队列为空，然后再次执行 `SaveChanges`。
+
+因此可以支持：
+
+```text
+Event A
+  ↓
+Handler A
+  ↓
+Event B
+  ↓
+Handler B
+```
+
+所有这些操作仍位于当前 Unit of Work 事务中。
+
+## Outbox
+
+Framework 已经依赖 DotNetCore.CAP。CAP 提供本地消息表 / Outbox 能力，并支持把 EF Core 数据库事务与消息发布绑定。citeturn1search1
+
+Application 只看到 `IIntegrationEventPublisher`，不直接依赖 CAP。
+
+因此推荐的完整路径是：
+
+```text
+Aggregate
+   ↓
+Domain Event
+   ↓
+Domain Event Handler
+   ↓
+IIntegrationEventPublisher
+   ↓
+CAP
+   ↓
+Outbox
+   ↓
+Message Broker
+```
 
 ## Idempotency
 
@@ -69,35 +151,26 @@ Application 只看到 IIntegrationEventPublisher，不直接依赖 CAP。
 Framework v10 保留轻量 Unit of Work 能力，用于表达一次应用用例的持久化提交边界。
 
 当前定义：
-- CommitAsync()：提交当前工作单元中的持久化变更；
-- ExecuteInTransactionAsync(...)：在一个数据库事务中执行多个持久化操作，并在成功结束时自动 SaveChanges + Commit；
+
+- `CommitAsync()`：提交当前工作单元中的持久化变更；
+- `ExecuteInTransactionAsync(...)`：在一个数据库事务中执行多个持久化操作，并在成功结束时自动处理 Domain Event、SaveChanges + Commit；
 - 泛型事务版本：允许事务操作返回结果。
 
+涉及 Domain Event / Outbox 的 Command 应优先使用 `ExecuteInTransactionAsync(...)`，以保持领域状态、Handler 引起的数据库变更以及 CAP Outbox 处于同一事务边界。
+
 Unit of Work 不负责：
+
 - 定义 Repository；
 - 暴露 DbContext；
 - 管理数据库连接；
 - 把 EF Core 类型泄漏到 Application；
 - 在 Application 层定义具体数据库事务类型。
 
-```text
-Command Handler
-      ↓
-IUnitOfWork.ExecuteInTransactionAsync(...)
-      ↓
-Domain / Persistence Operations
-      ↓
-IIntegrationEventPublisher（可选）
-      ↓
-EF Core SaveChanges + CAP Outbox
-      ↓
-Commit
-```
-
 当前仍然不增加：
-- ITransaction
-- ITransactionManager
-- TransactionScope 抽象
+
+- `ITransaction`
+- `ITransactionManager`
+- `TransactionScope` 抽象
 - 自定义数据库事务接口
 
-这样既提供了真正可用的事务与 Outbox 组合，又避免把 EF Core 和 CAP 再包装成一套重复的数据库事务模型。
+这样既提供了真正可用的 Domain Event → Integration Event → Outbox 闭环，又避免把 EF Core 和 CAP 再包装成一套重复的基础设施模型。
