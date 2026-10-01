@@ -73,3 +73,15 @@ Commands involving Domain Events should use `IUnitOfWork.ExecuteInTransactionAsy
 Existing projects should be able to migrate gradually without requiring a full rewrite.
 
 Core principle: **incremental evolution, reuse existing capabilities, and let real problems drive abstractions.**
+
+
+## Application Pipeline Runtime
+
+The lightweight Pipeline is now connected to the existing MediatR runtime.
+
+- `ICommand` / `IQuery` are MediatR requests.
+- `ICommandHandler` / `IQueryHandler` remain the Framework-facing handler contracts and adapt to MediatR through default interface implementations.
+- `IPipelineBehavior` directly extends MediatR's Pipeline Behavior.
+- `AutoInject()` explicitly registers discovered open generic Behaviors.
+
+No separate Application Dispatcher or Runtime has been introduced.
