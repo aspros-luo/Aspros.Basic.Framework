@@ -4,7 +4,7 @@ namespace Aspros.Base.Framework.Domain.Kernel;
 /// 聚合根基类。
 /// 负责维护聚合内部产生的领域事件。
 /// </summary>
-public abstract class AggregateRoot<TId> : Entity<TId>
+public abstract class AggregateRoot<TId> : Entity<TId>, IAggregateRoot
 {
     private readonly List<IDomainEvent> _domainEvents = new();
 
@@ -16,11 +16,17 @@ public abstract class AggregateRoot<TId> : Entity<TId>
 
     protected void AddDomainEvent(IDomainEvent domainEvent)
     {
+        ArgumentNullException.ThrowIfNull(domainEvent);
         _domainEvents.Add(domainEvent);
     }
 
-    public void ClearDomainEvents()
+    public void ClearDomainEvents(IEnumerable<IDomainEvent> domainEvents)
     {
-        _domainEvents.Clear();
+        ArgumentNullException.ThrowIfNull(domainEvents);
+
+        foreach (var domainEvent in domainEvents)
+        {
+            _domainEvents.Remove(domainEvent);
+        }
     }
 }
