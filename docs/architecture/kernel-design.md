@@ -34,7 +34,7 @@ Kernel 是 Framework v10 的领域基础层，提供 DDD 开发所需的轻量�
 
 聚合根是聚合的一致性边界，并负责保存聚合内部产生的领域事件。
 
-当前实现只维护领域事件集合，不负责事件分发、消息发布或事务提交。
+当前实现只维护领域事件集合，不负责事件分发、消息发布或事务提交。事件由 Application / Infrastructure 在 Unit of Work 生命周期中按需处理。
 
 ### ValueObject
 
