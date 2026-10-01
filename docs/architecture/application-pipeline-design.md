@@ -90,7 +90,7 @@ Commit
 
 领域事件在显式 Unit of Work 事务中处理，因此领域事件 Handler 对当前 DbContext 的修改仍属于同一个数据库事务。
 
-如果 Handler 发布 Integration Event，并且当前 Unit of Work 使用 CAP transaction integration，则业务数据与 CAP Outbox 记录一起提交或回滚。CAP 官方文档支持将 EF Core transaction 与 `ICapPublisher` 绑定。citeturn1search1
+如果 Handler 发布 Integration Event，并且当前 Unit of Work 使用 CAP transaction integration，则业务数据与 CAP Outbox 记录一起提交或回滚。CAP 官方文档支持将 EF Core transaction 与 `ICapPublisher` 绑定。
 
 Framework 不把 Domain Event 自动等同于 Integration Event：
 
@@ -120,7 +120,7 @@ Handler B
 
 ## Outbox
 
-Framework 已经依赖 DotNetCore.CAP。CAP 提供本地消息表 / Outbox 能力，并支持把 EF Core 数据库事务与消息发布绑定。citeturn1search1
+Framework 已经依赖 DotNetCore.CAP。CAP 提供本地消息表 / Outbox 能力，并支持把 EF Core 数据库事务与消息发布绑定。
 
 Application 只看到 `IIntegrationEventPublisher`，不直接依赖 CAP。
 
