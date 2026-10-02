@@ -1,8 +1,9 @@
+using Aspros.Base.Framework.Application.Abstractions.Persistence;
 using Aspros.Base.Framework.Infrastructure;
-using Aspros.Base.Framework.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Validation.WebApi.Data;
 using Validation.WebApi.Events;
+using Validation.WebApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,8 +12,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<DbContext>(provider =>
     provider.GetRequiredService<AppDbContext>());
-
-builder.Services.AddScoped<ValidationOrderDomainEventHandler>();
 
 builder.Services.AddSingleton<ValidationIntegrationEventPublisher>();
 
@@ -28,16 +27,16 @@ using (var scope = app.Services.CreateScope())
 
 app.MapPost("/orders", async (
     CreateOrderRequest request,
+    AppDbContext db,
     IUnitOfWork unitOfWork,
     CancellationToken cancellationToken) =>
 {
     var orderId = await unitOfWork.ExecuteInTransactionAsync(
-        async ct =>
+        ct =>
         {
             var order = new ValidationOrder(Guid.NewGuid(), request.ProductName);
-            var db = (AppDbContext)scopeDb(unitOfWork);
             db.Orders.Add(order);
-            return order.Id;
+            return Task.FromResult(order.Id);
         },
         cancellationToken);
 
@@ -59,18 +58,5 @@ app.MapGet("/orders/{id:guid}", async (
 });
 
 app.Run();
-
-static DbContext scopeDb(IUnitOfWork unitOfWork)
-    => unitOfWork switch
-    {
-        EfUnitOfWork ef => GetDbContext(ef),
-        _ => throw new InvalidOperationException("Validation requires EfUnitOfWork.")
-    };
-
-static DbContext GetDbContext(EfUnitOfWork unitOfWork)
-{
-    throw new NotSupportedException(
-        "The validation endpoint intentionally requires direct DbContext injection; this helper should never be used.");
-}
 
 public sealed record CreateOrderRequest(string ProductName);
