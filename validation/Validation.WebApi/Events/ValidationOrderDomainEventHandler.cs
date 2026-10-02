@@ -1,14 +1,17 @@
 using Aspros.Base.Framework.Application.Abstractions.Events;
+using Aspros.Base.Framework.Application.Abstractions.Messaging;
 using Aspros.Base.Framework.Infrastructure;
 using Validation.WebApi.Data;
 using Validation.WebApi.Models;
 
 namespace Validation.WebApi.Events;
 
-public sealed class ValidationOrderDomainEventHandler(AppDbContext db)
+public sealed class ValidationOrderDomainEventHandler(
+    AppDbContext db,
+    IIntegrationEventPublisher integrationEventPublisher)
     : IDomainEventHandler<OrderCreatedDomainEvent>, IScoped
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         OrderCreatedDomainEvent domainEvent,
         CancellationToken cancellationToken = default)
     {
@@ -18,6 +21,13 @@ public sealed class ValidationOrderDomainEventHandler(AppDbContext db)
             Message = $"Order created: {domainEvent.ProductName}"
         });
 
-        return Task.CompletedTask;
+        await integrationEventPublisher.PublishAsync(
+            "validation.order.created",
+            new
+            {
+                domainEvent.OrderId,
+                domainEvent.ProductName
+            },
+            cancellationToken);
     }
 }
