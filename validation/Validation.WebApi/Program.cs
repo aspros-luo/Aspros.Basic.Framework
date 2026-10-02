@@ -2,6 +2,7 @@ using Aspros.Base.Framework.Infrastructure;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Validation.WebApi.Data;
+using Validation.WebApi.Events;
 using Validation.WebApi.Features;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -48,6 +49,10 @@ app.MapGet("/orders/{id:guid}", async (
         ? Results.NotFound()
         : Results.Ok(order);
 });
+
+app.MapGet("/validation/integration-events", (
+    ValidationIntegrationEventPublisher publisher) =>
+    Results.Ok(publisher.PublishedEvents));
 
 app.Run();
 
