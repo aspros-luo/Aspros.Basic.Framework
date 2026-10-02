@@ -1,11 +1,12 @@
 using Aspros.Base.Framework.Application.Abstractions.Events;
+using Aspros.Base.Framework.Infrastructure;
 using Validation.WebApi.Data;
 using Validation.WebApi.Models;
 
 namespace Validation.WebApi.Events;
 
 public sealed class ValidationOrderDomainEventHandler(AppDbContext db)
-    : IDomainEventHandler<OrderCreatedDomainEvent>
+    : IDomainEventHandler<OrderCreatedDomainEvent>, IScoped
 {
     public Task HandleAsync(
         OrderCreatedDomainEvent domainEvent,
