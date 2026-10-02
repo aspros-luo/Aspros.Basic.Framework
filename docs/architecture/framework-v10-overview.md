@@ -60,6 +60,26 @@ Domain Event and Integration Event are deliberately different concepts:
 
 When `ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the Unit of Work transaction. With CAP transaction integration enabled, the business data and Outbox record are committed together. CAP documents EF Core transaction integration through `ICapPublisher`.
 
+## RPC Boundary
+
+Framework v10 keeps RPC as an optional application capability rather than building a new RPC runtime.
+
+Application depends only on `IRpcClient`; concrete implementations belong to Infrastructure. The framework does not introduce service discovery, registry, load balancing, retry/circuit-breaker, or serialization abstractions. Those capabilities should be provided by the RPC technology actually used by the application.
+
+```text
+Application
+    |
+    | IRpcClient
+    v
+Infrastructure
+    |
+    +-- gRPC
+    +-- Dubbo
+    +-- Other RPC implementation
+```
+
+RPC is an infrastructure dependency of an application use case; it does not change the Domain layer or create a second application runtime.
+
 ## Persistence Strategy
 
 Framework v10 does not force a single data-access technology.
