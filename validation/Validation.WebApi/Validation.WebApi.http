@@ -1,0 +1,12 @@
+@Validation.WebApi_HostAddress = http://localhost:5000
+
+POST {{Validation.WebApi_HostAddress}}/orders
+Content-Type: application/json
+
+{
+  "productName": "Coffee"
+}
+
+###
+
+GET {{Validation.WebApi_HostAddress}}/orders/{{orderId}}
