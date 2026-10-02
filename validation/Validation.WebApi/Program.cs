@@ -13,8 +13,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<Microsoft.EntityFrameworkCore.DbContext>(provider =>
     provider.GetRequiredService<AppDbContext>());
 
-builder.Services.AddSingleton<ValidationIntegrationEventPublisher>();
 builder.Services.AutoInject();
+builder.Services.AddSingleton<Aspros.Base.Framework.Application.Abstractions.Messaging.IIntegrationEventPublisher, ValidationIntegrationEventPublisher>();
 
 var app = builder.Build();
 
