@@ -25,10 +25,18 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapPost("/orders", async (
-    CreateOrderRequest request,
+    CreateOrderRequest? request,
     ISender sender,
     CancellationToken cancellationToken) =>
 {
+    if (request is null || string.IsNullOrWhiteSpace(request.ProductName))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["productName"] = ["ProductName is required."]
+        });
+    }
+
     var orderId = await sender.Send(
         new CreateOrderCommand(request.ProductName),
         cancellationToken);
