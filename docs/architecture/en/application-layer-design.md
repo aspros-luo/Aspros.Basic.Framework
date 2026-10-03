@@ -110,6 +110,8 @@ Application's `IUnitOfWork` is a lightweight persistence session. It exposes `Re
 
 Only the small subset of use cases that genuinely requires local multi-step atomicity should depend on `ITransactionalUnitOfWork` and call `ExecuteInTransactionAsync(...)`.
 
+Inside an explicit transaction, a use case may call `CommitAsync()` once it needs a database-generated key before continuing. In the current implementation this only flushes `SaveChanges` into the still-open transaction; it does not commit the outer transaction. The final commit remains owned by `ExecuteInTransactionAsync(...)`. This should not be treated as a second transaction boundary.
+
 ## Current Strategy
 
 Framework v10 currently provides only the minimum Application foundation:
