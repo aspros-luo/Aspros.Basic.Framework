@@ -1,9 +1,9 @@
 using Aspros.Base.Framework.Infrastructure;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Validation.WebApi.Data;
 using Validation.WebApi.Events;
 using Validation.WebApi.Features;
+using Validation.WebApi.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +42,20 @@ app.MapPost("/orders", async (
         cancellationToken);
 
     return Results.Created($"/orders/{orderId}", new { orderId });
+});
+
+app.MapPost("/orders/{id:guid}/confirm", async (
+    Guid id,
+    ISender sender,
+    CancellationToken cancellationToken) =>
+{
+    var confirmed = await sender.Send(
+        new ConfirmOrderCommand(id),
+        cancellationToken);
+
+    return confirmed
+        ? Results.Ok(new { orderId = id, confirmed = true })
+        : Results.NotFound();
 });
 
 app.MapGet("/orders/{id:guid}", async (
