@@ -1,3 +1,4 @@
+using ApplicationWorkContext = Aspros.Base.Framework.Application.Abstractions.IWorkContext;
 using Aspros.Base.Framework.Application.Abstractions;
 using Aspros.Base.Framework.Application.Abstractions.Events;
 using Aspros.Base.Framework.Application.Abstractions.Persistence;
@@ -217,7 +218,7 @@ public sealed class CountingDbContext : DbContext, IDbContext
     }
 }
 
-public sealed class NoopWorkContext : IWorkContext
+public sealed class NoopWorkContext : ApplicationWorkContext
 {
     public Task<long> GetUserId() => throw new NotSupportedException();
     public Task<long> GetTenantId() => throw new NotSupportedException();
