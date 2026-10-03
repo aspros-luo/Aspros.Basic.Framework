@@ -1,7 +1,8 @@
-﻿namespace Aspros.Base.Framework.Infrastructure
+using Aspros.Base.Framework.Application.Abstractions.Events;
+
+namespace Aspros.Base.Framework.Infrastructure
 {
-    public interface IEventBus
+    public interface IEventBus : Application.Abstractions.Events.IEventBus
     {
-        Task PublishAsync<T>(T @event) where T : IEvent;
     }
 }
