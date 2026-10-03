@@ -11,17 +11,13 @@ public sealed class CreateOrderCommandHandler(
     AppDbContext db,
     IUnitOfWork unitOfWork) : ICommandHandler<CreateOrderCommand, Guid>
 {
-    public Task<Guid> HandleAsync(
+    public async Task<Guid> HandleAsync(
         CreateOrderCommand command,
         CancellationToken cancellationToken = default)
     {
-        return unitOfWork.ExecuteInTransactionAsync(
-            ct =>
-            {
-                var order = new ValidationOrder(Guid.NewGuid(), command.ProductName);
-                db.Orders.Add(order);
-                return Task.FromResult(order.Id);
-            },
-            cancellationToken);
+        var order = new ValidationOrder(Guid.NewGuid(), command.ProductName);
+        db.Orders.Add(order);
+        await unitOfWork.CommitAsync(cancellationToken);
+        return order.Id;
     }
 }
