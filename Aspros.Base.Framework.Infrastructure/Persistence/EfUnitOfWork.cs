@@ -103,6 +103,14 @@ public sealed class EfUnitOfWork(
     private Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(
         CancellationToken cancellationToken)
     {
+        if (dbContext.Database.CurrentTransaction is not null)
+        {
+            throw new InvalidOperationException(
+                "An explicit transaction is already active for this DbContext. " +
+                "ExecuteInTransactionAsync does not support nested transaction scopes; " +
+                "compose the work inside the existing transaction instead.");
+        }
+
         if (capPublisher is not null)
         {
             return dbContext.Database.BeginTransactionAsync(
