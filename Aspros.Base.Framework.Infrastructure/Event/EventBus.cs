@@ -1,27 +1,27 @@
+using Aspros.Base.Framework.Application.Abstractions.Events;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Aspros.Base.Framework.Infrastructure
 {
     /// <summary>
-    /// Legacy in-process event bus。
-    /// 事件处理通过当前 DI Scope 解析，不再依赖全局 ServiceLocator。
+    /// In-process event bus kept for compatibility with existing services.
     /// </summary>
     public sealed class EventBus(IServiceProvider serviceProvider) : IEventBus, IScoped
     {
         private readonly IServiceProvider _serviceProvider = serviceProvider;
 
-        public async Task PublishAsync<T>(T @event) where T : IEvent
+        public async Task PublishAsync<TEvent>(TEvent @event) where TEvent : IEvent
         {
             ArgumentNullException.ThrowIfNull(@event);
 
             var handlers = _serviceProvider
-                .GetServices<IEventHandler<T>>()
+                .GetServices<IEventHandler<TEvent>>()
                 .ToArray();
 
             if (handlers.Length == 0)
             {
                 throw new InvalidOperationException(
-                    $"No event handler is registered for event type '{typeof(T).FullName}'.");
+                    $"No event handler is registered for event type '{typeof(TEvent).FullName}'.");
             }
 
             foreach (var handler in handlers)
