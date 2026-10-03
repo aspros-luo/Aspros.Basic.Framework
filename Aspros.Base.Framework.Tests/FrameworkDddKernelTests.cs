@@ -71,13 +71,15 @@ public sealed class FrameworkDddKernelTests
 
         Assert.IsAssignableFrom<Aspros.Base.Framework.Domain.IAggregateRoot>(aggregate);
 
-        AcceptsLegacyRepositoryContract<CustomerAggregate>();
+        var repository = new KernelAggregateRepository();
+        Assert.Empty(repository.GetAll());
     }
 
-    private static void AcceptsLegacyRepositoryContract<TAggregate>()
-        where TAggregate : class, Aspros.Base.Framework.Domain.IAggregateRoot
+    private sealed class KernelAggregateRepository
+        : Aspros.Base.Framework.Domain.IRepository<CustomerAggregate>
     {
-        _ = typeof(IRepositoryMarker<TAggregate>);
+        public IQueryable<CustomerAggregate> GetAll()
+            => Enumerable.Empty<CustomerAggregate>().AsQueryable();
     }
 
     [Fact]
@@ -155,7 +157,8 @@ public sealed class FrameworkDddKernelTests
             ThrowingTransactionEventHandler>();
 
         await using var provider = services.BuildServiceProvider();
-        var dispatcher = provider.GetRequiredService<IDomainEventDispatcher>();
+        await using var scope = provider.CreateAsyncScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IDomainEventDispatcher>();
         var unitOfWork = new EfUnitOfWork(dbContext, new NoopWorkContext(), dispatcher);
 
         var aggregate = new TransactionTestAggregate(Guid.NewGuid());
@@ -240,11 +243,6 @@ public sealed class FrameworkDddKernelTests
             TestContext.Current.CancellationToken);
 
         Assert.Equal("pong", response);
-    }
-
-    private interface IRepositoryMarker<TAggregate>
-        where TAggregate : class, Aspros.Base.Framework.Domain.IAggregateRoot
-    {
     }
 
     private sealed class EmailAddress(string value) : ValueObject
