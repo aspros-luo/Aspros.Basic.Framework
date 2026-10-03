@@ -39,7 +39,7 @@ public sealed class WorkContext(IHttpContextAccessor contextAccessor) : IWorkCon
             throw new InvalidOperationException($"Claim '{key}' could not be deserialized as {typeof(T).FullName}.");
         }
 
-        return Task.FromResult(result);
+        return Task.FromResult(result!);
     }
 
     private long ParseLongClaim(params string[] claimTypes)
