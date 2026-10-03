@@ -56,6 +56,7 @@ Domain Event and Integration Event are deliberately different concepts:
 - **Integration Event**: cross-process or cross-service communication. When delivery must survive process failure, use the CAP / Outbox / MQ path.
 - A Domain Event Handler may publish an Integration Event when the business boundary requires it.
 - CommitAsync only performs the direct EF Core persistence commit and does not automatically dispatch Domain Events.
+- ExecuteInTransactionAsync(...) is an explicit business choice for multi-step operations that require all-or-nothing behavior; it is not required for every command.
 - When persistence changes, Domain Event handling, and reliable Integration Event publication must share one transaction boundary, use ExecuteInTransactionAsync(...).
 
 When `ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the Unit of Work transaction. With CAP transaction integration enabled, business data and the Outbox record are committed together.
@@ -152,7 +153,13 @@ Application
 
 The framework intentionally does not introduce a generic “data access” abstraction that hides all three technologies. The concrete choice belongs to the infrastructure implementation required by the application.
 
-## Unit of Work
+## Transaction Choice
+
+The Unit of Work does not mean every business operation must start an explicit database transaction. Simple single-table or single-save business should use `CommitAsync()` directly. Multi-step business that requires all-or-nothing behavior should explicitly use `ExecuteInTransactionAsync(...)`.
+
+The business layer chooses the path. Domain Events are also optional and should only be introduced when a meaningful domain fact requires additional reactions.
+
+
 
 The lightweight Unit of Work is the application persistence boundary.
 
