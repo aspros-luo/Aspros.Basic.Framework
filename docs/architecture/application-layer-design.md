@@ -106,11 +106,13 @@ Infrastructure / CAP
 
 Domain Event 与 Integration Event 保持语义分离，而不是把所有领域事件直接发送到消息队列。
 
-## ## Unit of Work
+## Unit of Work
 
 Application 层的 `IUnitOfWork` 是轻量持久化会话，提供 `RegisterNew`、`RegisterRangeNew`、`RegisterDirty`、`RegisterRangeDirty`、`RegisterDeleted`、`RegisterRangeDeleted` 与 `CommitAsync`。`Register*` 只登记 EF Core 变更，不执行数据库提交；正常用例最后调用一次 `CommitAsync()`。
 
 只有确实要求本地多步操作全部成功或全部失败的少数用例，才依赖 `ITransactionalUnitOfWork` 并调用 `ExecuteInTransactionAsync(...)`。
+
+在显式事务内部，如业务必须先取得数据库生成的主键，可以在事务仍然打开时调用 `CommitAsync()` 触发一次 `SaveChanges`。此操作只会写入当前数据库事务并获取生成键，不会提交外层事务；最终事务提交仍由 `ExecuteInTransactionAsync(...)` 负责。不要把这种用法当作第二个事务提交点。
 
 当前实现策略
 
@@ -128,25 +130,9 @@ Validation、Idempotency、更多 Pipeline Behavior 等能力只有在实际业�
 
 ## RPC 调用边界
 
-Framework v10 保留 RPC 能力，但只在 Application 层定义最小调用契约：
+Framework v10 不定义通用的 `IRpcClient`。
 
-`IRpcClient`
-
-Application 通过该契约表达对远程服务的调用需求，不直接依赖 gRPC、Dubbo 或其他具体 RPC 框架。
-
-具体实现放在 Infrastructure 层：
-
-```text
-Application
-    |
-    | IRpcClient
-    v
-Infrastructure
-    |
-    +-- gRPC
-    +-- Dubbo
-    +-- 其他 RPC 实现
-```
+当真实的同步跨服务业务调用出现时，由 Application 定义业务语义明确的 Port，例如 `IUserPermissionClient`；Infrastructure 再使用具体协议实现它。对于新的内部服务间同步调用，如果双方能够共享 protobuf 契约，gRPC 是优先考虑的技术选择。
 
 当前不额外定义：
 
@@ -159,7 +145,6 @@ Infrastructure
 这些能力优先复用实际采用的 RPC 框架。只有多个业务项目形成稳定重复需求时，再向 Framework 上提公共抽象。
 
 RPC 不改变 Application 的核心职责：Handler 负责业务用例编排，RPC 只是其中一种基础设施依赖。
-
 
 ## Pipeline Runtime
 
