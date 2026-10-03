@@ -77,14 +77,18 @@ namespace Aspros.Base.Framework.Infrastructure
             {
                 var implementedInterfaces = classType.GetInterfaces();
 
-                // Repository implementations are transient by convention, so repository
-                // contracts no longer need to pull Infrastructure marker interfaces into Domain.
-                if (implementedInterfaces.Any(IsRepositoryInterface))
+                // Repository implementations are transient by convention. Skip marker
+                // registration for repositories so a repository contract is not registered twice.
+                var isRepository = implementedInterfaces.Any(IsRepositoryInterface);
+                if (isRepository)
                 {
                     RegisterRepository(services, classType, implementedInterfaces);
                 }
 
-                RegisterByMarker(services, classType, implementedInterfaces, transientType, ServiceLifetime.Transient);
+                if (!isRepository)
+                {
+                    RegisterByMarker(services, classType, implementedInterfaces, transientType, ServiceLifetime.Transient);
+                }
                 RegisterByMarker(services, classType, implementedInterfaces, scopedType, ServiceLifetime.Scoped);
                 RegisterByMarker(services, classType, implementedInterfaces, singletonType, ServiceLifetime.Singleton);
             }
