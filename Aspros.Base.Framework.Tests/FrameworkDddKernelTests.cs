@@ -58,7 +58,7 @@ public sealed class FrameworkDddKernelTests
     }
 
     [Fact]
-    public async Task AutoInject_registers_domain_event_handlers()
+    public async Task AutoInject_registers_and_dispatches_domain_event_handlers()
     {
         var services = new ServiceCollection();
         services.AddSingleton<HandledEventState>();
@@ -68,8 +68,8 @@ public sealed class FrameworkDddKernelTests
 
         await using var provider = services.BuildServiceProvider();
 
-        var handler = provider.GetRequiredService<IDomainEventHandler<CustomerRegistered>>();
-        await handler.HandleAsync(new CustomerRegistered(Guid.NewGuid()));
+        var dispatcher = provider.GetRequiredService<IDomainEventDispatcher>();
+        await dispatcher.DispatchAsync([new CustomerRegistered(Guid.NewGuid())]);
 
         var state = provider.GetRequiredService<HandledEventState>();
         Assert.Equal(1, state.Count);
@@ -118,31 +118,31 @@ public sealed class FrameworkDddKernelTests
     }
 
     private sealed record CustomerRegistered(Guid CustomerId) : DomainEvent;
+}
 
-    private sealed class HandledEventState
+public sealed class HandledEventState
+{
+    public int Count { get; set; }
+}
+
+public sealed class CustomerRegisteredHandler(HandledEventState state)
+    : IDomainEventHandler<FrameworkDddKernelTests.CustomerRegistered>
+{
+    public Task HandleAsync(
+        FrameworkDddKernelTests.CustomerRegistered domainEvent,
+        CancellationToken cancellationToken = default)
     {
-        public int Count { get; set; }
+        state.Count++;
+        return Task.CompletedTask;
     }
+}
 
-    private sealed class CustomerRegisteredHandler(HandledEventState state)
-        : IDomainEventHandler<CustomerRegistered>
-    {
-        public Task HandleAsync(
-            CustomerRegistered domainEvent,
-            CancellationToken cancellationToken = default)
-        {
-            state.Count++;
-            return Task.CompletedTask;
-        }
-    }
+public sealed record PingCommand(string Value) : ICommand<string>;
 
-    private sealed record PingCommand(string Value) : ICommand<string>;
-
-    private sealed class PingCommandHandler : ICommandHandler<PingCommand, string>
-    {
-        public Task<string> HandleAsync(
-            PingCommand command,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult(command.Value);
-    }
+public sealed class PingCommandHandler : ICommandHandler<PingCommand, string>
+{
+    public Task<string> HandleAsync(
+        PingCommand command,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(command.Value);
 }
