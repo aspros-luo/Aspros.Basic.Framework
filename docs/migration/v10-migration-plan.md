@@ -56,6 +56,12 @@ Infrastructure 继续复用现有技术栈，仅在实际项目中出现明确�
 
 ## Domain Event 与 Outbox
 
+Domain Event 不直接依赖消息队列，也不是所有业务的默认步骤。
+
+普通业务优先使用 `IUnitOfWork.CommitAsync()`；多步骤且要求原子性的业务才使用 `IUnitOfWork.ExecuteInTransactionAsync(...)`。
+
+
+
 Domain Event 不直接依赖消息队列。
 
 推荐链路：
