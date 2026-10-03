@@ -46,6 +46,26 @@ A Query reads data without changing domain state.
 
 A Handler coordinates domain objects, persistence abstractions, and external service abstractions.
 
+## Persistence and Transaction Choice
+
+Not every Command needs an explicit database transaction or a Domain Event.
+
+For simple business:
+
+```text
+Controller
+   ↓
+CommandHandler / Application Service
+   ↓
+EF Core
+   ↓
+IUnitOfWork.CommitAsync()
+   ↓
+Database
+```
+
+For multi-step business that requires all-or-nothing behavior, the handler explicitly uses `IUnitOfWork.ExecuteInTransactionAsync(...)`.
+
 ## Domain Events
 
 Application provides the minimal domain-event handling boundary:
