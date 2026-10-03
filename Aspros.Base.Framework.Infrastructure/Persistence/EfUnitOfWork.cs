@@ -11,7 +11,7 @@ namespace Aspros.Base.Framework.Infrastructure.Persistence;
 /// Framework 不提供具体 DbContext，业务项目负责注册和配置自己的 DbContext。
 /// </summary>
 public sealed class EfUnitOfWork(
-    DbContext dbContext,
+    IDbContext dbContext,
     ICapPublisher? capPublisher = null,
     IDomainEventDispatcher? domainEventDispatcher = null) : IUnitOfWork, IScoped
 {
