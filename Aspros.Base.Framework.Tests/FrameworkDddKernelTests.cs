@@ -2,6 +2,7 @@ using Aspros.Base.Framework.Application.Abstractions;
 using Aspros.Base.Framework.Application.Abstractions.Events;
 using Aspros.Base.Framework.Domain.Kernel;
 using Aspros.Base.Framework.Infrastructure;
+using Aspros.Base.Framework.Infrastructure.Event;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -38,7 +39,7 @@ public sealed class FrameworkDddKernelTests
         var differentType = new OtherCustomer(Guid.Empty);
 
         Assert.Equal(first, second);
-        Assert.NotEqual(first, differentType);
+        Assert.False(first.Equals(differentType));
     }
 
     [Fact]
