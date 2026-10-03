@@ -91,12 +91,15 @@ public sealed class EfUnitOfWork(
 
             await domainEventDispatcher.DispatchAsync(domainEvents, cancellationToken);
 
+            // Persist all changes made by domain event handlers before clearing
+            // the in-memory events. If SaveChanges fails, keeping the events
+            // allows the same DbContext scope to retry without losing events.
+            await dbContext.SaveChangesAsync(cancellationToken);
+
             foreach (var aggregateRoot in aggregateRoots)
             {
                 aggregateRoot.ClearDomainEvents(domainEvents);
             }
-
-            await dbContext.SaveChangesAsync(cancellationToken);
         }
     }
 
