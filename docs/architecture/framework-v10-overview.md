@@ -63,23 +63,11 @@ When `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` is used, Domain E
 
 ## RPC Boundary
 
-Framework v10 keeps RPC as an optional application capability rather than building a new RPC runtime.
+Framework v10 不定义通用 RPC Client 抽象，因为本轮审查的真实消费者目前没有稳定的通用 RPC 需求。
 
-Application depends only on `IRpcClient`; concrete implementations belong to Infrastructure. The framework does not introduce service discovery, registry, load balancing, retry/circuit-breaker, or serialization abstractions. Those capabilities should be provided by the RPC technology actually used by the application.
+出现真实同步跨服务调用时，应在 Application 定义业务专属 Port，在 Infrastructure 使用实际协议实现。新的内部同步服务调用，在双方可以共享 protobuf 契约时，优先考虑 gRPC。
 
-```text
-Application
-    |
-    | IRpcClient
-    v
-Infrastructure
-    |
-    +-- gRPC
-    +-- Dubbo
-    +-- Other RPC implementation
-```
-
-RPC is an infrastructure dependency of an application use case; it does not change the Domain layer or create a second application runtime.
+核心 Framework 不预先引入通用 RPC 注册中心、服务发现、负载均衡、重试或序列化抽象；只有多个消费者形成稳定重复需求后才上提。
 
 ## Persistence Strategy
 
@@ -208,3 +196,7 @@ The real repositories changed the Framework priorities:
 ## 真实消费者基线
 
 当前 API 形态来自 `Xr.User` 与 `Xr.Category` 的真实使用：Repository 查询对象、`RegisterNew/Dirty/Delete`、最终一次 `CommitAsync()`，以及只有业务本身需要时才使用的本地显式事务。`Xr.Identity` 当前没有消费 Framework，因此保持独立。
+
+## gRPC 决策
+
+只有真实的同步跨服务业务契约出现时才使用 gRPC。当前审查的 Xr.User / Xr.Category / Xr.Identity 没有符合条件的业务调用，因此本轮没有添加演示性 gRPC Client。
