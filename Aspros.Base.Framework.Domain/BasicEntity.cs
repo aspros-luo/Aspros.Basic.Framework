@@ -35,4 +35,10 @@ public class BasicEntity : IAuditableEntity
         get => GmtModified;
         set => GmtModified = value;
     }
+
+    bool IAuditableEntity.IsDeleted
+    {
+        get => IsDeleted;
+        set => IsDeleted = value;
+    }
 }
