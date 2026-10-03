@@ -6,7 +6,7 @@ namespace Aspros.Base.Framework.Infrastructure
     /// Legacy in-process event bus。
     /// 事件处理通过当前 DI Scope 解析，不再依赖全局 ServiceLocator。
     /// </summary>
-    public sealed class EventBus(IServiceProvider serviceProvider) : IEventBus
+    public sealed class EventBus(IServiceProvider serviceProvider) : IEventBus, IScoped
     {
         private readonly IServiceProvider _serviceProvider = serviceProvider;
 
