@@ -99,3 +99,7 @@ The lightweight Pipeline is now connected to the existing MediatR runtime.
 - `AutoInject()` explicitly registers discovered open generic Behaviors.
 
 No separate Application Dispatcher or Runtime has been introduced.
+
+## Consumer-driven guidance
+
+当前 Framework 的形态来自真实消费者：普通 Command 使用轻量 Unit of Work 并最终一次 Commit；显式事务只是少数例外。旧版进程内 Event 保留兼容，但跨服务可靠投递使用 Integration Event + Outbox + MQ。
