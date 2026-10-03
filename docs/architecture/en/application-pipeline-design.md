@@ -229,6 +229,30 @@ Only concrete Behaviors required by real application scenarios should be added. 
 
 MediatR requires explicit Behavior registration from 12.1 onward; Framework handles that registration centrally.
 
+## End-to-end validation
+
+Framework-level tests now verify that the existing Application Pipeline is executable through MediatR rather than being only a contract.
+
+The validation covers three compatible handler styles used by real consumers:
+
+- Framework `ICommandHandler<TCommand, TResult>`
+- Framework `IQueryHandler<TQuery, TResult>`
+- direct MediatR `IRequestHandler<TRequest, TResult>`
+
+The same registered open-generic `IPipelineBehavior<TRequest, TResponse>` runs around each handler in the expected order:
+
+```text
+MediatR Send
+    ↓
+Behavior (before)
+    ↓
+Handler
+    ↓
+Behavior (after)
+```
+
+This is intentionally a wiring/runtime verification only. Framework does not force consumers to migrate existing MediatR handlers before they have a reason to do so.
+
 ## Consumer-driven guidance
 
 The current Framework shape is derived from real consumers. Normal commands use a lightweight Unit of Work and one final Commit; explicit transactions are exceptional. Legacy in-process events remain for compatibility, while cross-service reliability uses Integration Event + Outbox + MQ.
