@@ -188,6 +188,41 @@ public sealed class FrameworkDddKernelTests
                 TestContext.Current.CancellationToken));
     }
 
+
+    [Fact]
+    public async Task AutoInject_wires_application_pipeline_for_framework_and_raw_mediatr_handlers()
+    {
+        var services = new ServiceCollection();
+        services.AutoInject(typeof(FrameworkDddKernelTests).Assembly);
+
+        await using var provider = services.BuildServiceProvider();
+        var sender = provider.GetRequiredService<ISender>();
+
+        var commandTrace = new PipelineTrace();
+        var commandResponse = await sender.Send(
+            new PipelineCommand(commandTrace, "command"),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("command", commandResponse);
+        Assert.Equal(["before", "handler", "after"], commandTrace.Events);
+
+        var queryTrace = new PipelineTrace();
+        var queryResponse = await sender.Send(
+            new PipelineQuery(queryTrace, 42),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(42, queryResponse);
+        Assert.Equal(["before", "handler", "after"], queryTrace.Events);
+
+        var rawTrace = new PipelineTrace();
+        var rawResponse = await sender.Send(
+            new RawMediatRPipelineCommand(rawTrace, "raw"),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("raw", rawResponse);
+        Assert.Equal(["before", "handler", "after"], rawTrace.Events);
+    }
+
     [Fact]
     public async Task Explicit_registration_works_without_AutoInject()
     {
@@ -393,6 +428,93 @@ public sealed class ThrowingTransactionEventHandler
         TransactionTestAggregateCreated domainEvent,
         CancellationToken cancellationToken = default)
         => throw new InvalidOperationException("transaction event handler failed");
+}
+
+
+public interface IPipelineTraceRequest
+{
+    PipelineTrace Trace { get; }
+}
+
+public sealed class PipelineTrace
+{
+    public List<string> Events { get; } = [];
+}
+
+public sealed record PipelineCommand(
+    PipelineTrace Trace,
+    string Value)
+    : ICommand<string>, IPipelineTraceRequest;
+
+public sealed class PipelineCommandHandler
+    : ICommandHandler<PipelineCommand, string>
+{
+    public Task<string> HandleAsync(
+        PipelineCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        command.Trace.Events.Add("handler");
+        return Task.FromResult(command.Value);
+    }
+}
+
+public sealed record PipelineQuery(
+    PipelineTrace Trace,
+    int Value)
+    : IQuery<int>, IPipelineTraceRequest;
+
+public sealed class PipelineQueryHandler
+    : IQueryHandler<PipelineQuery, int>
+{
+    public Task<int> HandleAsync(
+        PipelineQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        query.Trace.Events.Add("handler");
+        return Task.FromResult(query.Value);
+    }
+}
+
+public sealed record RawMediatRPipelineCommand(
+    PipelineTrace Trace,
+    string Value)
+    : IRequest<string>, IPipelineTraceRequest;
+
+public sealed class RawMediatRPipelineCommandHandler
+    : IRequestHandler<RawMediatRPipelineCommand, string>
+{
+    public Task<string> Handle(
+        RawMediatRPipelineCommand request,
+        CancellationToken cancellationToken)
+    {
+        request.Trace.Events.Add("handler");
+        return Task.FromResult(request.Value);
+    }
+}
+
+public sealed class TracePipelineBehavior<TRequest, TResponse>
+    : Aspros.Base.Framework.Application.Behaviors.IPipelineBehavior<TRequest, TResponse>
+    where TRequest : notnull
+{
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        if (request is IPipelineTraceRequest traceRequest)
+        {
+            traceRequest.Trace.Events.Add("before");
+        }
+
+        var response = await next();
+
+        if (request is IPipelineTraceRequest afterTraceRequest)
+        {
+            afterTraceRequest.Trace.Events.Add("after");
+        }
+
+        return response;
+    }
 }
 
 public sealed class HandledEventState
