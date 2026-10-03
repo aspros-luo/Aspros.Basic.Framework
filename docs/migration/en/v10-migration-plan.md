@@ -99,3 +99,7 @@ The lightweight Pipeline is now connected to the existing MediatR runtime.
 - `AutoInject()` explicitly registers discovered open generic Behaviors.
 
 No separate Application Dispatcher or Runtime has been introduced.
+
+## Consumer-driven guidance
+
+The current Framework shape is derived from real consumers. Normal commands use a lightweight Unit of Work and one final Commit; explicit transactions are exceptional. Legacy in-process events remain for compatibility, while cross-service reliability uses Integration Event + Outbox + MQ.
