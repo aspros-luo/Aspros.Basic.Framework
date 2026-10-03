@@ -39,7 +39,7 @@ Domain
 
 Transaction is a useful framework abstraction because it represents the consistency boundary of an Application Command.
 
-The framework exposes the minimal boundary through `IUnitOfWork.ExecuteInTransactionAsync(...)` instead of introducing separate `ITransaction` or `ITransactionManager` abstractions.
+The framework exposes normal persistence through `IUnitOfWork` and keeps explicit local transactions in the optional `ITransactionalUnitOfWork` capability.
 
 On success, Infrastructure performs persistence, domain-event dispatch, and the final commit. On failure, the transaction is rolled back.
 
@@ -157,11 +157,13 @@ Framework v10 keeps a lightweight Unit of Work to represent the persistence boun
 
 Current contract:
 
-- `CommitAsync()`: commit current persistence changes;
-- `ExecuteInTransactionAsync(...)`: execute persistence operations inside a database transaction and automatically handle Domain Events, SaveChanges, and Commit on success;
-- Generic transaction overload: allows the transaction operation to return a result.
+- `RegisterNew` / `RegisterRangeNew`: stage inserts;
+- `RegisterDirty` / `RegisterRangeDirty`: stage updates;
+- `RegisterDeleted` / `RegisterRangeDeleted`: stage deletes or soft deletes;
+- `CommitAsync()`: persist staged changes;
+- `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)`: opt in to an explicit local transaction.
 
-Commands that involve Domain Events or Outbox publishing should prefer `ExecuteInTransactionAsync(...)` so domain state, handler-driven database changes, and the CAP Outbox remain within one transaction boundary.
+A command should use `ITransactionalUnitOfWork` only when its local business semantics require atomic multi-step persistence. Domain Events and Integration Events remain optional.
 
 The Unit of Work does not:
 
@@ -226,3 +228,7 @@ Framework `IPipelineBehavior<TRequest, TResponse>` directly extends MediatR's Pi
 Only concrete Behaviors required by real application scenarios should be added. Logging, validation, caching, idempotency, and transaction behaviors are not enabled speculatively.
 
 MediatR requires explicit Behavior registration from 12.1 onward; Framework handles that registration centrally.
+
+## Consumer-driven guidance
+
+The current Framework shape is derived from real consumers. Normal commands use a lightweight Unit of Work and one final Commit; explicit transactions are exceptional. Legacy in-process events remain for compatibility, while cross-service reliability uses Integration Event + Outbox + MQ.
