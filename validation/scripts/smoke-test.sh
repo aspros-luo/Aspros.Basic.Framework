@@ -36,7 +36,7 @@ fail() {
   exit 1
 }
 
-echo "[1/7] Waiting for API startup"
+echo "[1/8] Waiting for API startup"
 ready=0
 for _ in $(seq 1 60); do
   if curl --silent --fail "$BASE_URL/validation/integration-events" >/dev/null; then
@@ -70,12 +70,34 @@ assert payload["confirmed"] is False, payload
 assert payload["auditMessages"] == [], payload
 PY
 
-echo "[4/7] POST /orders/{id}/confirm uses the explicit transaction path"
+echo "[4/8] Create a second order for rollback testing"
+create_rollback_status="$(curl --silent --show-error -o "$TEMP_DIR/create-rollback.json" -w '%{http_code}' \
+  -H 'Content-Type: application/json' \
+  -d '{"productName":"Rollback Coffee"}' "$BASE_URL/orders")"
+[[ "$create_rollback_status" == "201" ]] || fail "Rollback test order expected 201, got $create_rollback_status"
+ROLLBACK_ORDER_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["orderId"])' "$TEMP_DIR/create-rollback.json")"
+[[ -n "$ROLLBACK_ORDER_ID" ]] || fail "Rollback test order returned an empty orderId"
+
+echo "[5/8] Integration event failure rolls back the confirmation transaction"
+curl --silent --show-error --fail -X POST "$BASE_URL/validation/fail-next-integration-event" >/dev/null
+rollback_status="$(curl --silent --show-error -o "$TEMP_DIR/rollback.json" -w '%{http_code}' \
+  -X POST "$BASE_URL/orders/$ROLLBACK_ORDER_ID/confirm")"
+[[ "$rollback_status" == "500" ]] || fail "Failed confirmation expected 500, got $rollback_status"
+rollback_get_status="$(curl --silent --show-error -o "$TEMP_DIR/rollback-order.json" -w '%{http_code}' "$BASE_URL/orders/$ROLLBACK_ORDER_ID")"
+[[ "$rollback_get_status" == "200" ]] || fail "GET after rollback expected 200, got $rollback_get_status"
+python3 - "$TEMP_DIR/rollback-order.json" <<'PY'
+import json, sys
+payload = json.load(open(sys.argv[1]))
+assert payload["confirmed"] is False, payload
+assert payload["auditMessages"] == [], payload
+PY
+
+echo "[6/8] POST /orders/{id}/confirm uses the explicit transaction path"
 confirm_status="$(curl --silent --show-error -o "$TEMP_DIR/confirm.json" -w '%{http_code}' \
   -X POST "$BASE_URL/orders/$ORDER_ID/confirm")"
 [[ "$confirm_status" == "200" ]] || fail "POST /orders/{id}/confirm expected 200, got $confirm_status"
 
-echo "[5/7] GET /orders/{id} shows the domain-event side effect"
+echo "[7/8] GET /orders/{id} shows the domain-event side effect"
 get_confirmed_status="$(curl --silent --show-error -o "$TEMP_DIR/confirmed.json" -w '%{http_code}' "$BASE_URL/orders/$ORDER_ID")"
 [[ "$get_confirmed_status" == "200" ]] || fail "GET confirmed order expected 200, got $get_confirmed_status"
 python3 - "$TEMP_DIR/confirmed.json" "$ORDER_ID" <<'PY'
@@ -87,21 +109,7 @@ assert payload["confirmed"] is True, payload
 assert payload["auditMessages"] == ["Order confirmed: Coffee"], payload
 PY
 
-echo "[6/8] Integration event failure rolls back the confirmation transaction"
-curl --silent --show-error --fail -X POST "$BASE_URL/validation/fail-next-integration-event" >/dev/null
-rollback_status="$(curl --silent --show-error -o "$TEMP_DIR/rollback.json" -w '%{http_code}' \
-  -X POST "$BASE_URL/orders/$ORDER_ID/confirm")"
-[[ "$rollback_status" == "500" ]] || fail "Failed confirmation expected 500, got $rollback_status"
-rollback_get_status="$(curl --silent --show-error -o "$TEMP_DIR/rollback-order.json" -w '%{http_code}' "$BASE_URL/orders/$ORDER_ID")"
-[[ "$rollback_get_status" == "200" ]] || fail "GET after rollback expected 200, got $rollback_get_status"
-python3 - "$TEMP_DIR/rollback-order.json" <<'PY'
-import json, sys
-payload = json.load(open(sys.argv[1]))
-assert payload["confirmed"] is False, payload
-assert payload["auditMessages"] == [], payload
-PY
-
-echo "[7/8] Invalid create requests and unknown order return expected status codes"
+echo "[8/8] Invalid create requests, unknown order, and integration event checks"
 missing_status="$(curl --silent --show-error -o /dev/null -w '%{http_code}' \
   "$BASE_URL/orders/00000000-0000-0000-0000-000000000001")"
 [[ "$missing_status" == "404" ]] || fail "Missing order expected 404, got $missing_status"
@@ -111,7 +119,6 @@ for payload in '{}' '{"productName":""}' '{"productName":"   "}' 'null'; do
   [[ "$status" == "400" ]] || fail "Invalid payload $payload expected 400, got $status"
 done
 
-echo "[8/8] Domain event handler published the integration event"
 curl --silent --show-error --fail "$BASE_URL/validation/integration-events" >"$TEMP_DIR/events.json"
 python3 - "$TEMP_DIR/events.json" <<'PY'
 import json, sys
