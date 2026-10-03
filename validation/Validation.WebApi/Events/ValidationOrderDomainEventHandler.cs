@@ -9,20 +9,20 @@ namespace Validation.WebApi.Events;
 public sealed class ValidationOrderDomainEventHandler(
     AppDbContext db,
     IIntegrationEventPublisher integrationEventPublisher)
-    : IDomainEventHandler<OrderCreatedDomainEvent>, IScoped
+    : IDomainEventHandler<OrderConfirmedDomainEvent>, IScoped
 {
     public async Task HandleAsync(
-        OrderCreatedDomainEvent domainEvent,
+        OrderConfirmedDomainEvent domainEvent,
         CancellationToken cancellationToken = default)
     {
         db.Audits.Add(new ValidationAudit
         {
             OrderId = domainEvent.OrderId,
-            Message = $"Order created: {domainEvent.ProductName}"
+            Message = $"Order confirmed: {domainEvent.ProductName}"
         });
 
         await integrationEventPublisher.PublishAsync(
-            "validation.order.created",
+            "validation.order.confirmed",
             new
             {
                 domainEvent.OrderId,
