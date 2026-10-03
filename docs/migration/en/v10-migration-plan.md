@@ -18,7 +18,7 @@ Already implemented:
 3. A lightweight Unit of Work transaction boundary is available.
 4. Domain Event Handler / Dispatcher is available.
 5. Integration Event Publisher abstraction is available.
-6. Domain Event → Integration Event → CAP Outbox can participate in the same transaction boundary.
+6. Domain Event → Integration Event → CAP Outbox is an explicit consumer transaction-adaptation scenario, not a Framework default.
 
 Future capabilities remain driven by real business problems:
 
@@ -58,7 +58,7 @@ The two event models should not be treated as interchangeable. The legacy event 
 
 Domain Events do not directly depend on a message broker and are not required for every business operation.
 
-Simple business should prefer `IUnitOfWork.CommitAsync()`. Multi-step business that requires all-or-nothing behavior should explicitly use `IUnitOfWork.ExecuteInTransactionAsync(...)`.
+Simple business should prefer `IUnitOfWork.CommitAsync()`. Multi-step business that requires all-or-nothing behavior should explicitly use `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)`.
 
 
 
@@ -80,7 +80,7 @@ CAP Outbox
 Message Broker
 ```
 
-Commands involving Domain Events should use `IUnitOfWork.ExecuteInTransactionAsync(...)` so business data, database changes made by Domain Event Handlers, and CAP Outbox records remain inside the same transaction boundary.
+Commands involving Domain Events should use `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` so business data and database changes made by Domain Event Handlers remain inside the same local transaction. If CAP Outbox records must share that transaction, the consumer Infrastructure supplies the database-provider-specific CAP transaction adapter.
 
 ## Migration Strategy
 
@@ -99,6 +99,14 @@ The lightweight Pipeline is now connected to the existing MediatR runtime.
 - `AutoInject()` explicitly registers discovered open generic Behaviors.
 
 No separate Application Dispatcher or Runtime has been introduced.
+
+## AutoInject Positioning
+
+`AutoInject()` is a convenience DI registration layer, not a DDD capability.
+
+A consumer can use standard Microsoft DI directly: `AddScoped`, `AddSingleton`, `AddTransient`, and `AddMediatR`.
+
+The Framework's Domain and Application contracts must work without AutoInject.
 
 ## Consumer-driven guidance
 
