@@ -112,10 +112,14 @@ public sealed class FrameworkDddKernelTests
 
         var services = new ServiceCollection();
         services.AddSingleton(dbContext);
+        services.AddSingleton<HandledEventState>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         services.AddScoped<
             IDomainEventHandler<TransactionTestAggregateCreated>,
             TransactionTestAggregateCreatedHandler>();
+        services.AddScoped<
+            IDomainEventHandler<TransactionTestAggregateFollowup>,
+            TransactionTestAggregateFollowupHandler>();
 
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -130,9 +134,12 @@ public sealed class FrameworkDddKernelTests
             _ => Task.CompletedTask,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, dbContext.SaveChangesCalls);
+        Assert.Equal(3, dbContext.SaveChangesCalls);
         Assert.Single(
             await dbContext.ProcessedEvents.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(
+            1,
+            scope.ServiceProvider.GetRequiredService<HandledEventState>().Count);
         Assert.Empty(aggregate.GetDomainEvents());
     }
 
@@ -293,11 +300,21 @@ public sealed class TransactionTestAggregate(Guid id)
         AddDomainEvent(new TransactionTestAggregateCreated(Id));
     }
 
+    public void RaiseFollowupEvent()
+    {
+        AddDomainEvent(new TransactionTestAggregateFollowup(Id));
+    }
+
     public IReadOnlyCollection<IDomainEvent> GetDomainEvents()
         => ((IAggregateRoot)this).DomainEvents;
 }
 
 public sealed class TransactionTestAggregateCreated(Guid aggregateId) : DomainEvent
+{
+    public Guid AggregateId { get; } = aggregateId;
+}
+
+public sealed class TransactionTestAggregateFollowup(Guid aggregateId) : DomainEvent
 {
     public Guid AggregateId { get; } = aggregateId;
 }
@@ -348,6 +365,23 @@ public sealed class TransactionTestAggregateCreatedHandler(
             AggregateId = domainEvent.AggregateId
         });
 
+        var aggregate = dbContext.Aggregates.Local
+            .Single(x => x.Id == domainEvent.AggregateId);
+
+        aggregate.RaiseFollowupEvent();
+
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class TransactionTestAggregateFollowupHandler(HandledEventState state)
+    : IDomainEventHandler<TransactionTestAggregateFollowup>
+{
+    public Task HandleAsync(
+        TransactionTestAggregateFollowup domainEvent,
+        CancellationToken cancellationToken = default)
+    {
+        state.Count++;
         return Task.CompletedTask;
     }
 }
