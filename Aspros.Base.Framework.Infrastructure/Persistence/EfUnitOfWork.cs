@@ -123,8 +123,8 @@ public sealed class EfUnitOfWork(
         return true;
     }
 
-    public Task<int> CommitAsync(CancellationToken cancellationToken = default)
-        => dbContext.SaveChangesAsync(cancellationToken);
+    public async Task<bool> CommitAsync(CancellationToken cancellationToken = default)
+        => await dbContext.SaveChangesAsync(cancellationToken) > 0;
 
     public async Task ExecuteInTransactionAsync(
         Func<CancellationToken, Task> operation,
