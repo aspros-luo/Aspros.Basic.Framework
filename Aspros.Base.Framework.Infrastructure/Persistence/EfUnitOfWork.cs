@@ -151,6 +151,28 @@ public sealed class EfUnitOfWork(
         }
     }
 
+    public async Task<TResult> ExecuteInTransactionAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> action,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        await using var transaction = await BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            var result = await action(cancellationToken);
+            await SaveChangesAndDispatchDomainEventsAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return result;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
     private async Task<bool> RegisterNewInternalAsync<TEntity>(TEntity entity) where TEntity : class
     {
         ArgumentNullException.ThrowIfNull(entity);
