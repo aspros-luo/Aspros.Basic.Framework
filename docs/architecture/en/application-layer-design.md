@@ -66,6 +66,8 @@ Database
 
 For multi-step business that requires all-or-nothing behavior, the handler explicitly uses `IUnitOfWork.ExecuteInTransactionAsync(...)`.
 
+An explicit transaction scope must be the outermost scope for the current `DbContext`. The Framework intentionally does not emulate nested database transactions: calling `ExecuteInTransactionAsync(...)` while the same `DbContext` already has an active transaction fails immediately with a clear configuration error. Compose the inner work inside the existing transaction instead.
+
 ## Domain Events
 
 Application provides the minimal domain-event handling boundary:
