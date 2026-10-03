@@ -56,8 +56,8 @@ Domain Event and Integration Event are deliberately different concepts:
 - **Integration Event**: cross-process or cross-service communication. When delivery must survive process failure, use the CAP / Outbox / MQ path.
 - A Domain Event Handler may publish an Integration Event when the business boundary requires it.
 - CommitAsync only performs the direct EF Core persistence commit and does not automatically dispatch Domain Events.
-- ExecuteInTransactionAsync(...) is an explicit business choice for multi-step operations that require all-or-nothing behavior; it is not required for every command.
-- When persistence changes, Domain Event handling, and reliable Integration Event publication must share one transaction boundary, use ExecuteInTransactionAsync(...).
+- `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` 是多步骤业务确实需要全部成功或全部失败时的显式选择，并不是每个 Command 的默认步骤。
+- 当持久化变更、Domain Event 处理以及可靠 Integration Event 发布必须处于同一事务边界时，才使用 `ITransactionalUnitOfWork`。
 
 When `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the local Unit of Work transaction. With CAP transaction integration enabled, the business data and Outbox record are committed together. CAP documents EF Core transaction integration through `ICapPublisher`.
 
@@ -155,17 +155,19 @@ The framework intentionally does not introduce a generic “data access” abstr
 
 ## Transaction Choice
 
-The Unit of Work does not mean every business operation must start an explicit database transaction. Simple single-table or single-save business should use `IUnitOfWork.CommitAsync()` directly. Multi-step business that requires all-or-nothing behavior should depend on `ITransactionalUnitOfWork` and explicitly call `ExecuteInTransactionAsync(...)`.
+Unit of Work 不意味着每个业务操作都必须启动显式数据库事务。简单的单表或单次保存业务直接使用 `IUnitOfWork` 并最终调用一次 `CommitAsync()`；只有要求多步骤全部成功或全部失败的业务才显式依赖 `ITransactionalUnitOfWork`。
 
 The business layer chooses the path. Domain Events are also optional and should only be introduced when a meaningful domain fact requires additional reactions.
 
-An explicit `ExecuteInTransactionAsync(...)` scope owns the transaction for the current `DbContext`. Nested calls are intentionally rejected rather than pretending to provide nested database transactions; inner application operations should participate in the outer transaction.
+显式的 `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` 事务范围负责当前 `DbContext` 的事务。 Nested calls are intentionally rejected rather than pretending to provide nested database transactions; inner application operations should participate in the outer transaction.
 
 
 
-The lightweight Unit of Work is the application persistence boundary.
+轻量 Unit of Work 是应用层持久化边界。
 
-For transactional commands:
+普通 Command 使用 `IUnitOfWork`，通过 `Register*` 登记变更，最后调用一次 `CommitAsync()`。只有确实需要本地多步原子性的流程才依赖 `ITransactionalUnitOfWork`。
+
+对于显式事务 Command：
 
 ```text
 Command
@@ -202,3 +204,7 @@ The real repositories changed the Framework priorities:
 4. WorkContext is a request-context abstraction, not a JWT parser or Redis cache.
 5. Permission checking is a business-side policy plugged into generic Framework middleware.
 6. The Framework package should not provide unrelated transitive dependencies merely because one service happens to use them.
+
+## 真实消费者基线
+
+当前 API 形态来自 `Xr.User` 与 `Xr.Category` 的真实使用：Repository 查询对象、`RegisterNew/Dirty/Delete`、最终一次 `CommitAsync()`，以及只有业务本身需要时才使用的本地显式事务。`Xr.Identity` 当前没有消费 Framework，因此保持独立。
