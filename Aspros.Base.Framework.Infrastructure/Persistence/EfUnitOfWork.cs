@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Aspros.Base.Framework.Infrastructure.Persistence;
 
+using ApplicationWorkContext = Aspros.Base.Framework.Application.Abstractions.IWorkContext;
 using KernelAggregateRoot = Aspros.Base.Framework.Domain.Kernel.IAggregateRoot;
 
 /// <summary>
@@ -16,7 +17,7 @@ using KernelAggregateRoot = Aspros.Base.Framework.Domain.Kernel.IAggregateRoot;
 /// </summary>
 public sealed class EfUnitOfWork(
     IDbContext dbContext,
-    IWorkContext workContext,
+    ApplicationWorkContext workContext,
     IDomainEventDispatcher? domainEventDispatcher = null)
     : ITransactionalUnitOfWork, IScoped
 {
