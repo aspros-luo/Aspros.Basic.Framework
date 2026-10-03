@@ -10,5 +10,10 @@ public interface IUnitOfWork
     Task<bool> RegisterRangeDeleted<TEntity>(
         IEnumerable<TEntity> entities,
         bool isDel = false) where TEntity : class;
-    Task<int> CommitAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Persist the changes currently tracked by the unit of work.
+    /// Returns whether EF Core reported at least one affected row.
+    /// </summary>
+    Task<bool> CommitAsync(CancellationToken cancellationToken = default);
 }
