@@ -159,6 +159,8 @@ The Unit of Work does not mean every business operation must start an explicit d
 
 The business layer chooses the path. Domain Events are also optional and should only be introduced when a meaningful domain fact requires additional reactions.
 
+An explicit `ExecuteInTransactionAsync(...)` scope owns the transaction for the current `DbContext`. Nested calls are intentionally rejected rather than pretending to provide nested database transactions; inner application operations should participate in the outer transaction.
+
 
 
 The lightweight Unit of Work is the application persistence boundary.
