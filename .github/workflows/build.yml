@@ -2,8 +2,8 @@ name: Build
 
 on:
   workflow_dispatch:
-  push:
   pull_request:
+    types: [opened, reopened]
 
 concurrency:
   group: framework-build-${{ github.ref }}
