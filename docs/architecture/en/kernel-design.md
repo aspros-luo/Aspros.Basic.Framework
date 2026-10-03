@@ -48,6 +48,35 @@ Result / Result<T> expresses expected business outcomes without using exceptions
 
 It does not contain HTTP status-code or API-response semantics.
 
+## Legacy persistence entities
+
+The Framework also keeps two historical persistence base classes:
+
+- `BaseEntity`: legacy audit field naming using `Creator/CreateTime/Updater/UpdateTime/Deleted`;
+- `BasicEntity`: newer audit field naming using `Creator/GmtCreated/Modifier/GmtModified/IsDeleted` and Framework lifecycle `EntityStatus`.
+
+Both expose the same semantic audit contract through `IAuditableEntity`, which is what Infrastructure Unit of Work uses for audit stamping.
+
+These types are compatibility/persistence models, not replacements for the Kernel `Entity<TId>` abstraction.
+
+Real consumers currently use both forms, so v10 keeps them side by side.
+
+```text
+Legacy consumer aggregate
+        ↓
+BaseEntity / BasicEntity
+        ↓
+IAuditableEntity
+        ↓
+Infrastructure persistence
+
+New DDD aggregate
+        ↓
+Kernel.Entity<TId> / AggregateRoot<TId>
+```
+
+Do not merge these classes merely to reduce the number of base types. A future consolidation should be driven by a demonstrated migration benefit.
+
 ## Current Boundary
 
 The Kernel currently contains only:
