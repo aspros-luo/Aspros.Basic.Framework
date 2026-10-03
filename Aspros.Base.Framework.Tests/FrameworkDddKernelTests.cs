@@ -116,7 +116,8 @@ public sealed class FrameworkDddKernelTests
             TransactionTestAggregateCreatedHandler>();
 
         await using var provider = services.BuildServiceProvider();
-        var dispatcher = provider.GetRequiredService<IDomainEventDispatcher>();
+        await using var scope = provider.CreateAsyncScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IDomainEventDispatcher>();
         var unitOfWork = new EfUnitOfWork(dbContext, new NoopWorkContext(), dispatcher);
 
         var aggregate = new TransactionTestAggregate(Guid.NewGuid());
@@ -298,7 +299,10 @@ public sealed class TransactionTestAggregate(Guid id)
         => ((IAggregateRoot)this).DomainEvents;
 }
 
-public sealed record TransactionTestAggregateCreated(Guid AggregateId) : DomainEvent;
+public sealed class TransactionTestAggregateCreated(Guid aggregateId) : DomainEvent
+{
+    public Guid AggregateId { get; } = aggregateId;
+}
 
 public sealed class ProcessedDomainEvent
 {
