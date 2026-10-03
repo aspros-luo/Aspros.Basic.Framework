@@ -18,7 +18,7 @@
 3. 建立轻量 Unit of Work 事务边界。
 4. 建立 Domain Event Handler / Dispatcher。
 5. 建立 Integration Event Publisher 抽象。
-6. 将 Domain Event → Integration Event → CAP Outbox 接入同一事务边界。
+6. 将 Domain Event → Integration Event → CAP Outbox 作为显式消费者事务适配场景，而不是 Framework 默认行为。
 
 后续仍按真实业务问题驱动：
 
@@ -80,7 +80,7 @@ CAP Outbox
 Message Broker
 ```
 
-涉及 Domain Event 的 Command 应使用 `IUnitOfWork.ExecuteInTransactionAsync(...)`，确保业务数据、领域事件 Handler 产生的数据库变更以及 CAP Outbox 记录位于同一个事务边界。
+涉及 Domain Event 的 Command 应使用 `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)`，确保业务数据与 Domain Event Handler 产生的数据库变更位于同一个本地事务。若同时要求 CAP Outbox 记录加入该事务，由消费者 Infrastructure 提供数据库 Provider-specific CAP transaction adapter。
 
 ## Migration Strategy
 
@@ -99,6 +99,10 @@ The lightweight Pipeline is now connected to the existing MediatR runtime.
 - `AutoInject()` explicitly registers discovered open generic Behaviors.
 
 No separate Application Dispatcher or Runtime has been introduced.
+
+## AutoInject 定位
+
+`AutoInject()` 只是 DI 注册便利层，不是 DDD 能力的一部分。业务项目可以完全不用它，直接使用标准 DI：`AddScoped`、`AddSingleton`、`AddTransient`、`AddMediatR`。Framework 的 Domain / Application 契约不得依赖 AutoInject 才成立。
 
 ## Consumer-driven guidance
 
