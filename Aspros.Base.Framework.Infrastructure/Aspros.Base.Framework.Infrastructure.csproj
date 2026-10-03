@@ -7,7 +7,9 @@
     <Version>1.2.1</Version>
   </PropertyGroup>
 
-  <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="BouncyCastle.NetCore" Version="2.2.1" />
