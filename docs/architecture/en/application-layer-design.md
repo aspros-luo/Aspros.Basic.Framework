@@ -126,38 +126,11 @@ The framework does not introduce a complete Application Runtime, validation fram
 
 ## RPC Boundary
 
-Framework v10 keeps RPC support but defines only the minimal calling contract in Application:
+Framework v10 does not define a generic RPC client abstraction because the reviewed real consumers do not currently use one.
 
-`IRpcClient`
+When a real synchronous cross-service call appears, prefer a business-specific Application port and implement it in Infrastructure with the actual protocol. For a new internal service-to-service call, gRPC is a suitable default when both sides can share a protobuf contract.
 
-Application expresses remote-service calls through this contract without depending directly on gRPC, Dubbo, or another concrete RPC framework.
-
-Concrete implementations live in Infrastructure:
-
-```text
-Application
-    |
-    | IRpcClient
-    v
-Infrastructure
-    |
-    +-- gRPC
-    +-- Dubbo
-    +-- other RPC implementations
-```
-
-The framework intentionally does not define:
-
-- RPC registry abstraction
-- service discovery abstraction
-- load-balancing abstraction
-- RPC retry/circuit-breaker framework
-- serialization protocol abstraction
-
-These capabilities should be reused from the actual RPC technology in use. Common abstractions should be promoted into the framework only after multiple projects develop a stable repeated need.
-
-RPC does not change the core Application responsibility: the Handler orchestrates the use case, while RPC is only one possible infrastructure dependency.
-
+The core Framework does not introduce generic RPC registry, discovery, load-balancing, retry, or serialization abstractions until multiple consumers demonstrate a stable repeated need.
 
 ## Pipeline Runtime
 
@@ -166,3 +139,7 @@ The Application Pipeline is backed by the existing MediatR runtime rather than a
 `ICommand`, `IQuery`, `ICommandHandler`, `IQueryHandler`, and `IPipelineBehavior` are directly compatible with MediatR. Business handlers may keep the Framework-level `HandleAsync(...)` method; default interface implementations adapt it to MediatR.
 
 Framework `AutoInject()` explicitly registers discovered open generic Pipeline Behaviors because MediatR 12.1+ no longer scans Behaviors automatically.
+
+## gRPC decision
+
+Use gRPC only for a real synchronous cross-service business contract. The reviewed Xr.User/Xr.Category/Xr.Identity repositories currently have no such business call, so no speculative gRPC client was added.
