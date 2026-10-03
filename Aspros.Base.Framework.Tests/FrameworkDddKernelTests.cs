@@ -117,7 +117,7 @@ public sealed class FrameworkDddKernelTests
         }
     }
 
-    private sealed record CustomerRegistered(Guid CustomerId) : DomainEvent;
+    public sealed record CustomerRegistered(Guid CustomerId) : DomainEvent;
 }
 
 public sealed class HandledEventState
