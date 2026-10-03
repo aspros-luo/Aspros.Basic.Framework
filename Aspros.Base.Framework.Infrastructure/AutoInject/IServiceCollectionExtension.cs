@@ -97,10 +97,17 @@ namespace Aspros.Base.Framework.Infrastructure
 
                 foreach (var eventHandlerInterface in implementedInterfaces.Where(IsLegacyEventHandlerInterface).Distinct())
                 {
-                    services.Add(new ServiceDescriptor(
-                        eventHandlerInterface,
-                        classType,
-                        ServiceLifetime.Transient));
+                    var alreadyRegistered = services.Any(descriptor =>
+                        descriptor.ServiceType == eventHandlerInterface &&
+                        descriptor.ImplementationType == classType);
+
+                    if (!alreadyRegistered)
+                    {
+                        services.Add(new ServiceDescriptor(
+                            eventHandlerInterface,
+                            classType,
+                            ServiceLifetime.Transient));
+                    }
                 }
 
                 // Repository implementations are transient by convention. Skip marker
