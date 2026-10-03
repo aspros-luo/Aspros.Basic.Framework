@@ -18,7 +18,7 @@ The script starts the API on `127.0.0.1:5087`, uses a temporary working director
 | --- | --- |
 | Create an order with `productName=Coffee` | `201 Created` with an order ID; no Domain Event is raised |
 | Retrieve the created order | `200 OK`, correct product name, `confirmed=false`, no audit |
-| Confirm the created order | `200 OK`; explicit transaction path is used |
+| Confirm the created order | `200 OK`; explicit transaction path is used |\n| Fail Integration Event during confirmation | `500`; order remains unconfirmed and audit remains empty (transaction rollback) |
 | Retrieve the confirmed order | `200 OK`, `confirmed=true`, audit contains `Order confirmed: Coffee` |
 | Retrieve an unknown order ID | `404 Not Found` |
 | Omit `productName`, send an empty/whitespace value, or send JSON `null` | `400 Bad Request` |
@@ -30,7 +30,7 @@ The script starts the API on `127.0.0.1:5087`, uses a temporary working director
 - The consumer can use `ICommand<TResult>`, `IQuery<TResult>`, and their handler contracts.
 - Simple order creation uses `IUnitOfWork.CommitAsync()` without an explicit application transaction or Domain Event.
 - Order confirmation explicitly uses `IUnitOfWork.ExecuteInTransactionAsync()`.
-- The confirmation Domain Event is handled inside that transaction and writes an audit record.
+- The confirmation Domain Event is handled inside that transaction and writes an audit record.\n- A failure from the Integration Event publisher rolls back the order change and audit change.
 - The domain-event handler depends on `IIntegrationEventPublisher`, not a broker-specific API.
 - The API distinguishes missing resources and invalid create requests.
 
