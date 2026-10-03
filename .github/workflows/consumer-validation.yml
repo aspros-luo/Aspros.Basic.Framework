@@ -1,0 +1,63 @@
+name: Consumer Validation
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+jobs:
+  consumer-validation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Framework
+        uses: actions/checkout@v4
+        with:
+          path: framework
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Pack Framework
+        working-directory: framework
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/nuget
+
+          dotnet restore Aspros.Base.Framework.sln
+
+          dotnet pack Aspros.Base.Framework.Domain/Aspros.Base.Framework.Domain.csproj             --configuration Release             --no-restore             --output .artifacts/nuget
+
+          dotnet pack Aspros.Base.Framework.Application/Aspros.Base.Framework.Application.csproj             --configuration Release             --no-restore             --output .artifacts/nuget
+
+          dotnet pack Aspros.Base.Framework.Infrastructure/Aspros.Base.Framework.Infrastructure.csproj             --configuration Release             --no-restore             --output .artifacts/nuget
+
+      - name: Checkout Xr.User validation branch
+        uses: actions/checkout@v4
+        with:
+          repository: aspros-luo/Xr.User
+          ref: feature/framework-v10-migration
+          path: xr-user
+
+      - name: Checkout Xr.Category validation branch
+        uses: actions/checkout@v4
+        with:
+          repository: aspros-luo/Xr.Category
+          ref: feature/framework-v10-migration
+          path: xr-category
+
+      - name: Validate Xr.User
+        working-directory: xr-user
+        run: |
+          set -euo pipefail
+          dotnet restore Xr.User.sln             --source ../framework/.artifacts/nuget             --source https://api.nuget.org/v3/index.json             --no-cache
+          dotnet build Xr.User.sln             --configuration Release             --no-restore
+
+      - name: Validate Xr.Category
+        working-directory: xr-category
+        run: |
+          set -euo pipefail
+          dotnet restore Aspros.SaaS.System.sln             --source ../framework/.artifacts/nuget             --source https://api.nuget.org/v3/index.json             --no-cache
+          dotnet build Aspros.SaaS.System.sln             --configuration Release             --no-restore
