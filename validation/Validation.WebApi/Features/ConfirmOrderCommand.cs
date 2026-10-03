@@ -10,7 +10,7 @@ public sealed record ConfirmOrderCommand(Guid OrderId) : ICommand<bool>;
 
 public sealed class ConfirmOrderCommandHandler(
     AppDbContext db,
-    IUnitOfWork unitOfWork) : ICommandHandler<ConfirmOrderCommand, bool>
+    ITransactionalUnitOfWork unitOfWork) : ICommandHandler<ConfirmOrderCommand, bool>
 {
     public Task<bool> HandleAsync(
         ConfirmOrderCommand command,
