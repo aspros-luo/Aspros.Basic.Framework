@@ -63,23 +63,11 @@ When `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` is used, Domain E
 
 ## RPC Boundary
 
-Framework v10 keeps RPC as an optional application capability rather than building a new RPC runtime.
+Framework v10 does not define a generic RPC client abstraction because the reviewed real consumers do not currently use one.
 
-Application depends only on `IRpcClient`; concrete implementations belong to Infrastructure. The framework does not introduce service discovery, registry, load balancing, retry/circuit-breaker, or serialization abstractions. Those capabilities should be provided by the RPC technology actually used by the application.
+When a real synchronous cross-service call appears, prefer a business-specific Application port and implement it in Infrastructure with the actual protocol. For a new internal service-to-service call, gRPC is a suitable default when both sides can share a protobuf contract.
 
-```text
-Application
-    |
-    | IRpcClient
-    v
-Infrastructure
-    |
-    +-- gRPC
-    +-- Dubbo
-    +-- Other RPC implementation
-```
-
-RPC is an infrastructure dependency of an application use case; it does not change the Domain layer or create a second application runtime.
+The core Framework does not introduce generic RPC registry, discovery, load-balancing, retry, or serialization abstractions until multiple consumers demonstrate a stable repeated need.
 
 ## Persistence Strategy
 
@@ -208,3 +196,7 @@ The real repositories changed the Framework priorities:
 ## Real consumer baseline
 
 The current API shape is grounded in `Xr.User` and `Xr.Category`: repository query objects, `RegisterNew/Dirty/Delete`, one final `CommitAsync()`, and explicit local transactions only where the business already requires atomicity. `Xr.Identity` remains independent because its current implementation does not consume this Framework.
+
+## gRPC decision
+
+Use gRPC only for a real synchronous cross-service business contract. The reviewed Xr.User/Xr.Category/Xr.Identity repositories currently have no such business call, so no speculative gRPC client was added.
