@@ -7,6 +7,7 @@ using Aspros.Base.Framework.Infrastructure;
 using Aspros.Base.Framework.Infrastructure.Event;
 using Aspros.Base.Framework.Infrastructure.Persistence;
 using MediatR;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -91,6 +92,89 @@ public sealed class FrameworkDddKernelTests
         Assert.True(result);
         Assert.Equal(1, dbContext.SaveChangesCalls);
         Assert.Equal(0, dispatcher.DispatchCalls);
+    }
+
+
+    [Fact]
+    public async Task Explicit_transaction_dispatches_events_and_persists_handler_changes()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        var options = new DbContextOptionsBuilder<TransactionalTestDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var dbContext = new TransactionalTestDbContext(options);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(dbContext);
+        services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+        services.AddScoped<
+            IDomainEventHandler<TransactionTestAggregateCreated>,
+            TransactionTestAggregateCreatedHandler>();
+
+        await using var provider = services.BuildServiceProvider();
+        var dispatcher = provider.GetRequiredService<IDomainEventDispatcher>();
+        var unitOfWork = new EfUnitOfWork(dbContext, new NoopWorkContext(), dispatcher);
+
+        var aggregate = new TransactionTestAggregate(Guid.NewGuid());
+        aggregate.RaiseCreatedEvent();
+
+        await unitOfWork.RegisterNew(aggregate);
+        await unitOfWork.ExecuteInTransactionAsync(
+            _ => Task.CompletedTask,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, dbContext.SaveChangesCalls);
+        Assert.Single(
+            await dbContext.ProcessedEvents.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(aggregate.GetDomainEvents());
+    }
+
+    [Fact]
+    public async Task Domain_event_handler_failure_rolls_back_the_explicit_transaction()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        var options = new DbContextOptionsBuilder<TransactionalTestDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var dbContext = new TransactionalTestDbContext(options);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(dbContext);
+        services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+        services.AddScoped<
+            IDomainEventHandler<TransactionTestAggregateCreated>,
+            ThrowingTransactionEventHandler>();
+
+        await using var provider = services.BuildServiceProvider();
+        var dispatcher = provider.GetRequiredService<IDomainEventDispatcher>();
+        var unitOfWork = new EfUnitOfWork(dbContext, new NoopWorkContext(), dispatcher);
+
+        var aggregate = new TransactionTestAggregate(Guid.NewGuid());
+        aggregate.RaiseCreatedEvent();
+
+        await unitOfWork.RegisterNew(aggregate);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => unitOfWork.ExecuteInTransactionAsync(
+                _ => Task.CompletedTask,
+                TestContext.Current.CancellationToken));
+
+        await using var verificationContext = new TransactionalTestDbContext(options);
+
+        Assert.Empty(
+            await verificationContext.Aggregates.ToListAsync(
+                TestContext.Current.CancellationToken));
+        Assert.Empty(
+            await verificationContext.ProcessedEvents.ToListAsync(
+                TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -199,6 +283,80 @@ public sealed class FrameworkDddKernelTests
 
         public Guid CustomerId { get; }
     }
+}
+
+
+public sealed class TransactionTestAggregate(Guid id)
+    : AggregateRoot<Guid>(id)
+{
+    public void RaiseCreatedEvent()
+    {
+        AddDomainEvent(new TransactionTestAggregateCreated(Id));
+    }
+
+    public IReadOnlyCollection<IDomainEvent> GetDomainEvents()
+        => ((IAggregateRoot)this).DomainEvents;
+}
+
+public sealed record TransactionTestAggregateCreated(Guid AggregateId) : DomainEvent;
+
+public sealed class ProcessedDomainEvent
+{
+    public int Id { get; set; }
+    public Guid AggregateId { get; set; }
+}
+
+public sealed class TransactionalTestDbContext(
+    DbContextOptions<TransactionalTestDbContext> options)
+    : DbContext(options), IDbContext
+{
+    public DbSet<TransactionTestAggregate> Aggregates => Set<TransactionTestAggregate>();
+
+    public DbSet<ProcessedDomainEvent> ProcessedEvents => Set<ProcessedDomainEvent>();
+
+    public int SaveChangesCalls { get; private set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TransactionTestAggregate>()
+            .HasKey(x => x.Id);
+
+        modelBuilder.Entity<ProcessedDomainEvent>()
+            .HasKey(x => x.Id);
+    }
+
+    public override async Task<int> SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        SaveChangesCalls++;
+        return await base.SaveChangesAsync(cancellationToken);
+    }
+}
+
+public sealed class TransactionTestAggregateCreatedHandler(
+    TransactionalTestDbContext dbContext)
+    : IDomainEventHandler<TransactionTestAggregateCreated>
+{
+    public Task HandleAsync(
+        TransactionTestAggregateCreated domainEvent,
+        CancellationToken cancellationToken = default)
+    {
+        dbContext.ProcessedEvents.Add(new ProcessedDomainEvent
+        {
+            AggregateId = domainEvent.AggregateId
+        });
+
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class ThrowingTransactionEventHandler
+    : IDomainEventHandler<TransactionTestAggregateCreated>
+{
+    public Task HandleAsync(
+        TransactionTestAggregateCreated domainEvent,
+        CancellationToken cancellationToken = default)
+        => throw new InvalidOperationException("transaction event handler failed");
 }
 
 public sealed class HandledEventState
