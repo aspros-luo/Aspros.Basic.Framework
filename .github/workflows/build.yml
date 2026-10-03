@@ -2,6 +2,8 @@ name: Build
 
 on:
   workflow_dispatch:
+  push:
+  pull_request:
 
 jobs:
   build:
@@ -21,3 +23,6 @@ jobs:
 
       - name: Build
         run: dotnet build Aspros.Base.Framework.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Aspros.Base.Framework.sln --configuration Release --no-build

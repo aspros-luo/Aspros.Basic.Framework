@@ -1,3 +1,4 @@
+using Aspros.Base.Framework.Application.Abstractions.Events;
 using Aspros.Base.Framework.Domain;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,9 +69,6 @@ namespace Aspros.Base.Framework.Infrastructure
             }
             else
             {
-                // An application may have already registered MediatR for its own assembly.
-                // Complete the registration for handlers discovered in other loaded assemblies
-                // without registering the same descriptor twice.
                 foreach (var classType in classTypes)
                 {
                     foreach (var serviceInterface in classType.GetInterfaces().Where(IsMediatRHandlerInterface))
@@ -103,23 +101,26 @@ namespace Aspros.Base.Framework.Infrastructure
             {
                 var implementedInterfaces = classType.GetInterfaces();
 
-                foreach (var eventHandlerInterface in implementedInterfaces.Where(IsLegacyEventHandlerInterface).Distinct())
+                foreach (var domainEventHandlerInterface in implementedInterfaces
+                    .Where(IsDomainEventHandlerInterface)
+                    .Distinct())
                 {
-                    var alreadyRegistered = services.Any(descriptor =>
-                        descriptor.ServiceType == eventHandlerInterface &&
-                        descriptor.ImplementationType == classType);
-
-                    if (!alreadyRegistered)
-                    {
-                        services.Add(new ServiceDescriptor(
-                            eventHandlerInterface,
-                            classType,
-                            ServiceLifetime.Transient));
-                    }
+                    RegisterTransientIfMissing(
+                        services,
+                        domainEventHandlerInterface,
+                        classType);
                 }
 
-                // Repository implementations are transient by convention. Skip marker
-                // registration for repositories so a repository contract is not registered twice.
+                foreach (var legacyEventHandlerInterface in implementedInterfaces
+                    .Where(IsLegacyEventHandlerInterface)
+                    .Distinct())
+                {
+                    RegisterTransientIfMissing(
+                        services,
+                        legacyEventHandlerInterface,
+                        classType);
+                }
+
                 var isRepository = implementedInterfaces.Any(IsRepositoryInterface);
                 if (isRepository)
                 {
@@ -130,6 +131,7 @@ namespace Aspros.Base.Framework.Infrastructure
                 {
                     RegisterByMarker(services, classType, implementedInterfaces, transientType, ServiceLifetime.Transient);
                 }
+
                 RegisterByMarker(services, classType, implementedInterfaces, scopedType, ServiceLifetime.Scoped);
                 RegisterByMarker(services, classType, implementedInterfaces, singletonType, ServiceLifetime.Singleton);
             }
@@ -149,13 +151,16 @@ namespace Aspros.Base.Framework.Infrastructure
                    genericType == typeof(IStreamRequestHandler<,>);
         }
 
-        private static bool IsRepositoryInterface(Type interfaceType)
-            => interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IRepository<>);
+        private static bool IsDomainEventHandlerInterface(Type interfaceType)
+            => interfaceType.IsGenericType &&
+               interfaceType.GetGenericTypeDefinition() == typeof(IDomainEventHandler<>);
 
         private static bool IsLegacyEventHandlerInterface(Type interfaceType)
             => interfaceType.IsGenericType &&
-               interfaceType.GetGenericTypeDefinition() ==
-               typeof(Aspros.Base.Framework.Application.Abstractions.Events.IEventHandler<>);
+               interfaceType.GetGenericTypeDefinition() == typeof(IEventHandler<>);
+
+        private static bool IsRepositoryInterface(Type interfaceType)
+            => interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IRepository<>);
 
         private static void RegisterRepository(
             IServiceCollection services,
@@ -208,6 +213,21 @@ namespace Aspros.Base.Framework.Infrastructure
             foreach (var serviceInterface in serviceInterfaces)
             {
                 services.Add(new ServiceDescriptor(serviceInterface, implementationType, lifetime));
+            }
+        }
+
+        private static void RegisterTransientIfMissing(
+            IServiceCollection services,
+            Type serviceInterface,
+            Type implementationType)
+        {
+            var alreadyRegistered = services.Any(descriptor =>
+                descriptor.ServiceType == serviceInterface &&
+                descriptor.ImplementationType == implementationType);
+
+            if (!alreadyRegistered)
+            {
+                services.AddTransient(serviceInterface, implementationType);
             }
         }
 
