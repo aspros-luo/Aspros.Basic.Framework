@@ -59,7 +59,7 @@ Domain Event and Integration Event are deliberately different concepts:
 - ExecuteInTransactionAsync(...) is an explicit business choice for multi-step operations that require all-or-nothing behavior; it is not required for every command.
 - When persistence changes, Domain Event handling, and reliable Integration Event publication must share one transaction boundary, use ExecuteInTransactionAsync(...).
 
-When `ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the Unit of Work transaction. With CAP transaction integration enabled, the business data and Outbox record are committed together. CAP documents EF Core transaction integration through `ICapPublisher`.
+When `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the local Unit of Work transaction. With CAP transaction integration enabled, the business data and Outbox record are committed together. CAP documents EF Core transaction integration through `ICapPublisher`.
 
 ## RPC Boundary
 
@@ -99,7 +99,7 @@ Typical use cases:
 
 ### Dapper
 
-Dapper is available in Infrastructure as the lightweight SQL path when EF Core is not the right tool.
+Dapper is an optional direct dependency of a consuming service when EF Core is not the right tool.
 
 Typical use cases:
 
@@ -113,7 +113,7 @@ Dapper does not replace EF Core and is not exposed from the Domain layer.
 
 ### ClickHouse
 
-The official ClickHouse .NET driver is available in Infrastructure for analytical workloads.
+The official ClickHouse .NET driver is an optional direct dependency for analytical workloads.
 
 Typical use cases:
 
@@ -151,11 +151,11 @@ Application
     +--> analytics/profile --> ClickHouse Driver --> ClickHouse
 ```
 
-The framework intentionally does not introduce a generic “data access” abstraction that hides all three technologies. The concrete choice belongs to the infrastructure implementation required by the application.
+The framework intentionally does not introduce a generic “data access” abstraction that hides these technologies. A consuming service declares Dapper or ClickHouse directly when it needs them.
 
 ## Transaction Choice
 
-The Unit of Work does not mean every business operation must start an explicit database transaction. Simple single-table or single-save business should use `CommitAsync()` directly. Multi-step business that requires all-or-nothing behavior should explicitly use `ExecuteInTransactionAsync(...)`.
+The Unit of Work does not mean every business operation must start an explicit database transaction. Simple single-table or single-save business should use `IUnitOfWork.CommitAsync()` directly. Multi-step business that requires all-or-nothing behavior should depend on `ITransactionalUnitOfWork` and explicitly call `ExecuteInTransactionAsync(...)`.
 
 The business layer chooses the path. Domain Events are also optional and should only be introduced when a meaningful domain fact requires additional reactions.
 
@@ -190,3 +190,15 @@ EF Core supports multiple SaveChanges calls inside an explicit transaction, whic
 ## Migration Principle
 
 Existing capabilities are preserved first. Refactoring happens through incremental migration rather than a destructive rewrite.
+
+
+## Consumer-driven conclusions
+
+The real repositories changed the Framework priorities:
+
+1. EF Core persistence and repository queries are common enough to remain first-class.
+2. Explicit local transactions exist, but only for a small subset of workflows.
+3. In-process events are a compatibility requirement; reliable cross-service events belong to CAP/Outbox/MQ.
+4. WorkContext is a request-context abstraction, not a JWT parser or Redis cache.
+5. Permission checking is a business-side policy plugged into generic Framework middleware.
+6. The Framework package should not provide unrelated transitive dependencies merely because one service happens to use them.
