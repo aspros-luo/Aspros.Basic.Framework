@@ -64,7 +64,7 @@ IUnitOfWork.CommitAsync()
 Database
 ```
 
-For multi-step business that requires all-or-nothing behavior, the handler explicitly uses `IUnitOfWork.ExecuteInTransactionAsync(...)`.
+For multi-step business that requires all-or-nothing behavior, the handler explicitly uses `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)`.
 
 An explicit transaction scope must be the outermost scope for the current `DbContext`. The Framework intentionally does not emulate nested database transactions: calling `ExecuteInTransactionAsync(...)` while the same `DbContext` already has an active transaction fails immediately with a clear configuration error. Compose the inner work inside the existing transaction instead.
 
@@ -106,7 +106,13 @@ Infrastructure / CAP
 
 Domain Event 与 Integration Event 保持语义分离，而不是把所有领域事件直接发送到消息队列。
 
-## 当前实现策略
+## ## Unit of Work
+
+Application 层的 `IUnitOfWork` 是轻量持久化会话，提供 `RegisterNew`、`RegisterRangeNew`、`RegisterDirty`、`RegisterRangeDirty`、`RegisterDeleted`、`RegisterRangeDeleted` 与 `CommitAsync`。`Register*` 只登记 EF Core 变更，不执行数据库提交；正常用例最后调用一次 `CommitAsync()`。
+
+只有确实要求本地多步操作全部成功或全部失败的少数用例，才依赖 `ITransactionalUnitOfWork` 并调用 `ExecuteInTransactionAsync(...)`。
+
+当前实现策略
 
 Framework v10 当前只建立最小 Application 基础：
 
