@@ -46,6 +46,26 @@ Application 不应该反向依赖具体数据库、消息队列、HTTP 客户端
 
 负责协调领域对象、持久化抽象以及外部服务抽象。
 
+## Persistence and Transaction Choice
+
+Not every Command needs an explicit database transaction or a Domain Event.
+
+For simple business:
+
+```text
+Controller
+   ↓
+CommandHandler / Application Service
+   ↓
+EF Core
+   ↓
+IUnitOfWork.CommitAsync()
+   ↓
+Database
+```
+
+For multi-step business that requires all-or-nothing behavior, the handler explicitly uses `IUnitOfWork.ExecuteInTransactionAsync(...)`.
+
 ## Domain Event
 
 Application 提供最小领域事件处理边界：
