@@ -224,6 +224,30 @@ Only concrete Behaviors required by real application scenarios should be added. 
 
 MediatR requires explicit Behavior registration from 12.1 onward; Framework handles that registration centrally.
 
+## 端到端验证
+
+Framework 测试现在会直接验证现有 Application Pipeline 是否真正通过 MediatR 执行，而不是只验证接口契约存在。
+
+测试覆盖三种与真实消费者兼容的 Handler 形式：
+
+- Framework `ICommandHandler<TCommand, TResult>`
+- Framework `IQueryHandler<TQuery, TResult>`
+- 直接使用 MediatR 的 `IRequestHandler<TRequest, TResult>`
+
+同一个开放泛型 `IPipelineBehavior<TRequest, TResponse>` 会围绕 Handler 按预期执行：
+
+```text
+MediatR Send
+    ↓
+Behavior（before）
+    ↓
+Handler
+    ↓
+Behavior（after）
+```
+
+这里验证的是 Pipeline 的实际接线和执行能力。Framework 不要求现有消费者为了使用 Pipeline 而立即把已有 MediatR Handler 全部迁移成 Framework 自己的 Handler 契约。
+
 ## Consumer-driven guidance
 
 当前 Framework 的形态来自真实消费者：普通 Command 使用轻量 Unit of Work 并最终一次 Commit；显式事务只是少数例外。旧版进程内 Event 保留兼容，但跨服务可靠投递使用 Integration Event + Outbox + MQ。
