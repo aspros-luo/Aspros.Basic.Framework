@@ -56,8 +56,8 @@ Domain Event and Integration Event are deliberately different concepts:
 - **Integration Event**: cross-process or cross-service communication. When delivery must survive process failure, use the CAP / Outbox / MQ path.
 - A Domain Event Handler may publish an Integration Event when the business boundary requires it.
 - CommitAsync only performs the direct EF Core persistence commit and does not automatically dispatch Domain Events.
-- ExecuteInTransactionAsync(...) is an explicit business choice for multi-step operations that require all-or-nothing behavior; it is not required for every command.
-- When persistence changes, Domain Event handling, and reliable Integration Event publication must share one transaction boundary, use ExecuteInTransactionAsync(...).
+- `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` is an explicit business choice for multi-step operations that require all-or-nothing behavior; it is not required for every command.
+- When persistence changes, Domain Event handling, and reliable Integration Event publication must share one transaction boundary, use the `ITransactionalUnitOfWork` path.
 
 When `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the local Unit of Work transaction. With CAP transaction integration enabled, business data and the Outbox record are committed together.
 
@@ -155,17 +155,19 @@ The framework intentionally does not introduce a generic “data access” abstr
 
 ## Transaction Choice
 
-The Unit of Work does not mean every business operation must start an explicit database transaction. Simple single-table or single-save business should use `IUnitOfWork.CommitAsync()` directly. Multi-step business that requires all-or-nothing behavior should depend on `ITransactionalUnitOfWork` and explicitly call `ExecuteInTransactionAsync(...)`.
+The Unit of Work does not mean every business operation must start an explicit database transaction. Simple single-table or single-save business should use `IUnitOfWork` and one final `CommitAsync()`. Multi-step business that requires all-or-nothing behavior should explicitly depend on `ITransactionalUnitOfWork`.
 
 The business layer chooses the path. Domain Events are also optional and should only be introduced when a meaningful domain fact requires additional reactions.
 
-An explicit `ExecuteInTransactionAsync(...)` scope owns the transaction for the current `DbContext`. Nested calls are intentionally rejected rather than pretending to provide nested database transactions; inner application operations should participate in the outer transaction.
+An explicit `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` scope owns the transaction for the current `DbContext`. Nested calls are intentionally rejected rather than pretending to provide nested database transactions; inner application operations should participate in the outer transaction.
 
 
 
 The lightweight Unit of Work is the application persistence boundary.
 
-For transactional commands:
+Normal commands use `IUnitOfWork` with `Register*` followed by one `CommitAsync()`. Only local workflows that genuinely require atomic multi-step persistence should depend on `ITransactionalUnitOfWork`.
+
+For explicitly transactional commands:
 
 ```text
 Command
@@ -202,3 +204,7 @@ The real repositories changed the Framework priorities:
 4. WorkContext is a request-context abstraction, not a JWT parser or Redis cache.
 5. Permission checking is a business-side policy plugged into generic Framework middleware.
 6. The Framework package should not provide unrelated transitive dependencies merely because one service happens to use them.
+
+## Real consumer baseline
+
+The current API shape is grounded in `Xr.User` and `Xr.Category`: repository query objects, `RegisterNew/Dirty/Delete`, one final `CommitAsync()`, and explicit local transactions only where the business already requires atomicity. `Xr.Identity` remains independent because its current implementation does not consume this Framework.
