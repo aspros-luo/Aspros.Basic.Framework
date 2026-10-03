@@ -5,6 +5,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: framework-consumer-validation-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   user-validation:
     runs-on: ubuntu-latest
