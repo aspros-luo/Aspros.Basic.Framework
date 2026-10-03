@@ -58,7 +58,7 @@ Infrastructure 继续复用现有技术栈，仅在实际项目中出现明确�
 
 Domain Event 不直接依赖消息队列，也不是所有业务的默认步骤。
 
-普通业务优先使用 `IUnitOfWork.CommitAsync()`；多步骤且要求原子性的业务才使用 `IUnitOfWork.ExecuteInTransactionAsync(...)`。
+普通业务优先使用 `IUnitOfWork.CommitAsync()`；多步骤且要求原子性的业务才使用 `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)`。
 
 
 
@@ -81,6 +81,14 @@ Message Broker
 ```
 
 涉及 Domain Event 的 Command 应使用 `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)`，确保业务数据与 Domain Event Handler 产生的数据库变更位于同一个本地事务。若同时要求 CAP Outbox 记录加入该事务，由消费者 Infrastructure 提供数据库 Provider-specific CAP transaction adapter。
+
+## v10 Source-Breaking Changes
+
+`Aspros.Base.Framework.Domain.Status` is removed from the Domain root namespace because a generic Framework type named `Status` conflicts with business-owned `Status` types in real consumers such as Xr.Category.
+
+The generic Framework lifecycle status is now `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus` and `BasicEntity.Status` uses that type.
+
+Consumers that use the old source form `Status = Status.Deleted` or `Status = Status.Normal` must migrate those expressions to an explicit `EntityStatus` reference. This is an intentional v10 source migration; the Framework does not reintroduce the root `Domain.Status` type merely to preserve ambiguous consumer syntax.
 
 ## Migration Strategy
 
