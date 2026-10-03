@@ -10,12 +10,13 @@ namespace Aspros.Base.Framework.Infrastructure
     {
         private readonly IServiceProvider _serviceProvider = serviceProvider;
 
-        public async Task PublishAsync<TEvent>(TEvent @event) where TEvent : IEvent
+        public async Task PublishAsync<TEvent>(TEvent @event)
+            where TEvent : Application.Abstractions.Events.IEvent
         {
             ArgumentNullException.ThrowIfNull(@event);
 
             var handlers = _serviceProvider
-                .GetServices<IEventHandler<TEvent>>()
+                .GetServices<Application.Abstractions.Events.IEventHandler<TEvent>>()
                 .ToArray();
 
             if (handlers.Length == 0)
