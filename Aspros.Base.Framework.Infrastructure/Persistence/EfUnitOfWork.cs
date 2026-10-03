@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Aspros.Base.Framework.Infrastructure.Persistence;
 
+using KernelAggregateRoot = Aspros.Base.Framework.Domain.Kernel.IAggregateRoot;
+
 /// <summary>
 /// 基于 EF Core 的轻量 Unit of Work。
 /// Register* 只负责登记变更，CommitAsync 才持久化；显式事务通过 ITransactionalUnitOfWork。
@@ -58,8 +60,8 @@ public sealed class EfUnitOfWork(
     {
         ArgumentNullException.ThrowIfNull(entities);
         var materialized = entities as TEntity[] ?? entities.ToArray();
-        var userId = await workContext.GetUserId();
 
+        var userId = await workContext.GetUserId();
         foreach (var entity in materialized)
         {
             if (entity is IAuditableEntity auditable)
@@ -83,10 +85,9 @@ public sealed class EfUnitOfWork(
             return true;
         }
 
-        var userId = await workContext.GetUserId();
         if (entity is IAuditableEntity auditable)
         {
-            auditable.ModifiedBy = userId;
+            auditable.ModifiedBy = await workContext.GetUserId();
             auditable.ModifiedAt = DateTime.Now;
             auditable.IsDeleted = true;
         }
@@ -95,9 +96,7 @@ public sealed class EfUnitOfWork(
         return true;
     }
 
-    public async Task<bool> RegisterRangeDeleted<TEntity>(
-        IEnumerable<TEntity> entities,
-        bool isDel = false) where TEntity : class
+    public async Task<bool> RegisterRangeDeleted<TEntity>(IEnumerable<TEntity> entities, bool isDel = false) where TEntity : class
     {
         ArgumentNullException.ThrowIfNull(entities);
         var materialized = entities as TEntity[] ?? entities.ToArray();
@@ -123,44 +122,27 @@ public sealed class EfUnitOfWork(
         return true;
     }
 
-    public async Task<bool> CommitAsync(CancellationToken cancellationToken = default)
-        => await dbContext.SaveChangesAsync(cancellationToken) > 0;
+    public Task<bool> CommitAsync(CancellationToken cancellationToken = default)
+        => SaveChangesAndDispatchDomainEventsAsync(cancellationToken)
+            .ContinueWith(
+                static task => !task.IsFaulted && !task.IsCanceled,
+                cancellationToken,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
 
     public async Task ExecuteInTransactionAsync(
-        Func<CancellationToken, Task> operation,
+        Func<CancellationToken, Task> action,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(action);
 
         await using var transaction = await BeginTransactionAsync(cancellationToken);
 
         try
         {
-            await operation(cancellationToken);
+            await action(cancellationToken);
             await SaveChangesAndDispatchDomainEventsAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-        }
-        catch
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            throw;
-        }
-    }
-
-    public async Task<TResult> ExecuteInTransactionAsync<TResult>(
-        Func<CancellationToken, Task<TResult>> operation,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(operation);
-
-        await using var transaction = await BeginTransactionAsync(cancellationToken);
-
-        try
-        {
-            var result = await operation(cancellationToken);
-            await SaveChangesAndDispatchDomainEventsAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-            return result;
         }
         catch
         {
@@ -213,7 +195,7 @@ public sealed class EfUnitOfWork(
             var aggregateRoots = dbContext.ChangeTracker
                 .Entries()
                 .Select(entry => entry.Entity)
-                .OfType<IAggregateRoot>()
+                .OfType<KernelAggregateRoot>()
                 .Distinct()
                 .ToArray();
 
@@ -255,10 +237,10 @@ public sealed class EfUnitOfWork(
 
         if (capPublisher is not null)
         {
-            return dbContext.Database.BeginTransactionAsync(
-                capPublisher,
-                autoCommit: false,
-                cancellationToken: cancellationToken);
+            return Task.FromResult(
+                dbContext.Database.BeginTransaction(
+                    capPublisher,
+                    autoCommit: false));
         }
 
         return dbContext.Database.BeginTransactionAsync(cancellationToken);
