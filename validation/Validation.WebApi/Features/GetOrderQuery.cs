@@ -6,7 +6,11 @@ namespace Validation.WebApi.Features;
 
 public sealed record GetOrderQuery(Guid OrderId) : IQuery<OrderResponse?>;
 
-public sealed record OrderResponse(Guid Id, string ProductName, string[] AuditMessages);
+public sealed record OrderResponse(
+    Guid Id,
+    string ProductName,
+    bool Confirmed,
+    string[] AuditMessages);
 
 public sealed class GetOrderQueryHandler(AppDbContext db)
     : IQueryHandler<GetOrderQuery, OrderResponse?>
@@ -20,9 +24,7 @@ public sealed class GetOrderQueryHandler(AppDbContext db)
             .SingleOrDefaultAsync(x => x.Id == query.OrderId, cancellationToken);
 
         if (order is null)
-        {
             return null;
-        }
 
         var audits = await db.Audits
             .AsNoTracking()
@@ -30,6 +32,10 @@ public sealed class GetOrderQueryHandler(AppDbContext db)
             .Select(x => x.Message)
             .ToArrayAsync(cancellationToken);
 
-        return new OrderResponse(order.Id, order.ProductName, audits);
+        return new OrderResponse(
+            order.Id,
+            order.ProductName,
+            order.Confirmed,
+            audits);
     }
 }
