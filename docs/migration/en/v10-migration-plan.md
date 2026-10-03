@@ -82,6 +82,14 @@ Message Broker
 
 Commands involving Domain Events should use `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` so business data and database changes made by Domain Event Handlers remain inside the same local transaction. If CAP Outbox records must share that transaction, the consumer Infrastructure supplies the database-provider-specific CAP transaction adapter.
 
+## v10 Source-Breaking Changes
+
+`Aspros.Base.Framework.Domain.Status` is removed from the Domain root namespace because a generic Framework type named `Status` conflicts with business-owned `Status` types in real consumers such as Xr.Category.
+
+The generic Framework lifecycle status is now `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`, and `BasicEntity.Status` uses that type.
+
+Consumers using the old source form `Status = Status.Deleted` or `Status = Status.Normal` must migrate those expressions to an explicit `EntityStatus` reference. This is an intentional v10 source migration; the Framework does not reintroduce the root `Domain.Status` type merely to preserve ambiguous consumer syntax.
+
 ## Migration Strategy
 
 Existing projects should be able to migrate gradually without requiring a full rewrite.
