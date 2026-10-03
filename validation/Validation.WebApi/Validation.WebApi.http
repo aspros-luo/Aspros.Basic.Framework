@@ -9,4 +9,13 @@ Content-Type: application/json
 
 ###
 
+# Use the returned orderId for the explicit-transaction example.
+POST {{Validation.WebApi_HostAddress}}/orders/{{orderId}}/confirm
+
+###
+
 GET {{Validation.WebApi_HostAddress}}/orders/{{orderId}}
+
+###
+
+GET {{Validation.WebApi_HostAddress}}/validation/integration-events
