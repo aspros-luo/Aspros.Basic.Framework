@@ -58,8 +58,26 @@ namespace Aspros.Base.Framework.Infrastructure
                     }
                 });
             }
-            else if (mediatRAlreadyRegistered)
+            else
             {
+                // An application may have already registered MediatR for its own assembly.
+                // Complete the registration for handlers discovered in other loaded assemblies
+                // without registering the same descriptor twice.
+                foreach (var classType in classTypes)
+                {
+                    foreach (var serviceInterface in classType.GetInterfaces().Where(IsMediatRHandlerInterface))
+                    {
+                        var alreadyRegistered = services.Any(descriptor =>
+                            descriptor.ServiceType == serviceInterface &&
+                            descriptor.ImplementationType == classType);
+
+                        if (!alreadyRegistered)
+                        {
+                            services.AddTransient(serviceInterface, classType);
+                        }
+                    }
+                }
+
                 foreach (var behaviorType in pipelineBehaviors)
                 {
                     var alreadyRegistered = services.Any(descriptor =>
