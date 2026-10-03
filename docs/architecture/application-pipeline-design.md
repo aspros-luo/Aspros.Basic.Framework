@@ -36,7 +36,7 @@ Domain
 
 Transaction 是 Framework 值得优先抽象的能力，因为它描述的是一次 Application Command 的一致性边界。
 
-当前通过 `IUnitOfWork.ExecuteInTransactionAsync(...)` 提供最小事务边界，而不是额外定义 `ITransaction` 或 `ITransactionManager`。
+普通持久化通过 `IUnitOfWork` 表达；显式本地事务属于可选的 `ITransactionalUnitOfWork` 能力，而不是所有 Command 的默认步骤。
 
 事务操作成功后，Infrastructure 会自动执行持久化、领域事件分发以及最终 Commit；异常则回滚。
 
@@ -152,9 +152,11 @@ Framework v10 保留轻量 Unit of Work 能力，用于表达一次应用用例�
 
 当前定义：
 
-- `CommitAsync()`：提交当前工作单元中的持久化变更；
-- `ExecuteInTransactionAsync(...)`：在一个数据库事务中执行多个持久化操作，并在成功结束时自动处理 Domain Event、SaveChanges + Commit；
-- 泛型事务版本：允许事务操作返回结果。
+- `RegisterNew` / `RegisterRangeNew`：登记新增；
+- `RegisterDirty` / `RegisterRangeDirty`：登记修改；
+- `RegisterDeleted` / `RegisterRangeDeleted`：登记删除或软删除；
+- `CommitAsync()`：保存登记的持久化变更；
+- `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)`：仅在业务确实需要本地多步原子性时显式启用事务。
 
 涉及 Domain Event / Outbox 的 Command 应优先使用 `ExecuteInTransactionAsync(...)`，以保持领域状态、Handler 引起的数据库变更以及 CAP Outbox 处于同一事务边界。
 
@@ -221,3 +223,7 @@ Framework `IPipelineBehavior<TRequest, TResponse>` directly extends MediatR's Pi
 Only concrete Behaviors required by real application scenarios should be added. Logging, validation, caching, idempotency, and transaction behaviors are not enabled speculatively.
 
 MediatR requires explicit Behavior registration from 12.1 onward; Framework handles that registration centrally.
+
+## Consumer-driven guidance
+
+当前 Framework 的形态来自真实消费者：普通 Command 使用轻量 Unit of Work 并最终一次 Commit；显式事务只是少数例外。旧版进程内 Event 保留兼容，但跨服务可靠投递使用 Integration Event + Outbox + MQ。
