@@ -72,6 +72,13 @@ app.MapGet("/orders/{id:guid}", async (
         : Results.Ok(order);
 });
 
+app.MapPost("/validation/fail-next-integration-event", (
+    ValidationIntegrationEventPublisher publisher) =>
+{
+    publisher.FailNextPublish = true;
+    return Results.Ok(new { failNextPublish = true });
+});
+
 app.MapGet("/validation/integration-events", (
     ValidationIntegrationEventPublisher publisher) =>
     Results.Ok(publisher.PublishedEvents));
