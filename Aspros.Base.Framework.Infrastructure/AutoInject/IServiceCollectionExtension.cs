@@ -139,7 +139,8 @@ namespace Aspros.Base.Framework.Infrastructure
 
         private static bool IsLegacyEventHandlerInterface(Type interfaceType)
             => interfaceType.IsGenericType &&
-               interfaceType.GetGenericTypeDefinition() == typeof(IEventHandler<>);
+               interfaceType.GetGenericTypeDefinition() ==
+               typeof(Aspros.Base.Framework.Application.Abstractions.Events.IEventHandler<>);
 
         private static void RegisterRepository(
             IServiceCollection services,
