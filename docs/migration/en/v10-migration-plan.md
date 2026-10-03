@@ -56,6 +56,12 @@ The two event models should not be treated as interchangeable. The legacy event 
 
 ## Domain Events and Outbox
 
+Domain Events do not directly depend on a message broker and are not required for every business operation.
+
+Simple business should prefer `IUnitOfWork.CommitAsync()`. Multi-step business that requires all-or-nothing behavior should explicitly use `IUnitOfWork.ExecuteInTransactionAsync(...)`.
+
+
+
 Domain Events do not directly depend on a message broker.
 
 Recommended flow:
