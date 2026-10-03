@@ -64,7 +64,7 @@ IUnitOfWork.CommitAsync()
 Database
 ```
 
-For multi-step business that requires all-or-nothing behavior, the handler explicitly uses `IUnitOfWork.ExecuteInTransactionAsync(...)`.
+For multi-step business that requires all-or-nothing behavior, the handler explicitly uses `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)`.
 
 An explicit transaction scope must be the outermost scope for the current `DbContext`. The Framework intentionally does not emulate nested database transactions: calling `ExecuteInTransactionAsync(...)` while the same `DbContext` already has an active transaction fails immediately with a clear configuration error. Compose the inner work inside the existing transaction instead.
 
@@ -103,6 +103,12 @@ Infrastructure / CAP
 ```
 
 Domain Events and Integration Events remain separate concepts. Not every Domain Event is automatically sent to a message broker.
+
+## Unit of Work
+
+Application's `IUnitOfWork` is a lightweight persistence session. It exposes `RegisterNew`, `RegisterRangeNew`, `RegisterDirty`, `RegisterRangeDirty`, `RegisterDeleted`, `RegisterRangeDeleted`, and `CommitAsync`. `Register*` only stages EF Core changes; it does not persist them. A normal use case calls `CommitAsync()` once.
+
+Only the small subset of use cases that genuinely requires local multi-step atomicity should depend on `ITransactionalUnitOfWork` and call `ExecuteInTransactionAsync(...)`.
 
 ## Current Strategy
 
