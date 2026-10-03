@@ -6,18 +6,26 @@ namespace Aspros.Base.Framework.Infrastructure
 {
     public static class IServiceCollectionExtension
     {
-        public static void AutoInject(this IServiceCollection services)
+        public static void AutoInject(this IServiceCollection services, params System.Reflection.Assembly[] assemblies)
         {
-            services.InjectService();
+            ArgumentNullException.ThrowIfNull(assemblies);
+            services.InjectService(assemblies);
         }
 
-        private static void InjectService(this IServiceCollection services)
+        private static void InjectService(
+            this IServiceCollection services,
+            params System.Reflection.Assembly[] additionalAssemblies)
         {
             var transientType = typeof(ITransient);
             var scopedType = typeof(IScoped);
             var singletonType = typeof(ISingleton);
 
-            var allTypes = AppDomain.CurrentDomain.GetAssemblies()
+            var allAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+                .Concat(additionalAssemblies)
+                .Distinct()
+                .ToArray();
+
+            var allTypes = allAssemblies
                 .SelectMany(GetLoadableTypes)
                 .ToArray();
 
