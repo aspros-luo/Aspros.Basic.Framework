@@ -3,7 +3,6 @@ using Aspros.Base.Framework.Application.Abstractions.Events;
 using Aspros.Base.Framework.Application.Abstractions.Persistence;
 using Aspros.Base.Framework.Domain;
 using Aspros.Base.Framework.Domain.Kernel;
-using DotNetCore.CAP;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aspros.Base.Framework.Infrastructure.Persistence;
@@ -13,11 +12,11 @@ using KernelAggregateRoot = Aspros.Base.Framework.Domain.Kernel.IAggregateRoot;
 /// <summary>
 /// 基于 EF Core 的轻量 Unit of Work。
 /// Register* 只负责登记变更，CommitAsync 才持久化；显式事务通过 ITransactionalUnitOfWork。
+/// CAP 等消息基础设施的事务参与由具体数据库 Provider / 消费者适配层负责，Framework 不绑定某一种数据库。
 /// </summary>
 public sealed class EfUnitOfWork(
     IDbContext dbContext,
     IWorkContext workContext,
-    ICapPublisher? capPublisher = null,
     IDomainEventDispatcher? domainEventDispatcher = null)
     : ITransactionalUnitOfWork, IScoped
 {
@@ -122,13 +121,11 @@ public sealed class EfUnitOfWork(
         return true;
     }
 
-    public Task<bool> CommitAsync(CancellationToken cancellationToken = default)
-        => SaveChangesAndDispatchDomainEventsAsync(cancellationToken)
-            .ContinueWith(
-                static task => !task.IsFaulted && !task.IsCanceled,
-                cancellationToken,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
+    public async Task<bool> CommitAsync(CancellationToken cancellationToken = default)
+    {
+        await SaveChangesAndDispatchDomainEventsAsync(cancellationToken);
+        return true;
+    }
 
     public async Task ExecuteInTransactionAsync(
         Func<CancellationToken, Task> action,
@@ -246,7 +243,7 @@ public sealed class EfUnitOfWork(
         }
     }
 
-    private Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(
+    private async Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(
         CancellationToken cancellationToken)
     {
         if (dbContext.Database.CurrentTransaction is not null)
@@ -257,14 +254,6 @@ public sealed class EfUnitOfWork(
                 "compose the work inside the existing transaction instead.");
         }
 
-        if (capPublisher is not null)
-        {
-            return Task.FromResult(
-                dbContext.Database.BeginTransaction(
-                    capPublisher,
-                    autoCommit: false));
-        }
-
-        return dbContext.Database.BeginTransactionAsync(cancellationToken);
+        return await dbContext.Database.BeginTransactionAsync(cancellationToken);
     }
 }
