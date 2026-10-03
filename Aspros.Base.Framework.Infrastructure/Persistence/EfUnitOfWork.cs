@@ -11,7 +11,7 @@ using KernelAggregateRoot = Aspros.Base.Framework.Domain.Kernel.IAggregateRoot;
 
 /// <summary>
 /// 基于 EF Core 的轻量 Unit of Work。
-/// Register* 只负责登记变更，CommitAsync 才持久化；显式事务通过 ITransactionalUnitOfWork。
+/// Register* 只负责登记变更，CommitAsync 只负责持久化；显式事务通过 ITransactionalUnitOfWork。
 /// CAP 等消息基础设施的事务参与由具体数据库 Provider / 消费者适配层负责，Framework 不绑定某一种数据库。
 /// </summary>
 public sealed class EfUnitOfWork(
@@ -122,10 +122,7 @@ public sealed class EfUnitOfWork(
     }
 
     public async Task<bool> CommitAsync(CancellationToken cancellationToken = default)
-    {
-        await SaveChangesAndDispatchDomainEventsAsync(cancellationToken);
-        return true;
-    }
+        => await dbContext.SaveChangesAsync(cancellationToken) > 0;
 
     public async Task ExecuteInTransactionAsync(
         Func<CancellationToken, Task> action,
