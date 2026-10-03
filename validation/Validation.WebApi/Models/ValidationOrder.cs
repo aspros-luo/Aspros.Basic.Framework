@@ -6,6 +6,7 @@ namespace Validation.WebApi.Models;
 public sealed class ValidationOrder : AggregateRoot<Guid>
 {
     public string ProductName { get; private set; }
+    public bool Confirmed { get; private set; }
 
     private ValidationOrder() : base(Guid.Empty)
     {
@@ -16,7 +17,15 @@ public sealed class ValidationOrder : AggregateRoot<Guid>
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(productName);
         ProductName = productName;
-        AddDomainEvent(new OrderCreatedDomainEvent(id, productName));
+    }
+
+    public void Confirm()
+    {
+        if (Confirmed)
+            return;
+
+        Confirmed = true;
+        AddDomainEvent(new OrderConfirmedDomainEvent(Id, ProductName));
     }
 }
 
