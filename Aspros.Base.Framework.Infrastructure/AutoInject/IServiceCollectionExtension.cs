@@ -40,7 +40,10 @@ namespace Aspros.Base.Framework.Infrastructure
                 .OrderBy(type => type.FullName)
                 .ToArray();
 
-            if (mediatRAssemblies.Length > 0 || pipelineBehaviors.Length > 0)
+            var mediatRAlreadyRegistered = services.Any(descriptor =>
+                descriptor.ServiceType == typeof(IMediator));
+
+            if (!mediatRAlreadyRegistered && (mediatRAssemblies.Length > 0 || pipelineBehaviors.Length > 0))
             {
                 services.AddMediatR(configuration =>
                 {
@@ -54,6 +57,20 @@ namespace Aspros.Base.Framework.Infrastructure
                         configuration.AddOpenBehavior(behaviorType);
                     }
                 });
+            }
+            else if (mediatRAlreadyRegistered)
+            {
+                foreach (var behaviorType in pipelineBehaviors)
+                {
+                    var alreadyRegistered = services.Any(descriptor =>
+                        descriptor.ServiceType == typeof(MediatR.IPipelineBehavior<,>) &&
+                        descriptor.ImplementationType == behaviorType);
+
+                    if (!alreadyRegistered)
+                    {
+                        services.AddTransient(typeof(MediatR.IPipelineBehavior<,>), behaviorType);
+                    }
+                }
             }
 
             foreach (var classType in classTypes)
