@@ -77,6 +77,14 @@ namespace Aspros.Base.Framework.Infrastructure
             {
                 var implementedInterfaces = classType.GetInterfaces();
 
+                foreach (var eventHandlerInterface in implementedInterfaces.Where(IsLegacyEventHandlerInterface).Distinct())
+                {
+                    services.Add(new ServiceDescriptor(
+                        eventHandlerInterface,
+                        classType,
+                        ServiceLifetime.Transient));
+                }
+
                 // Repository implementations are transient by convention. Skip marker
                 // registration for repositories so a repository contract is not registered twice.
                 var isRepository = implementedInterfaces.Any(IsRepositoryInterface);
@@ -110,6 +118,10 @@ namespace Aspros.Base.Framework.Infrastructure
 
         private static bool IsRepositoryInterface(Type interfaceType)
             => interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IRepository<>);
+
+        private static bool IsLegacyEventHandlerInterface(Type interfaceType)
+            => interfaceType.IsGenericType &&
+               interfaceType.GetGenericTypeDefinition() == typeof(IEventHandler<>);
 
         private static void RegisterRepository(
             IServiceCollection services,
