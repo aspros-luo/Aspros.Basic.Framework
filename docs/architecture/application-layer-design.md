@@ -168,3 +168,7 @@ The Application Pipeline is backed by the existing MediatR runtime rather than a
 `ICommand`, `IQuery`, `ICommandHandler`, `IQueryHandler`, and `IPipelineBehavior` are directly compatible with MediatR. Business handlers may keep the Framework-level `HandleAsync(...)` method; default interface implementations adapt it to MediatR.
 
 Framework `AutoInject()` explicitly registers discovered open generic Pipeline Behaviors because MediatR 12.1+ no longer scans Behaviors automatically.
+
+## gRPC 决策
+
+只有真实的同步跨服务业务契约出现时才使用 gRPC。当前审查的 Xr.User / Xr.Category / Xr.Identity 没有符合条件的业务调用，因此本轮没有添加演示性 gRPC Client。
