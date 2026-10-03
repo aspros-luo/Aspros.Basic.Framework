@@ -16,19 +16,22 @@ The script starts the API on `127.0.0.1:5087`, uses a temporary working director
 
 | Scenario | Expected result |
 | --- | --- |
-| Create an order with `productName=Coffee` | `201 Created` with an order ID |
-| Retrieve the created order | `200 OK`, correct product name |
-| Read the order's domain-event audit | Audit contains `Order created: Coffee` |
+| Create an order with `productName=Coffee` | `201 Created` with an order ID; no Domain Event is raised |
+| Retrieve the created order | `200 OK`, correct product name, `confirmed=false`, no audit |
+| Confirm the created order | `200 OK`; explicit transaction path is used |
+| Retrieve the confirmed order | `200 OK`, `confirmed=true`, audit contains `Order confirmed: Coffee` |
 | Retrieve an unknown order ID | `404 Not Found` |
 | Omit `productName`, send an empty/whitespace value, or send JSON `null` | `400 Bad Request` |
-| Inspect the integration-event publisher | Contains `validation.order.created` |
+| Inspect the integration-event publisher | Contains `validation.order.confirmed` |
 
 ## What this validates
 
 - MediatR resolves the Command and Query handlers registered through `AutoInject()`.
 - The consumer can use `ICommand<TResult>`, `IQuery<TResult>`, and their handler contracts.
-- `IUnitOfWork.ExecuteInTransactionAsync()` persists the aggregate and processes its domain event.
-- The domain-event handler writes an audit record and depends on `IIntegrationEventPublisher`, not a broker-specific API.
+- Simple order creation uses `IUnitOfWork.CommitAsync()` without an explicit application transaction or Domain Event.
+- Order confirmation explicitly uses `IUnitOfWork.ExecuteInTransactionAsync()`.
+- The confirmation Domain Event is handled inside that transaction and writes an audit record.
+- The domain-event handler depends on `IIntegrationEventPublisher`, not a broker-specific API.
 - The API distinguishes missing resources and invalid create requests.
 
 ## Important limits
