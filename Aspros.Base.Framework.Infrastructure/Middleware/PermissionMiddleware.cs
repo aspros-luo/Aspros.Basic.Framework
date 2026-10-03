@@ -1,64 +1,47 @@
-﻿using Aspros.Base.Framework.Infrastructure;
-using Flurl.Http;
+using Aspros.Base.Framework.Application.Abstractions.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
-using Nacos.V2;
-using Polly;
 
-
-
-namespace Aspros.SaaS.System.Infrastructure
+namespace Aspros.Base.Framework.Infrastructure
 {
     public static class PermissionExtensions
     {
         public static IApplicationBuilder UsePermissionValid(this IApplicationBuilder builder)
-        {
-            return builder.UseMiddleware<PermissionMiddleware>();
-        }
+            => builder.UseMiddleware<PermissionMiddleware>();
     }
 
-    public class PermissionMiddleware(RequestDelegate next)
+    /// <summary>
+    /// Generic permission middleware。
+    /// Framework 只负责识别 Permission 元数据并调用业务侧 IPermissionChecker，不绑定 Nacos、Flurl、服务名或某个具体权限服务。
+    /// </summary>
+    public sealed class PermissionMiddleware(RequestDelegate next)
     {
-        public static Endpoint GetEndpoint(HttpContext context)
-        {
-            return context == null ? throw new ArgumentNullException(nameof(context)) : (context.Features.Get<IEndpointFeature>()?.Endpoint);
-        }
         private readonly RequestDelegate _next = next;
-        public async Task Invoke(HttpContext context, INacosNamingService _namingService, IWorkContext _workContext)
+
+        public async Task InvokeAsync(HttpContext context)
         {
-            var endpoint = GetEndpoint(context);
-            if (endpoint != null)
+            var permission = context.GetEndpoint()?.Metadata.GetMetadata<Permission>();
+            if (permission is not null)
             {
-                var permission = endpoint.Metadata.GetMetadata<Permission>();
-                if (permission != null)
+                var checker = context.RequestServices.GetService<IPermissionChecker>();
+                var workContext = context.RequestServices.GetService<IWorkContext>();
+
+                if (checker is null || workContext is null)
                 {
-                    var userId = await _workContext.GetUserId();
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    await context.Response.WriteAsync("Permission validation is not configured.");
+                    return;
+                }
 
-                    var code = permission.Code;
-
-                    var instance = await _namingService.SelectOneHealthyInstance("saas-system", "DEFAULT_GROUP");
-
-                    var host = $"{instance.Ip}:{instance.Port}";
-
-                    var baseUrl = instance.Metadata.TryGetValue("secure", out _) ? $"https://{host}" : $"http://{host}";
-
-                    var url = $"{baseUrl}/system/user.permission.valid?PermissionCode={code}&userId={userId}";
-                    await Console.Out.WriteLineAsync($"权限接口地址:{url}");
-                    var combinedPolicy = Policy.WrapAsync(PollyExtend.GetRetryPolicy(), PollyExtend.GetCircuitBreakerPolicy());  // 包装多个策略
-
-                    var result = await combinedPolicy.ExecuteAsync(async () =>
-                     {
-                         var response = await url.GetAsync();
-                         return response.ResponseMessage;
-                         //var result = await url.GetJsonAsync<bool>();
-                         //if (!result) throw new Exception("当前用户权限不够");
-                     });
-
-
+                var userId = await workContext.GetUserId();
+                if (userId == 0 || !await checker.HasPermissionAsync(userId, permission.Code, context.RequestAborted))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
                 }
             }
-            await _next.Invoke(context);
+
+            await _next(context);
         }
     }
 }

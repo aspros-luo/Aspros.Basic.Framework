@@ -1,64 +1,66 @@
-﻿using Aspros.Base.Framework.Infrastructure.Const;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Caching.Distributed;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System.Security.Cryptography;
-using System.Text;
+using System.Security.Claims;
+using System.Text.Json;
 
+namespace Aspros.Base.Framework.Infrastructure;
 
-namespace Aspros.Base.Framework.Infrastructure
+/// <summary>
+/// 基于 ASP.NET Core 已认证 ClaimsPrincipal 的工作上下文。
+/// 不重新解析或信任未经验证的 Bearer Token，也不依赖 Redis 保存整份 token payload。
+/// </summary>
+public sealed class WorkContext(IHttpContextAccessor contextAccessor) : IWorkContext
 {
-    public class WorkContext(IHttpContextAccessor contextAccessor, IDistributedCache cache) : IWorkContext
+    private readonly IHttpContextAccessor _contextAccessor = contextAccessor;
+
+    public Task<long> GetUserId()
+        => Task.FromResult(ParseLongClaim("user_id", ClaimTypes.NameIdentifier, "sub"));
+
+    public Task<long> GetTenantId()
+        => Task.FromResult(ParseLongClaim("tenant_id"));
+
+    public Task<T> Get<T>(string key)
     {
-        private readonly IHttpContextAccessor _contextAccessor = contextAccessor;
-        private readonly IDistributedCache _cache = cache;
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        public async Task<T> Get<T>(string key)
+        var value = GetClaimValue(key);
+        if (value is null)
         {
-            var tokenJson = await GetUserData();
-            return tokenJson[key].ToObject<T>();
+            throw new KeyNotFoundException($"Claim '{key}' was not found for the current user.");
         }
 
-        public async Task<long> GetTenantId()
+        if (typeof(T) == typeof(string))
         {
-            var tokenJson = await GetUserData();
-            if (tokenJson == null) return 0;
-            else return tokenJson["tenant_id"] == null ? 0 : tokenJson["tenant_id"].ToObject<long>();
+            return Task.FromResult((T)(object)value);
         }
 
-        public async Task<long> GetUserId()
+        var result = JsonSerializer.Deserialize<T>(value);
+        if (result is null)
         {
-            var tokenJson = await GetUserData();
-            if (tokenJson == null) return 0;
-            else return tokenJson["user_id"] == null ? 0 : tokenJson["user_id"].ToObject<long>();
-
+            throw new InvalidOperationException($"Claim '{key}' could not be deserialized as {typeof(T).FullName}.");
         }
 
-        private async Task<JObject> GetUserData()
-        {
-            var token = _contextAccessor.HttpContext?.Request.Headers.Authorization.FirstOrDefault();
-            if (string.IsNullOrEmpty(token)) return null;
+        return Task.FromResult(result);
+    }
 
-            token = token.Replace("Bearer ", "");
-            string userDataString;
-            var result = MD5.HashData(Encoding.UTF8.GetBytes(token));
-            var strResult = BitConverter.ToString(result);
-            string userKey = $"{CacheConst.Token}{strResult.Replace("-", "")}";
-            var userDataByte = await _cache.GetAsync(userKey);
-            if (userDataByte != null)
-            {
-                userDataString = Encoding.UTF8.GetString(userDataByte);
-                return JsonConvert.DeserializeObject<JObject>(userDataString);
-            }
-            else
-            {
-                var json = Jose.JWT.Payload(token);
-                var obj = JObject.Parse(json);
-                userDataString = JsonConvert.SerializeObject(obj);
-                await _cache.SetAsync(userKey, Encoding.UTF8.GetBytes(userDataString), new DistributedCacheEntryOptions().SetAbsoluteExpiration(DateTimeOffset.Now.AddHours(5)));
-                return obj;
-            }
+    private long ParseLongClaim(params string[] claimTypes)
+    {
+        var value = claimTypes
+            .Select(GetClaimValue)
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+        return value is not null && long.TryParse(value, out var result)
+            ? result
+            : 0;
+    }
+
+    private string? GetClaimValue(string claimType)
+    {
+        var user = _contextAccessor.HttpContext?.User;
+        if (user?.Identity?.IsAuthenticated != true)
+        {
+            return null;
         }
+
+        return user.FindFirst(claimType)?.Value;
     }
 }

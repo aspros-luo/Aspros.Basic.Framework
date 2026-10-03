@@ -1,4 +1,5 @@
-﻿using MediatR;
+using Aspros.Base.Framework.Domain;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Aspros.Base.Framework.Infrastructure
@@ -12,58 +13,45 @@ namespace Aspros.Base.Framework.Infrastructure
 
         private static void InjectService(this IServiceCollection services)
         {
-            #region 依赖注入
-
-            var mediatRType = typeof(IBaseRequest);
-            var requestHandlerTypes = new[]
-            {
-                typeof(IRequestHandler<>),
-                typeof(IRequestHandler<,>)
-            };
-            var pipelineBehaviorType = typeof(IPipelineBehavior<,>);
-
             var transientType = typeof(ITransient);
             var scopedType = typeof(IScoped);
             var singletonType = typeof(ISingleton);
 
             var allTypes = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes())
+                .SelectMany(GetLoadableTypes)
                 .ToArray();
 
             var classTypes = allTypes
-                .Where(t => t.IsClass && !t.IsAbstract)
+                .Where(type => type is { IsClass: true, IsAbstract: false })
                 .ToArray();
 
             var mediatRAssemblies = classTypes
-                .Where(t =>
-                    t.GetInterfaces().Contains(mediatRType) ||
-                    t.GetInterfaces().Any(i =>
-                        i.IsGenericType &&
-                        requestHandlerTypes.Contains(i.GetGenericTypeDefinition())))
-                .Select(t => t.Assembly)
+                .Where(type => type.GetInterfaces().Any(IsMediatRHandlerInterface))
+                .Select(type => type.Assembly)
                 .Distinct()
                 .ToArray();
 
             var pipelineBehaviors = classTypes
-                .Where(t => t.IsGenericTypeDefinition &&
-                            t.GetInterfaces().Any(i =>
-                                i.IsGenericType &&
-                                i.GetGenericTypeDefinition() == pipelineBehaviorType))
-                .OrderBy(t => t.FullName)
+                .Where(type =>
+                    type.IsGenericTypeDefinition &&
+                    type.GetInterfaces().Any(interfaceType =>
+                        interfaceType.IsGenericType &&
+                        interfaceType.GetGenericTypeDefinition() == typeof(IPipelineBehavior<,>)))
+                .OrderBy(type => type.FullName)
                 .ToArray();
 
-            if (mediatRAssemblies.Any() || pipelineBehaviors.Any())
+            if (mediatRAssemblies.Length > 0 || pipelineBehaviors.Length > 0)
             {
-                services.AddMediatR(cfg =>
+                services.AddMediatR(configuration =>
                 {
-                    if (mediatRAssemblies.Any())
+                    if (mediatRAssemblies.Length > 0)
                     {
-                        cfg.RegisterServicesFromAssemblies(mediatRAssemblies);
+                        configuration.RegisterServicesFromAssemblies(mediatRAssemblies);
                     }
 
                     foreach (var behaviorType in pipelineBehaviors)
                     {
-                        cfg.AddOpenBehavior(behaviorType);
+                        configuration.AddOpenBehavior(behaviorType);
                     }
                 });
             }
@@ -72,70 +60,99 @@ namespace Aspros.Base.Framework.Infrastructure
             {
                 var implementedInterfaces = classType.GetInterfaces();
 
-                if (implementedInterfaces.Contains(transientType))
+                // Repository implementations are transient by convention, so repository
+                // contracts no longer need to pull Infrastructure marker interfaces into Domain.
+                if (implementedInterfaces.Any(IsRepositoryInterface))
                 {
-                    RegisterServices(
-                        services,
-                        classType,
-                        implementedInterfaces,
-                        transientType,
-                        ServiceLifetime.Transient);
+                    RegisterRepository(services, classType, implementedInterfaces);
                 }
 
-                if (implementedInterfaces.Contains(scopedType))
-                {
-                    RegisterServices(
-                        services,
-                        classType,
-                        implementedInterfaces,
-                        scopedType,
-                        ServiceLifetime.Scoped);
-                }
-
-                if (implementedInterfaces.Contains(singletonType))
-                {
-                    RegisterServices(
-                        services,
-                        classType,
-                        implementedInterfaces,
-                        singletonType,
-                        ServiceLifetime.Singleton);
-                }
+                RegisterByMarker(services, classType, implementedInterfaces, transientType, ServiceLifetime.Transient);
+                RegisterByMarker(services, classType, implementedInterfaces, scopedType, ServiceLifetime.Scoped);
+                RegisterByMarker(services, classType, implementedInterfaces, singletonType, ServiceLifetime.Singleton);
             }
-
-            #endregion
         }
 
-        private static void RegisterServices(
+        private static bool IsMediatRHandlerInterface(Type interfaceType)
+        {
+            if (!interfaceType.IsGenericType)
+            {
+                return false;
+            }
+
+            var genericType = interfaceType.GetGenericTypeDefinition();
+            return genericType == typeof(IRequestHandler<>) ||
+                   genericType == typeof(IRequestHandler<,>) ||
+                   genericType == typeof(INotificationHandler<>) ||
+                   genericType == typeof(IStreamRequestHandler<,>);
+        }
+
+        private static bool IsRepositoryInterface(Type interfaceType)
+            => interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IRepository<>);
+
+        private static void RegisterRepository(
+            IServiceCollection services,
+            Type implementationType,
+            IEnumerable<Type> implementedInterfaces)
+        {
+            foreach (var serviceInterface in implementedInterfaces.Where(IsRepositoryContractToRegister).Distinct())
+            {
+                services.Add(new ServiceDescriptor(serviceInterface, implementationType, ServiceLifetime.Transient));
+            }
+
+            services.Add(new ServiceDescriptor(implementationType, implementationType, ServiceLifetime.Transient));
+        }
+
+        private static bool IsRepositoryContractToRegister(Type interfaceType)
+            => interfaceType != typeof(ITransient) &&
+               interfaceType != typeof(IScoped) &&
+               interfaceType != typeof(ISingleton) &&
+               !interfaceType.IsGenericTypeDefinition &&
+               (interfaceType.GetInterfaces().Any(IsRepositoryInterface) || IsRepositoryInterface(interfaceType));
+
+        private static void RegisterByMarker(
             IServiceCollection services,
             Type implementationType,
             IEnumerable<Type> implementedInterfaces,
             Type markerType,
             ServiceLifetime lifetime)
         {
+            if (!implementedInterfaces.Contains(markerType))
+            {
+                return;
+            }
+
             var serviceInterfaces = implementedInterfaces
                 .Where(interfaceType =>
                     interfaceType != markerType &&
-                    !interfaceType.IsGenericTypeDefinition &&
-                    !interfaceType.GetInterfaces().Contains(markerType))
+                    interfaceType != typeof(ITransient) &&
+                    interfaceType != typeof(IScoped) &&
+                    interfaceType != typeof(ISingleton) &&
+                    !interfaceType.IsGenericTypeDefinition)
+                .Distinct()
                 .ToArray();
 
             if (serviceInterfaces.Length == 0)
             {
-                services.Add(new ServiceDescriptor(
-                    implementationType,
-                    implementationType,
-                    lifetime));
-
+                services.Add(new ServiceDescriptor(implementationType, implementationType, lifetime));
                 return;
             }
 
             foreach (var serviceInterface in serviceInterfaces)
             {
-                services.Add(new ServiceDescriptor(
-                    serviceInterface,
-                    implementationType,
-                    lifetime));
+                services.Add(new ServiceDescriptor(serviceInterface, implementationType, lifetime));
+            }
+        }
+
+        private static IEnumerable<Type> GetLoadableTypes(System.Reflection.Assembly assembly)
+        {
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch (System.Reflection.ReflectionTypeLoadException exception)
+            {
+                return exception.Types.OfType<Type>();
             }
         }
     }

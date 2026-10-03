@@ -61,15 +61,9 @@ public sealed class EfUnitOfWork(
         }
     }
 
-    private async Task SaveChangesAndDispatchDomainEventsAsync(
-        CancellationToken cancellationToken)
+    private async Task SaveChangesAndDispatchDomainEventsAsync(CancellationToken cancellationToken)
     {
         await dbContext.SaveChangesAsync(cancellationToken);
-
-        if (domainEventDispatcher is null)
-        {
-            return;
-        }
 
         while (true)
         {
@@ -89,11 +83,15 @@ public sealed class EfUnitOfWork(
                 return;
             }
 
+            if (domainEventDispatcher is null)
+            {
+                throw new InvalidOperationException(
+                    "Domain events were raised, but no IDomainEventDispatcher is registered.");
+            }
+
             await domainEventDispatcher.DispatchAsync(domainEvents, cancellationToken);
 
-            // Persist all changes made by domain event handlers before clearing
-            // the in-memory events. If SaveChanges fails, keeping the events
-            // allows the same DbContext scope to retry without losing events.
+            // Handler changes are persisted before the original event snapshot is cleared.
             await dbContext.SaveChangesAsync(cancellationToken);
 
             foreach (var aggregateRoot in aggregateRoots)

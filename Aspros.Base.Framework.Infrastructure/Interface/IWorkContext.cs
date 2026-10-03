@@ -1,9 +1,12 @@
-﻿namespace Aspros.Base.Framework.Infrastructure
+using Aspros.Base.Framework.Application.Abstractions;
+
+namespace Aspros.Base.Framework.Infrastructure
 {
-    public interface IWorkContext : IScoped
+    /// <summary>
+    /// Legacy compatibility contract.
+    /// 新业务代码应依赖 Application.Abstractions.IWorkContext。
+    /// </summary>
+    public interface IWorkContext : Application.Abstractions.IWorkContext, IScoped
     {
-        Task<long> GetUserId();
-        Task<long> GetTenantId();
-        Task<T> Get<T>(string key);
     }
 }

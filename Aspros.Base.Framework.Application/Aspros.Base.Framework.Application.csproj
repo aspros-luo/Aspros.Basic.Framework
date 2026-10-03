@@ -1,18 +1,18 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>enable</Nullable>
-		<Version>1.0.2</Version>
-	</PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Version>1.1.0</Version>
+  </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="MediatR" Version="12.4.1" />
-	</ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
+  </ItemGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\Aspros.Base.Framework.Domain\Aspros.Base.Framework.Domain.csproj" />
-	</ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Aspros.Base.Framework.Domain\Aspros.Base.Framework.Domain.csproj" />
+  </ItemGroup>
 
 </Project>

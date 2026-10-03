@@ -1,18 +1,15 @@
-﻿using Aspros.Base.Framework.Infrastructure;
+namespace Aspros.Base.Framework.Domain;
 
-namespace Aspros.Base.Framework.Domain
+/// <summary>
+/// 基础仓储查询实现。
+/// 不依赖 Infrastructure；具体 DbContext 由 Infrastructure 或业务项目提供 IQueryable。
+/// </summary>
+public abstract class BaseRepository<TAggregateRoot>(IQueryable<TAggregateRoot> entities)
+    : IRepository<TAggregateRoot>
+    where TAggregateRoot : class, IAggregateRoot
 {
-    public abstract class BaseRepository<TAggregateRoot> : IRepository<TAggregateRoot> where TAggregateRoot : class, IAggregateRoot
-    {
-        public readonly IQueryable<TAggregateRoot> Entities;
+    protected IQueryable<TAggregateRoot> Entities { get; } = entities
+        ?? throw new ArgumentNullException(nameof(entities));
 
-        protected BaseRepository(IDbContext dbContext) => Entities = dbContext.Set<TAggregateRoot>();
-
-        public IQueryable<TAggregateRoot> GetAll()
-        {
-            return Entities;
-        }
-
-    }
-
+    public IQueryable<TAggregateRoot> GetAll() => Entities;
 }
