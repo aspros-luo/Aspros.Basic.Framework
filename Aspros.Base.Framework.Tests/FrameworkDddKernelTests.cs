@@ -4,6 +4,7 @@ using Aspros.Base.Framework.Domain.Kernel;
 using Aspros.Base.Framework.Infrastructure;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Xunit;
 
 namespace Aspros.Base.Framework.Tests;
 
@@ -117,7 +118,15 @@ public sealed class FrameworkDddKernelTests
         }
     }
 
-    public sealed record CustomerRegistered(Guid CustomerId) : DomainEvent;
+    public sealed class CustomerRegistered : DomainEvent
+    {
+        public CustomerRegistered(Guid customerId)
+        {
+            CustomerId = customerId;
+        }
+
+        public Guid CustomerId { get; }
+    }
 }
 
 public sealed class HandledEventState
