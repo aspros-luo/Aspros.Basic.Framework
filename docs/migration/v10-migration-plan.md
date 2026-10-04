@@ -112,6 +112,20 @@ No separate Application Dispatcher or Runtime has been introduced.
 
 `AutoInject()` 只是 DI 注册便利层，不是 DDD 能力的一部分。业务项目可以完全不用它，直接使用标准 DI：`AddScoped`、`AddSingleton`、`AddTransient`、`AddMediatR`。Framework 的 Domain / Application 契约不得依赖 AutoInject 才成立。
 
+## Package version boundary
+
+The refactor uses **Framework v10** as the architecture/migration line and **2.0.0** as the NuGet SemVer line.
+
+The three framework packages are aligned to:
+
+- `Aspros.Base.Framework.Domain 2.0.0`
+- `Aspros.Base.Framework.Application 2.0.0`
+- `Aspros.Base.Framework.Infrastructure 2.0.0`
+
+The 2.0.0 line is intentional because the removal of the root `Domain.Status` type is source-breaking.
+
+A `v2.0.0` Git tag/release should only be created after the real consumer validation projects restore and build successfully against the new package line.
+
 ## Consumer-driven guidance
 
 当前 Framework 的形态来自真实消费者：普通 Command 使用轻量 Unit of Work 并最终一次 Commit；显式事务只是少数例外。旧版进程内 Event 保留兼容，但跨服务可靠投递使用 Integration Event + Outbox + MQ。
