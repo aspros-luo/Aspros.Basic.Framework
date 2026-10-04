@@ -115,3 +115,19 @@ Consumer 暴露 GET /core/ping，通过框架注册的 gRPC ClientFactory 调用
                              +-> durable MQ / CAP / MassTransit
 
 当前代码以 .NET 8 为基线，设计上避免绑定过多业务能力，为后续 .NET 10 升级保留空间。
+
+## 本地 Smoke Test
+
+先启动 Provider：
+
+    dotnet run --project samples/Framework.Core.Provider
+
+再启动 Consumer：
+
+    dotnet run --project samples/Framework.Core.Consumer
+
+然后访问：
+
+    https://localhost:7141/core/ping?message=hello
+
+也可以直接打开 samples/Framework.Core.Consumer/SmokeTests.http，在 Rider 或 Visual Studio 中执行请求。
