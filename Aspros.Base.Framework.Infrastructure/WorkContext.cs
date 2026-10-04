@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Globalization;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 
 namespace Aspros.Base.Framework.Infrastructure;
 
@@ -40,14 +41,11 @@ public sealed class WorkContext(IHttpContextAccessor contextAccessor) : IWorkCon
 
     public async Task<long> GetUserId()
     {
-        if (TryGetClaim("user_id", out var userId))
+        if (TryGetClaim("user_id", out var userId) ||
+            TryGetClaim(ClaimTypes.NameIdentifier, out userId) ||
+            TryGetClaim("sub", out userId))
         {
             return ConvertClaimValue<long>(userId);
-        }
-
-        if (TryGetClaim("sub", out var subject))
-        {
-            return ConvertClaimValue<long>(subject);
         }
 
         var tokenPayload = await GetTokenPayloadAsync();
@@ -66,7 +64,8 @@ public sealed class WorkContext(IHttpContextAccessor contextAccessor) : IWorkCon
             return false;
         }
 
-        var claim = user.Claims.FirstOrDefault(x => x.Type.Equals(key, StringComparison.Ordinal));
+        var claim = user.Claims.FirstOrDefault(
+            x => x.Type.Equals(key, StringComparison.Ordinal));
         if (claim is null || string.IsNullOrWhiteSpace(claim.Value))
         {
             return false;
