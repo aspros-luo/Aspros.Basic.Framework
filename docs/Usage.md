@@ -123,3 +123,15 @@ The legacy permission middleware can now be configured without hard-coded servic
     app.UsePermissionValid();
 
 Permission failures are fail-closed: unavailable permission service -> 503; denied permission -> 403.
+
+## 9. One-line runtime registration
+
+Most business services can use:
+
+    builder.Services.AddAsprosFramework(
+        typeof(SomeApplicationService).Assembly,
+        typeof(SomeRepository).Assembly);
+
+This registers the common runtime services and scans only the supplied business assemblies.
+
+gRPC, Nacos service discovery, permission validation and messaging remain explicit opt-in integrations.
