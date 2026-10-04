@@ -1,74 +1,170 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Reflection;
 
-namespace Aspros.Base.Framework.Infrastructure
+namespace Aspros.Base.Framework.Infrastructure;
+
+public static class IServiceCollectionExtension
 {
-    public static class IServiceCollectionExtension
+    /// <summary>
+    /// Backward-compatible entry point that scans currently loaded assemblies.
+    /// </summary>
+    public static void AutoInject(this IServiceCollection services)
     {
-        public static void AutoInject(this IServiceCollection services)
+        services.AddAutoInject();
+    }
+
+    public static IServiceCollection AddAutoInject(
+        this IServiceCollection services,
+        params Assembly[] assemblies)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        var scanAssemblies = (assemblies is { Length: > 0 }
+                ? assemblies
+                : AppDomain.CurrentDomain.GetAssemblies())
+            .Where(assembly => !assembly.IsDynamic)
+            .Distinct()
+            .ToArray();
+
+        var implementationTypes = scanAssemblies
+            .SelectMany(GetLoadableTypes)
+            .Where(type => type is { IsClass: true, IsAbstract: false })
+            .Distinct()
+            .ToArray();
+
+        RegisterMediatR(services, implementationTypes);
+        RegisterEventHandlers(services, implementationTypes);
+
+        foreach (var implementationType in implementationTypes)
         {
-            // register assembly 
-            services.InjectService();
-        }
+            var interfaces = implementationType.GetInterfaces();
+            var lifetime = GetLifetime(interfaces);
 
-        private static void InjectService(this IServiceCollection services)
-        {
-            #region 依赖注入
+            if (lifetime is null)
+            {
+                continue;
+            }
 
-            var mediatRType = typeof(IBaseRequest); //MediatR
-            var transientType = typeof(ITransient); //每次新建
-            var scopedType = typeof(IScoped); //作用域
-            var singletonType = typeof(ISingleton); //全局唯一
-
-            //获取实现了接口自动注入接口 的程序集
-            var allTypes = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes()
-                .Where(t =>
-                    t.GetInterfaces().Contains(mediatRType) ||
-                    t.GetInterfaces().Contains(transientType) ||
-                    t.GetInterfaces().Contains(scopedType) ||
-                    t.GetInterfaces().Contains(singletonType)));
-            //class的程序集
-            var classTypes = allTypes.Where(x => x.IsClass).ToArray();
-            //接口的程序集
-            var interfaceTypes = allTypes.Where(x => x.IsInterface).ToArray();
-
-            // MediatR 服务注册一次
-            var mediatRAssemblies = classTypes
-                .Where(x => x.GetInterfaces().Contains(mediatRType))
-                .Select(x => x.Assembly)
+            var serviceTypes = interfaces
+                .Where(interfaceType =>
+                    interfaceType != typeof(ITransient) &&
+                    interfaceType != typeof(IScoped) &&
+                    interfaceType != typeof(ISingleton) &&
+                    interfaceType != typeof(IEvent) &&
+                    !IsEventHandlerInterface(interfaceType) &&
+                    !typeof(IBaseRequest).IsAssignableFrom(interfaceType))
                 .Distinct()
                 .ToArray();
-            // 注册 MediatR 服务，确保每个相关程序集只注册一次
-            if (mediatRAssemblies.Any())
-            {
-                services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(mediatRAssemblies));
-            }
-            foreach (var classType in classTypes)
-            {
-                // 获取类对应的接口
-                var interfaceType = interfaceTypes.FirstOrDefault(x => x.IsAssignableFrom(classType));
-                // 注入MediatR
-                //if (classType.GetInterfaces().Contains(mediatRType)) services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(classType.Assembly));
 
-                //判断class有接口，用接口注入
-                if (interfaceType != null)
-                {
-                    //判断用什么方式注入
-                    if (interfaceType.GetInterfaces().Contains(transientType)) services.AddTransient(interfaceType, classType);
-                    if (interfaceType.GetInterfaces().Contains(scopedType)) services.AddScoped(interfaceType, classType);
-                    if (interfaceType.GetInterfaces().Contains(singletonType)) services.AddSingleton(interfaceType, classType);
-                }
-                else //class没有接口，直接注入class
-                {
-                    //判断用什么方式注入
-                    if (classType.GetInterfaces().Contains(transientType)) services.AddTransient(classType);
-                    if (classType.GetInterfaces().Contains(scopedType)) services.AddScoped(classType);
-                    if (classType.GetInterfaces().Contains(singletonType)) services.AddSingleton(classType);
-                }
-
+            if (serviceTypes.Length == 0)
+            {
+                Register(services, implementationType, implementationType, lifetime.Value);
+                continue;
             }
-            #endregion
+
+            foreach (var serviceType in serviceTypes)
+            {
+                Register(services, serviceType, implementationType, lifetime.Value);
+            }
+        }
+
+        return services;
+    }
+
+    private static void RegisterMediatR(
+        IServiceCollection services,
+        IReadOnlyCollection<Type> implementationTypes)
+    {
+        var requestAssemblies = implementationTypes
+            .Where(type => typeof(IBaseRequest).IsAssignableFrom(type))
+            .Select(type => type.Assembly)
+            .Distinct()
+            .ToArray();
+
+        if (requestAssemblies.Length == 0)
+        {
+            return;
+        }
+
+        services.AddMediatR(configuration =>
+            configuration.RegisterServicesFromAssemblies(requestAssemblies));
+    }
+
+    private static void RegisterEventHandlers(
+        IServiceCollection services,
+        IReadOnlyCollection<Type> implementationTypes)
+    {
+        foreach (var implementationType in implementationTypes)
+        {
+            foreach (var serviceType in implementationType.GetInterfaces()
+                         .Where(IsEventHandlerInterface))
+            {
+                services.TryAddTransient(serviceType, implementationType);
+            }
+        }
+    }
+
+    private static ServiceLifetime? GetLifetime(IEnumerable<Type> interfaces)
+    {
+        var types = interfaces.ToArray();
+
+        if (types.Contains(typeof(ISingleton)))
+        {
+            return ServiceLifetime.Singleton;
+        }
+
+        if (types.Contains(typeof(IScoped)))
+        {
+            return ServiceLifetime.Scoped;
+        }
+
+        if (types.Contains(typeof(ITransient)))
+        {
+            return ServiceLifetime.Transient;
+        }
+
+        return null;
+    }
+
+    private static void Register(
+        IServiceCollection services,
+        Type serviceType,
+        Type implementationType,
+        ServiceLifetime lifetime)
+    {
+        switch (lifetime)
+        {
+            case ServiceLifetime.Singleton:
+                services.TryAddSingleton(serviceType, implementationType);
+                break;
+
+            case ServiceLifetime.Scoped:
+                services.TryAddScoped(serviceType, implementationType);
+                break;
+
+            default:
+                services.TryAddTransient(serviceType, implementationType);
+                break;
+        }
+    }
+
+    private static bool IsEventHandlerInterface(Type type)
+        => type.IsGenericType &&
+           type.GetGenericTypeDefinition() == typeof(IEventHandler<>);
+
+    private static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException exception)
+        {
+            return exception.Types
+                .Where(type => type is not null)
+                .Select(type => type!);
         }
     }
 }
