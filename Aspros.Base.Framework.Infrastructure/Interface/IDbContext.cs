@@ -17,4 +17,7 @@ public interface IDbContext : IScoped, IDisposable, IEntitySetProvider
 
     DbSet<TEntity> Set<TEntity>()
         where TEntity : class;
+
+    IQueryable<TEntity> IEntitySetProvider.Query<TEntity>()
+        => Set<TEntity>();
 }
