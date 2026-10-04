@@ -1,64 +1,128 @@
-﻿using Aspros.Base.Framework.Infrastructure.Const;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Security.Cryptography;
-using System.Text;
+using System.Globalization;
+using System.Net.Http.Headers;
 
+namespace Aspros.Base.Framework.Infrastructure;
 
-namespace Aspros.Base.Framework.Infrastructure
+/// <summary>
+/// Reads request-scoped identity data from the authenticated ClaimsPrincipal.
+/// JWT payload decoding is used only as a compatibility fallback for custom claims.
+/// </summary>
+public sealed class WorkContext(IHttpContextAccessor contextAccessor) : IWorkContext
 {
-    public class WorkContext(IHttpContextAccessor contextAccessor, IDistributedCache cache) : IWorkContext
+    private readonly IHttpContextAccessor _contextAccessor =
+        contextAccessor ?? throw new ArgumentNullException(nameof(contextAccessor));
+
+    public async Task<T> Get<T>(string key)
     {
-        private readonly IHttpContextAccessor _contextAccessor = contextAccessor;
-        private readonly IDistributedCache _cache = cache;
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        public async Task<T> Get<T>(string key)
+        if (TryGetClaim(key, out var claimValue))
         {
-            var tokenJson = await GetUserData();
-            return tokenJson[key].ToObject<T>();
+            return ConvertClaimValue<T>(claimValue);
         }
 
-        public async Task<long> GetTenantId()
+        var tokenPayload = await GetTokenPayloadAsync();
+        var value = tokenPayload?[key];
+
+        return value is null || value.Type == JTokenType.Null
+            ? default!
+            : value.ToObject<T>()!;
+    }
+
+    public async Task<long> GetTenantId()
+    {
+        var value = await Get<long>("tenant_id");
+        return value;
+    }
+
+    public async Task<long> GetUserId()
+    {
+        if (TryGetClaim("user_id", out var userId))
         {
-            var tokenJson = await GetUserData();
-            if (tokenJson == null) return 0;
-            else return tokenJson["tenant_id"] == null ? 0 : tokenJson["tenant_id"].ToObject<long>();
+            return ConvertClaimValue<long>(userId);
         }
 
-        public async Task<long> GetUserId()
+        if (TryGetClaim("sub", out var subject))
         {
-            var tokenJson = await GetUserData();
-            if (tokenJson == null) return 0;
-            else return tokenJson["user_id"] == null ? 0 : tokenJson["user_id"].ToObject<long>();
-
+            return ConvertClaimValue<long>(subject);
         }
 
-        private async Task<JObject> GetUserData()
-        {
-            var token = _contextAccessor.HttpContext?.Request.Headers.Authorization.FirstOrDefault();
-            if (string.IsNullOrEmpty(token)) return null;
+        var tokenPayload = await GetTokenPayloadAsync();
+        return tokenPayload?["user_id"]?.ToObject<long>()
+               ?? tokenPayload?["sub"]?.ToObject<long>()
+               ?? 0L;
+    }
 
-            token = token.Replace("Bearer ", "");
-            string userDataString;
-            var result = MD5.HashData(Encoding.UTF8.GetBytes(token));
-            var strResult = BitConverter.ToString(result);
-            string userKey = $"{CacheConst.Token}{strResult.Replace("-", "")}";
-            var userDataByte = await _cache.GetAsync(userKey);
-            if (userDataByte != null)
-            {
-                userDataString = Encoding.UTF8.GetString(userDataByte);
-                return JsonConvert.DeserializeObject<JObject>(userDataString);
-            }
-            else
-            {
-                var json = Jose.JWT.Payload(token);
-                var obj = JObject.Parse(json);
-                userDataString = JsonConvert.SerializeObject(obj);
-                await _cache.SetAsync(userKey, Encoding.UTF8.GetBytes(userDataString), new DistributedCacheEntryOptions().SetAbsoluteExpiration(DateTimeOffset.Now.AddHours(5)));
-                return obj;
-            }
+    private bool TryGetClaim(string key, out string value)
+    {
+        value = string.Empty;
+
+        var user = _contextAccessor.HttpContext?.User;
+        if (user?.Identity?.IsAuthenticated != true)
+        {
+            return false;
+        }
+
+        var claim = user.Claims.FirstOrDefault(x => x.Type.Equals(key, StringComparison.Ordinal));
+        if (claim is null || string.IsNullOrWhiteSpace(claim.Value))
+        {
+            return false;
+        }
+
+        value = claim.Value;
+        return true;
+    }
+
+    private async Task<JObject?> GetTokenPayloadAsync()
+    {
+        var httpContext = _contextAccessor.HttpContext;
+        if (httpContext?.User?.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        if (!AuthenticationHeaderValue.TryParse(
+                httpContext.Request.Headers.Authorization.ToString(),
+                out var authorization) ||
+            !string.Equals(authorization.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(authorization.Parameter))
+        {
+            return null;
+        }
+
+        try
+        {
+            var payload = Jose.JWT.Payload(authorization.Parameter);
+            return JsonConvert.DeserializeObject<JObject>(payload);
+        }
+        catch (Exception ex) when (ex is FormatException or ArgumentException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static T ConvertClaimValue<T>(string value)
+    {
+        if (typeof(T) == typeof(string))
+        {
+            return (T)(object)value;
+        }
+
+        try
+        {
+            return JsonConvert.DeserializeObject<T>(value)
+                   ?? throw new InvalidOperationException(
+                       $"Unable to convert claim '{value}' to {typeof(T).Name}.");
+        }
+        catch (JsonException)
+        {
+            return (T)Convert.ChangeType(
+                value,
+                Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T),
+                CultureInfo.InvariantCulture);
         }
     }
 }
