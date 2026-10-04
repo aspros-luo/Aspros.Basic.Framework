@@ -52,5 +52,7 @@ public interface IUnitOfWork : IScoped
 
     Task<bool> CommitAsync(CancellationToken cancellationToken);
 
+    Task RollbackAsync(CancellationToken cancellationToken = default);
+
     void Rollback();
 }
