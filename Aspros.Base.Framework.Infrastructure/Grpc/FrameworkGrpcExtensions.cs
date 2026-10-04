@@ -63,8 +63,15 @@ public static class FrameworkGrpcExtensions
                 var httpContextAccessor =
                     serviceProvider.GetService<IHttpContextAccessor>();
 
+                var httpContext = httpContextAccessor?.HttpContext;
+
+                if (httpContext?.User?.Identity?.IsAuthenticated != true)
+                {
+                    return Task.CompletedTask;
+                }
+
                 var authorization =
-                    httpContextAccessor?.HttpContext?.Request.Headers.Authorization.ToString();
+                    httpContext.Request.Headers.Authorization.ToString();
 
                 if (!AuthenticationHeaderValue.TryParse(
                         authorization,
@@ -79,7 +86,7 @@ public static class FrameworkGrpcExtensions
                 }
 
                 metadata.Add(
-                    "Authorization",
+                    "authorization",
                     $"Bearer {header.Parameter}");
 
                 return Task.CompletedTask;
