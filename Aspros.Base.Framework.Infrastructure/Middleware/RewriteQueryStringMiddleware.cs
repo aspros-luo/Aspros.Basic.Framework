@@ -1,77 +1,124 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Text;
 
-namespace Aspros.Base.Framework.Infrastructure
+namespace Aspros.Base.Framework.Infrastructure;
+
+public sealed class RewriteQueryStringMiddleware(RequestDelegate next)
 {
-    public class RewriteQueryStringMiddleware(RequestDelegate next)
+    private readonly RequestDelegate _next =
+        next ?? throw new ArgumentNullException(nameof(next));
+
+    public async Task InvokeAsync(
+        HttpContext context,
+        CancellationToken cancellationToken)
     {
-        private readonly RequestDelegate _next = next;
+        ArgumentNullException.ThrowIfNull(context);
 
-        public async Task Invoke(HttpContext context)
+        if (context.Request.Method is "POST" or "PUT")
         {
-            if (context.Request.Method == "POST" || context.Request.Method == "PUT")
-            {
-                if (context.Request.ContentType.Contains("application/json"))
-                {
-                    #region 修改请求的body 
-
-                    var requestBodyStream = new MemoryStream(); //创建一个流 
-                    //设置当前流的位置未0
-                    requestBodyStream.Seek(0, SeekOrigin.Begin); //设置从0开始读取
-                    //这里ReadToEnd执行完毕后requestBodyStream流的位置会从0到最后位置(即request.ContentLength)
-                    var requestBody = new StreamReader(context.Request.Body).ReadToEnd(); //读取body
-                    //需要将流位置重置偏移到0，不然后续的action读取不到request.Content的值 
-                    requestBodyStream.Seek(0, SeekOrigin.Begin);
-
-                    var newDics = new Dictionary<string, dynamic>();
-                    var dics = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(requestBody);
-                    foreach (var dic in dics)
-                    {
-                        newDics.Add(dic.Key.ToPascalCase(), dic.Value);
-                    }
-
-                    var str = JsonConvert.SerializeObject(newDics);
-
-                    var content1 = Encoding.UTF8.GetBytes(str); //替换字符串并且字符串转换成字节
-                    requestBodyStream.Seek(0, SeekOrigin.Begin);
-                    requestBodyStream.Write(content1, 0, content1.Length); //把修改写入流中
-                    context.Request.Body = requestBodyStream; //把修改后的内容赋值给请求body
-                    context.Request.Body.Seek(0, SeekOrigin.Begin);
-
-                    #endregion
-                }
-            }
-
-            if (context.Request.Method == "GET")
-            {
-                var query = context.Request.QueryString;
-                if (query.HasValue)
-                {
-                    var parms = string.Join("&", query.Value.TrimStart('?').Split('&').Select(s =>
-                    {
-                        var kv = s.Split('=');
-                        var k = kv[0].Replace("_", "");
-                        var v = kv[1];
-                        return $"{k}={v}";
-                    }));
-                    var newQuery = new QueryString($"?{parms}");
-                    context.Request.QueryString = newQuery;
-                }
-            }
-
-            //Let the next middleware (MVC routing) handle the request
-            //In case the path was updated, the MVC routing will see the updated path
-            await _next.Invoke(context);
+            await RewriteJsonBodyAsync(context, cancellationToken);
         }
+        else if (HttpMethods.IsGet(context.Request.Method))
+        {
+            RewriteQuery(context);
+        }
+
+        await _next(context);
     }
 
-    public static class RewriteQueryStringExtensions
+    private static async Task RewriteJsonBodyAsync(
+        HttpContext context,
+        CancellationToken cancellationToken)
     {
-        public static IApplicationBuilder UseRewriteQueryString(this IApplicationBuilder builder)
+        var contentType = context.Request.ContentType;
+        if (string.IsNullOrWhiteSpace(contentType) ||
+            !contentType.StartsWith(
+                "application/json",
+                StringComparison.OrdinalIgnoreCase))
         {
-            return builder.UseMiddleware<RewriteQueryStringMiddleware>();
+            return;
         }
+
+        if (context.Request.ContentLength == 0)
+        {
+            return;
+        }
+
+        using var reader = new StreamReader(
+            context.Request.Body,
+            Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true,
+            leaveOpen: true);
+
+        var requestBody = await reader.ReadToEndAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(requestBody))
+        {
+            return;
+        }
+
+        var dictionary =
+            JsonConvert.DeserializeObject<Dictionary<string, JToken?>>(
+                requestBody);
+
+        if (dictionary is null)
+        {
+            return;
+        }
+
+        var normalized = new Dictionary<string, JToken?>(
+            dictionary.Count,
+            StringComparer.Ordinal);
+
+        foreach (var pair in dictionary)
+        {
+            var key = pair.Key.ToPascalCase();
+            normalized.Add(key, pair.Value);
+        }
+
+        var rewrittenBody = JsonConvert.SerializeObject(normalized);
+        var bodyBytes = Encoding.UTF8.GetBytes(rewrittenBody);
+
+        context.Request.Body = new MemoryStream(bodyBytes);
+        context.Request.ContentLength = bodyBytes.Length;
+        context.Request.Body.Position = 0;
+    }
+
+    private static void RewriteQuery(HttpContext context)
+    {
+        if (!context.Request.QueryString.HasValue)
+        {
+            return;
+        }
+
+        var pairs = new List<KeyValuePair<string, string>>();
+
+        foreach (var pair in QueryHelpers.ParseQuery(
+                     context.Request.QueryString.Value!))
+        {
+            var key = pair.Key.Replace("_", string.Empty, StringComparison.Ordinal);
+
+            foreach (var value in pair.Value)
+            {
+                pairs.Add(new KeyValuePair<string, string>(
+                    key,
+                    value ?? string.Empty));
+            }
+        }
+
+        context.Request.QueryString = QueryString.Create(pairs);
+    }
+}
+
+public static class RewriteQueryStringExtensions
+{
+    public static IApplicationBuilder UseRewriteQueryString(
+        this IApplicationBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.UseMiddleware<RewriteQueryStringMiddleware>();
     }
 }
