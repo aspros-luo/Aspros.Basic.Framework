@@ -12,6 +12,10 @@ public interface IDbContext : IScoped, IDisposable, IEntitySetProvider
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity)
         where TEntity : class;
 
+    ChangeTracker ChangeTracker { get; }
+
+    void ClearTrackedChanges() => ChangeTracker.Clear();
+
     Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 
