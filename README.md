@@ -72,6 +72,32 @@ Message Broker
 
 The Framework does not turn every Domain Event into a broker message automatically.
 
+## gRPC microservice communication
+
+Framework v10 includes optional gRPC infrastructure integration for internal service-to-service calls.
+
+- Server: `AddFrameworkGrpc()`
+- Typed client: `AddFrameworkGrpcClient<TClient>(...)`
+- Configuration convention: `Grpc:Services:<serviceName>:Address`
+- Named gRPC clients are supported.
+- Business gRPC contracts remain in consumer/shared Contracts projects; Framework does not own User/Category/Trade protobuf definitions.
+
+Recommended shape:
+
+```text
+User / Category / Trade
+        ↓
+Shared *.proto contracts
+        ↓
+Generated gRPC clients / services
+        ↓
+Framework gRPC registration
+        ↓
+Application business port
+```
+
+Use gRPC for synchronous internal calls. Use Integration Event + CAP/Outbox + MQ for asynchronous cross-service consistency.
+
 ## Repository
 `IRepository<T>` and `BaseRepository<T>` are lightweight repository/query contracts. `BaseRepository<T>` does not own a DbContext or database connection. Concrete persistence implementations stay in consumer Infrastructure.
 
