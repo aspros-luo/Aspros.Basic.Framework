@@ -48,3 +48,5 @@
 - [x] 增加 IServiceDiscovery / ServiceEndpoint，并将 Nacos 作为默认实现。
 - [x] 权限校验改为通过服务发现抽象定位权限服务。
 - [x] 权限服务名称、Group 和路径改为 Options 配置。
+
+- [x] 增加 AddAsprosFramework，一次性注册常用基础运行时能力。
