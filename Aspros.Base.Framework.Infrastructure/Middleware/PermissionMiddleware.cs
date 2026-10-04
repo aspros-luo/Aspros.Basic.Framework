@@ -56,10 +56,28 @@ public sealed class PermissionMiddleware(RequestDelegate next)
         ArgumentException.ThrowIfNullOrWhiteSpace(settings.GroupName);
         ArgumentException.ThrowIfNullOrWhiteSpace(settings.ValidationPath);
 
-        var instance = await serviceDiscovery.GetHealthyEndpointAsync(
-            settings.ServiceName,
-            settings.GroupName,
-            context.RequestAborted);
+        ServiceEndpoint? instance;
+
+        try
+        {
+            instance = await serviceDiscovery.GetHealthyEndpointAsync(
+                settings.ServiceName,
+                settings.GroupName,
+                context.RequestAborted);
+        }
+        catch (OperationCanceledException)
+            when (context.RequestAborted.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            await WriteErrorAsync(
+                context,
+                StatusCodes.Status503ServiceUnavailable,
+                "权限服务发现失败");
+            return;
+        }
 
         if (instance is null)
         {
