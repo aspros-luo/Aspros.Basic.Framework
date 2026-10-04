@@ -44,3 +44,7 @@
     Controller -> Service/Application -> Repository -> DB
 
 只有实际业务存在异步最终一致性需求时才使用持久化 MQ。
+
+- [x] 增加 IServiceDiscovery / ServiceEndpoint，并将 Nacos 作为默认实现。
+- [x] 权限校验改为通过服务发现抽象定位权限服务。
+- [x] 权限服务名称、Group 和路径改为 Options 配置。
