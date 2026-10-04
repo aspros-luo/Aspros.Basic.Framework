@@ -5,5 +5,6 @@ namespace Aspros.Base.Framework.Infrastructure;
 /// </summary>
 public interface IEventBus : ITransient
 {
-    Task PublishAsync<T>(T @event) where T : IEvent;
+    Task PublishAsync<T>(T @event)
+        where T : IEvent;
 }
