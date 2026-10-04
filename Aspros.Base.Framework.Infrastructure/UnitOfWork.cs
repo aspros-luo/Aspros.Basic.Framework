@@ -88,6 +88,7 @@ public sealed class UnitOfWork(
                 // Preserve the original persistence exception.
             }
 
+            _dbContext.ClearTrackedChanges();
             throw;
         }
         finally
@@ -241,6 +242,8 @@ public sealed class UnitOfWork(
             DbContextTransaction.Rollback();
         }
         finally
+        {
+            _dbContext.ClearTrackedChanges();
         {
             if (_ownsTransaction)
             {
