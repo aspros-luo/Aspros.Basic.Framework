@@ -125,3 +125,15 @@ proto 始终归业务服务自己管理，框架只做基础设施接入。
     app.UsePermissionValid();
 
 权限服务不可用返回 503；权限不足返回 403，不再出现校验失败但请求继续向下执行的问题。
+
+## 9. 一行注册基础运行时
+
+大多数业务服务可以直接：
+
+    builder.Services.AddAsprosFramework(
+        typeof(SomeApplicationService).Assembly,
+        typeof(SomeRepository).Assembly);
+
+它会注册 HttpContextAccessor、WorkContext、UnitOfWork、DapperExecutor、进程内 EventBus，并扫描传入的业务程序集。
+
+gRPC、Nacos 服务发现、权限校验、MQ 等仍然按需显式注册，避免每个服务启动时自动加载全部能力。
