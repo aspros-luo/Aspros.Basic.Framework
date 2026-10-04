@@ -1,16 +1,5 @@
 using Aspros.Base.Framework.Infrastructure;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
-
 var builder = WebApplication.CreateBuilder(args);
-
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenLocalhost(7041, listenOptions =>
-    {
-        listenOptions.Protocols = HttpProtocols.Http2;
-        listenOptions.UseHttps();
-    });
-});
 
 builder.Services.AddFrameworkGrpc();
 
