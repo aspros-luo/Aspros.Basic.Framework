@@ -155,3 +155,14 @@ For asynchronous business flows:
     }
 
 Commit and rollback clear the active UnitOfWork transaction. Rollback also clears tracked EF Core changes to prevent an accidental later SaveChanges.
+
+## 11. gRPC call-context propagation
+
+When a gRPC service calls another gRPC service, propagation can be enabled explicitly:
+
+    builder.Services
+        .AddFrameworkGrpcClient<YourGrpc.YourGrpcClient>(
+            new Uri("https://service-address"))
+        .PropagateGrpcCallContext();
+
+This propagates the parent gRPC deadline and cancellation context.
