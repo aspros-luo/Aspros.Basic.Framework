@@ -40,7 +40,9 @@ namespace Aspros.Base.Framework.Infrastructure
             }
             catch (Exception e)
             {
-                throw new ArgumentException(e.Message);
+                throw new ArgumentException(
+                    "RSA signing failed.",
+                    e);
             }
         }
         /// <summary>
@@ -68,7 +70,9 @@ namespace Aspros.Base.Framework.Infrastructure
             }
             catch (Exception e)
             {
-                throw new ArgumentException(e.Message);
+                throw new ArgumentException(
+                    "RSA encryption failed.",
+                    e);
             }
         }
         /// <summary>
@@ -96,7 +100,9 @@ namespace Aspros.Base.Framework.Infrastructure
             }
             catch (Exception e)
             {
-                throw new ArgumentException(e.Message);
+                throw new ArgumentException(
+                    "RSA signature validation failed.",
+                    e);
             }
         }
         /// <summary>
