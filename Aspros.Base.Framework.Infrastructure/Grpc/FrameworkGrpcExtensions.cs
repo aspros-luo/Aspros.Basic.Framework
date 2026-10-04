@@ -1,8 +1,10 @@
 using Grpc.AspNetCore.Server;
 using Grpc.Net.ClientFactory;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http.Headers;
 
 namespace Aspros.Base.Framework.Infrastructure;
 
@@ -42,6 +44,46 @@ public static class FrameworkGrpcExtensions
         return services.AddGrpcClient<TClient>(
             name,
             options => options.Address = address);
+    }
+
+    /// <summary>
+    /// Opt-in propagation of the current HTTP Bearer token to an outgoing gRPC call.
+    /// Useful for API -> service -> service user-context propagation.
+    /// </summary>
+    public static IHttpClientBuilder ForwardAuthorizationHeader(
+        this IHttpClientBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddHttpContextAccessor();
+
+        return builder.AddCallCredentials(
+            (context, metadata, serviceProvider) =>
+            {
+                var httpContextAccessor =
+                    serviceProvider.GetService<IHttpContextAccessor>();
+
+                var authorization =
+                    httpContextAccessor?.HttpContext?.Request.Headers.Authorization.ToString();
+
+                if (!AuthenticationHeaderValue.TryParse(
+                        authorization,
+                        out var header) ||
+                    !string.Equals(
+                        header.Scheme,
+                        "Bearer",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    string.IsNullOrWhiteSpace(header.Parameter))
+                {
+                    return Task.CompletedTask;
+                }
+
+                metadata.Add(
+                    "Authorization",
+                    $"Bearer {header.Parameter}");
+
+                return Task.CompletedTask;
+            });
     }
 
     public static IEndpointConventionBuilder MapFrameworkGrpcService<TService>(
