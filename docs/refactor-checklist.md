@@ -11,6 +11,7 @@
 | Unit of Work | Commit and transaction behavior were mixed | `CommitAsync` persists only; explicit transaction is opt-in | Use `IUnitOfWork` / `ITransactionalUnitOfWork` |
 | CAP | Provider-specific transaction behavior leaked into Framework | Core Framework stays provider-neutral | Consumer Infrastructure supplies CAP adapter |
 | Application Runtime | Risk of a second dispatcher | MediatR is the runtime | Use `IMediator` / `ISender` |
+| gRPC | Internal RPC plumbing would otherwise be repeated in every service | Thin Framework server/client registration over official gRPC APIs | `AddFrameworkGrpc()` / `AddFrameworkGrpcClient<TClient>()` |
 | Pipeline | Behavior was not proven executable | Open-generic Behaviors are wired into MediatR | Implement `IPipelineBehavior<,>` |
 | Integration Events | Local and cross-service events could be confused | Explicit publisher boundary | `IIntegrationEventPublisher` + CAP/Outbox |
 | AutoInject | Could be treated as required | Optional convenience only | Standard DI remains first-class |
@@ -35,6 +36,7 @@
 
 ### Deliberately not implemented
 - Generic RPC framework without a real cross-service contract.
-- Generic gRPC abstraction without a proven consumer requirement.
+- Generic business RPC abstraction or service registry without a demonstrated repeated need.
+- Framework-owned User/Category/Trade `.proto` contracts.
 - Speculative validation, idempotency, logging, metrics, tracing or observability frameworks.
 - Replacement Repository abstraction without a demonstrated repeated need.
