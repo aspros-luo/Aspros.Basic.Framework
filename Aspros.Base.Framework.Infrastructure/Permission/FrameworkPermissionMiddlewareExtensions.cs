@@ -9,7 +9,6 @@ public static class FrameworkPermissionMiddlewareExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        return builder.UseMiddleware<
-            Aspros.SaaS.System.Infrastructure.PermissionMiddleware>();
+        return builder.UseMiddleware<FrameworkPermissionMiddleware>();
     }
 }
