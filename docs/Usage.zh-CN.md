@@ -157,3 +157,15 @@ gRPC、Nacos 服务发现、权限校验、MQ 等仍然按需显式注册，避�
     }
 
 Commit 或 Rollback 后当前 UnitOfWork 的事务状态会被清理；回滚还会清除 EF Core 当前 ChangeTracker 中的修改，避免后续误 SaveChanges。
+
+## 11. gRPC 调用上下文传播
+
+如果一个 gRPC 服务内部还要调用下游 gRPC，可以显式开启：
+
+    builder.Services
+        .AddFrameworkGrpcClient<YourGrpc.YourGrpcClient>(
+            new Uri("https://service-address"))
+        .PropagateGrpcCallContext();
+
+这样下游调用可以继承上游 gRPC 的 deadline 和 cancellation。
+
