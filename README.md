@@ -131,3 +131,35 @@ Consumer 暴露 GET /core/ping，通过框架注册的 gRPC ClientFactory 调用
     https://localhost:7141/core/ping?message=hello
 
 也可以直接打开 samples/Framework.Core.Consumer/SmokeTests.http，在 Rider 或 Visual Studio 中执行请求。
+
+## Service Discovery
+
+When Nacos is already configured by the application, the framework can expose a small service-discovery abstraction:
+
+    builder.Services.AddFrameworkServiceDiscovery();
+
+    public sealed class TradeClient(IServiceDiscovery discovery)
+    {
+        public Task<ServiceEndpoint?> ResolveAsync(
+            CancellationToken cancellationToken) =>
+            discovery.GetHealthyEndpointAsync(
+                "xr.trade",
+                cancellationToken: cancellationToken);
+    }
+
+The framework returns a ServiceEndpoint containing the selected healthy instance address and metadata. Nacos remains an infrastructure detail. The current implementation uses the Nacos healthy-instance selector provided by the C# SDK.
+
+## Permission validation
+
+For applications that need the legacy permission middleware:
+
+    builder.Services.AddFrameworkPermissionValidation(options =>
+    {
+        options.ServiceName = "saas-system";
+        options.GroupName = "DEFAULT_GROUP";
+        options.ValidationPath = "/system/user.permission.valid";
+    });
+
+    app.UsePermissionValid();
+
+Permission checks fail closed: an unavailable permission service returns 503 and a denied permission returns 403.
