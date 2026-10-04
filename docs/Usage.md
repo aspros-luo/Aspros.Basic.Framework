@@ -135,3 +135,23 @@ Most business services can use:
 This registers the common runtime services and scans only the supplied business assemblies.
 
 gRPC, Nacos service discovery, permission validation and messaging remain explicit opt-in integrations.
+
+## 10. Asynchronous rollback
+
+For asynchronous business flows:
+
+    await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+    try
+    {
+        await unitOfWork.RegisterDirty(first);
+        await unitOfWork.RegisterDirty(second);
+        await unitOfWork.CommitAsync(cancellationToken);
+    }
+    catch
+    {
+        await unitOfWork.RollbackAsync(cancellationToken);
+        throw;
+    }
+
+Commit and rollback clear the active UnitOfWork transaction. Rollback also clears tracked EF Core changes to prevent an accidental later SaveChanges.
