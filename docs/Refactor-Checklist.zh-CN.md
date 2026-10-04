@@ -57,3 +57,6 @@
 - [x] 为 Snowflake worker/datacenter/sequence 增加范围校验。
 - [x] 防止 API Result Filter 二次包装成功响应并保留错误响应。
 - [x] 为权限中间件增加框架原生命名空间入口。
+
+- [x] 增加 RollbackAsync，并让同步/异步回滚行为一致。
+- [x] 回滚时清理 EF ChangeTracker，避免回滚后的 tracked entity 被再次持久化。
