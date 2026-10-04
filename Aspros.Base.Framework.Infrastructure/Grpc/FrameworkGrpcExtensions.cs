@@ -86,6 +86,18 @@ public static class FrameworkGrpcExtensions
             });
     }
 
+    public static IHttpClientBuilder PropagateGrpcCallContext(
+        this IHttpClientBuilder builder,
+        bool suppressMissingContextErrors = false)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return suppressMissingContextErrors
+            ? builder.EnableCallContextPropagation(options =>
+                options.SuppressContextNotFoundErrors = true)
+            : builder.EnableCallContextPropagation();
+    }
+
     public static IEndpointConventionBuilder MapFrameworkGrpcService<TService>(
         this IEndpointRouteBuilder endpoints)
         where TService : class
