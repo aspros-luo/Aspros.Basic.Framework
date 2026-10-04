@@ -12,15 +12,13 @@ public sealed class RewriteQueryStringMiddleware(RequestDelegate next)
     private readonly RequestDelegate _next =
         next ?? throw new ArgumentNullException(nameof(next));
 
-    public async Task InvokeAsync(
-        HttpContext context,
-        CancellationToken cancellationToken)
+    public async Task InvokeAsync(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         if (context.Request.Method is "POST" or "PUT")
         {
-            await RewriteJsonBodyAsync(context, cancellationToken);
+            await RewriteJsonBodyAsync(context, context.RequestAborted);
         }
         else if (HttpMethods.IsGet(context.Request.Method))
         {
