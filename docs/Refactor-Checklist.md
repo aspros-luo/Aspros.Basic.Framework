@@ -51,3 +51,7 @@ Use explicit transactions only for business operations that need multiple change
 Use durable messaging for cross-service eventual consistency.
 
 Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging abstractions merely for architectural completeness.
+
+- [x] Added IServiceDiscovery / ServiceEndpoint with Nacos as the default adapter.
+- [x] Permission validation now resolves the permission service through the discovery abstraction.
+- [x] Permission service name, group and validation path are configurable options.
