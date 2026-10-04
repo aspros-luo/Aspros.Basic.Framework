@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option csharp_namespace = "Framework.Core.Grpc";
+
+package core;
+
+service CoreService {
+  rpc Ping (PingRequest) returns (PingReply);
+}
+
+message PingRequest {
+  string message = 1;
+}
+
+message PingReply {
+  string message = 1;
+  string service = 2;
+  int64 unix_time = 3;
+}
