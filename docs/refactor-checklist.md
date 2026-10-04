@@ -35,7 +35,6 @@
 - Create the `v2.0.0` tag/release only after consumer validation is green.
 
 ### Deliberately not implemented
-- Generic RPC framework without a real cross-service contract.
 - Generic business RPC abstraction or service registry without a demonstrated repeated need.
 - Framework-owned User/Category/Trade `.proto` contracts.
 - Speculative validation, idempotency, logging, metrics, tracing or observability frameworks.
