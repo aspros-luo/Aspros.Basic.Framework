@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Nacos.V2;
-using Polly;
 using System.Net.Http.Json;
 
 namespace Aspros.SaaS.System.Infrastructure;
@@ -73,12 +72,7 @@ public sealed class PermissionMiddleware(RequestDelegate next)
 
         try
         {
-            var policy = Policy
-                .Handle<HttpRequestException>()
-                .OrResult<HttpResponseMessage>(response => !response.IsSuccessStatusCode)
-                .WaitAndRetryAsync(
-                    3,
-                    retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+            var policy = PollyExtend.GetRetryPolicy();
 
             var response = await policy.ExecuteAsync(
                 async () =>
