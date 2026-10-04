@@ -243,7 +243,11 @@ public sealed class UnitOfWork(
         }
         finally
         {
-            DbContextTransaction.Dispose();
+            if (_ownsTransaction)
+            {
+                DbContextTransaction.Dispose();
+            }
+
             DbContextTransaction = null;
             _ownsTransaction = false;
         }
