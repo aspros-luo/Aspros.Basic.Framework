@@ -1,58 +1,70 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 
-namespace Aspros.Base.Framework.Infrastructure
+namespace Aspros.Base.Framework.Infrastructure;
+
+public static class EnumExtensions
 {
-    public static class EnumExtensions
+    public static string GetDisplayName(this Enum val)
     {
-        /// <summary>
-        /// Retrieves the <see cref="DisplayAttribute.Name" /> property on the <see cref="DisplayAttribute" />
-        /// of the current enum value, or the enum's member name if the <see cref="DisplayAttribute" /> is not present.
-        /// </summary>
-        /// <param name="val">This enum member to get the name for.</param>
-        /// <returns>The <see cref="DisplayAttribute.Name" /> property on the <see cref="DisplayAttribute" /> attribute, if present.</returns>
-        public static string GetDisplayName(this Enum val)
-        {
-            return val.GetType()
-                       .GetMember(val.ToString())
-                       .FirstOrDefault()
-                       ?.GetCustomAttribute<DisplayAttribute>(false)
-                       ?.Description
-                   ?? val.ToString();
-        }
+        ArgumentNullException.ThrowIfNull(val);
 
-        public static string GetFullName(this Enum val)
-        {
-            return val.ToString().ToUnderscoreCase() + ":" + val.GetType()
-                       .GetMember(val.ToString())
-                       .FirstOrDefault()
-                       ?.GetCustomAttribute<DisplayAttribute>(false)
-                       ?.Description
-                   ?? val.ToString();
-        }
+        var display = GetDisplayAttribute(val);
 
-        public static object GetKeyValue(this Enum key)
-        {
-            var name = key.ToString();
-            var desc = key.GetType()
-                            .GetMember(key.ToString())
-                            .FirstOrDefault()
-                            ?.GetCustomAttribute<DisplayAttribute>(false)
-                            ?.Description
-                            ?? key.ToString();
-            return new { key, name, desc };
-        }
+        return display?.Name
+               ?? display?.Description
+               ?? val.ToString();
+    }
 
-        public static object GetNameKeyValue(this Enum val)
+    public static string GetFullName(this Enum val)
+    {
+        ArgumentNullException.ThrowIfNull(val);
+
+        var display = GetDisplayAttribute(val);
+        var description = display?.Description
+                          ?? display?.Name
+                          ?? val.ToString();
+
+        return $"{val.ToString().ToUnderscoreCase()}:{description}";
+    }
+
+    public static object GetKeyValue(this Enum key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        var display = GetDisplayAttribute(key);
+
+        return new
         {
-            var key = val.ToString().ToUnderscoreCase();
-            var value = val.GetType()
-                            .GetMember(val.ToString())
-                            .FirstOrDefault()
-                            ?.GetCustomAttribute<DisplayForAttribute>(false)
-                            ?.Name
-                        ?? val.ToString();
-            return new { key, value };
-        }
+            key,
+            name = key.ToString(),
+            desc = display?.Description
+                   ?? display?.Name
+                   ?? key.ToString()
+        };
+    }
+
+    public static object GetNameKeyValue(this Enum val)
+    {
+        ArgumentNullException.ThrowIfNull(val);
+
+        var key = val.ToString().ToUnderscoreCase();
+
+        var value = val.GetType()
+            .GetMember(val.ToString())
+            .FirstOrDefault()
+            ?.GetCustomAttribute<DisplayForAttribute>(false)
+            ?.Name
+            ?? val.ToString();
+
+        return new { key, value };
+    }
+
+    private static DisplayAttribute? GetDisplayAttribute(Enum value)
+    {
+        return value.GetType()
+            .GetMember(value.ToString())
+            .FirstOrDefault()
+            ?.GetCustomAttribute<DisplayAttribute>(false);
     }
 }
