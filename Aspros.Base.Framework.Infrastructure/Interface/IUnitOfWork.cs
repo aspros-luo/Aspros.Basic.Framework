@@ -17,6 +17,9 @@ public interface IUnitOfWork : IScoped
     IDbContextTransaction BeginTransaction(
         IDbContextTransaction? dbContextTransaction = null);
 
+    Task<IDbContextTransaction> BeginTransactionAsync(
+        CancellationToken cancellationToken = default);
+
     Task<int> ExecuteSqlCommandAsync(
         string sql,
         CancellationToken cancellationToken = default,
@@ -46,6 +49,8 @@ public interface IUnitOfWork : IScoped
     /// Persists staged changes and commits the explicit transaction, when one exists.
     /// </summary>
     Task<bool> CommitAsync();
+
+    Task<bool> CommitAsync(CancellationToken cancellationToken);
 
     void Rollback();
 }
