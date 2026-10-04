@@ -1,6 +1,7 @@
 using Grpc.AspNetCore.Server;
 using Grpc.Net.ClientFactory;
 using Grpc.Core;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Aspros.Base.Framework.Infrastructure.Grpc;
@@ -43,6 +44,37 @@ public static class GrpcServiceCollectionExtensions
             options.Address = address;
             configure?.Invoke(options);
         });
+    }
+
+    /// <summary>
+    /// Registers a generated gRPC client using the Framework configuration convention:
+    /// Grpc:Services:<serviceName>:Address.
+    /// </summary>
+    public static IHttpClientBuilder AddFrameworkGrpcClient<TClient>(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        string serviceName,
+        Action<GrpcClientFactoryOptions>? configure = null)
+        where TClient : ClientBase<TClient>
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
+
+        var address = configuration[$"Grpc:Services:{serviceName}:Address"];
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            throw new InvalidOperationException(
+                $"gRPC service address is missing: 'Grpc:Services:{serviceName}:Address'.");
+        }
+
+        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri))
+        {
+            throw new InvalidOperationException(
+                $"gRPC service address '{address}' is not a valid absolute URI.");
+        }
+
+        return services.AddFrameworkGrpcClient(uri, configure);
     }
 
     /// <summary>
