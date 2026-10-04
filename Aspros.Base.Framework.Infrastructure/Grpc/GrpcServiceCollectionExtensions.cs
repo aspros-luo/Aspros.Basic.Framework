@@ -74,7 +74,7 @@ public static class GrpcServiceCollectionExtensions
                 $"gRPC service address '{address}' is not a valid absolute URI.");
         }
 
-        return services.AddFrameworkGrpcClient(uri, configure);
+        return services.AddFrameworkGrpcClient<TClient>(uri, configure);
     }
 
     /// <summary>
