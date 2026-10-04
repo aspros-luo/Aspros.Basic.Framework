@@ -230,10 +230,38 @@ public sealed class UnitOfWork(
         return true;
     }
 
+    public async Task RollbackAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (DbContextTransaction is null)
+        {
+            _dbContext.ClearTrackedChanges();
+            return;
+        }
+
+        try
+        {
+            await DbContextTransaction.RollbackAsync(cancellationToken);
+        }
+        finally
+        {
+            _dbContext.ClearTrackedChanges();
+
+            if (_ownsTransaction)
+            {
+                await DbContextTransaction.DisposeAsync();
+            }
+
+            DbContextTransaction = null;
+            _ownsTransaction = false;
+        }
+    }
+
     public void Rollback()
     {
         if (DbContextTransaction is null)
         {
+            _dbContext.ClearTrackedChanges();
             return;
         }
 
@@ -244,7 +272,7 @@ public sealed class UnitOfWork(
         finally
         {
             _dbContext.ClearTrackedChanges();
-        {
+
             if (_ownsTransaction)
             {
                 DbContextTransaction.Dispose();
