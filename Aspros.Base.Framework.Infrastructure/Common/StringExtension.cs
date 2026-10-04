@@ -1,17 +1,58 @@
-﻿namespace Aspros.Base.Framework.Infrastructure
+namespace Aspros.Base.Framework.Infrastructure;
+
+public static class StringExtension
 {
-    public static class StringExtension
+    public static string ToUnderscoreCase(this string str)
     {
-        public static string ToUnderscoreCase(this string str)
+        ArgumentNullException.ThrowIfNull(str);
+
+        if (str.Length == 0)
         {
-            return string.Concat(str.Select((x, i) => i > 0 && char.IsUpper(x) ? "_" + x.ToString() : x.ToString())).ToLower();
+            return string.Empty;
         }
 
-        private static readonly string[] separator = ["_"];
+        var result = new System.Text.StringBuilder(str.Length + 8);
 
-        public static string ToPascalCase(this string str)
+        for (var i = 0; i < str.Length; i++)
         {
-            return str.Split(separator, StringSplitOptions.RemoveEmptyEntries).Select(s => char.ToUpperInvariant(s[0]) + s.Substring(1, s.Length - 1)).Aggregate(string.Empty, (s1, s2) => s1 + s2);
+            var character = str[i];
+
+            if (i > 0 && char.IsUpper(character))
+            {
+                result.Append('_');
+            }
+
+            result.Append(char.ToLowerInvariant(character));
         }
+
+        return result.ToString();
+    }
+
+    public static string ToPascalCase(this string str)
+    {
+        ArgumentNullException.ThrowIfNull(str);
+
+        var segments = str.Split(
+            '_',
+            StringSplitOptions.RemoveEmptyEntries);
+
+        if (segments.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var result = new System.Text.StringBuilder(str.Length);
+
+        foreach (var segment in segments)
+        {
+            result.Append(char.ToUpperInvariant(segment[0]));
+
+            if (segment.Length > 1)
+            {
+                result.Append(segment.AsSpan(1));
+            }
+        }
+
+        return result.ToString();
     }
 }
