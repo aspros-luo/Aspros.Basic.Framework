@@ -160,7 +160,7 @@ For applications that need the legacy permission middleware:
         options.ValidationPath = "/system/user.permission.valid";
     });
 
-    app.UsePermissionValid();
+    app.UseFrameworkPermissionValidation();
 
 Permission checks fail closed: an unavailable permission service returns 503 and a denied permission returns 403.
 
