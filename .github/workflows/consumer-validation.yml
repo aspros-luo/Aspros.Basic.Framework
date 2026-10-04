@@ -43,6 +43,29 @@ jobs:
           ref: feature/framework-v10-migration
           path: xr-user
 
+      - name: Pin Xr.User to Framework 2.0.0 for validation
+        working-directory: xr-user
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          replacements = {
+              'Aspros.Base.Framework.Domain': '2.0.0',
+              'Aspros.Base.Framework.Application': '2.0.0',
+              'Aspros.Base.Framework.Infrastructure': '2.0.0',
+          }
+          for path in Path('.').rglob('*.csproj'):
+              text = path.read_text(encoding='utf-8-sig')
+              for package, version in replacements.items():
+                  import re
+                  text = re.sub(
+                      rf'(<PackageReference\s+Include="{re.escape(package)}"\s+Version=")[^"]+(")',
+                      rf'\g<1>{version}\g<2>',
+                      text,
+                  )
+              path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Restore Xr.User against current Framework
         working-directory: xr-user
         run: |
