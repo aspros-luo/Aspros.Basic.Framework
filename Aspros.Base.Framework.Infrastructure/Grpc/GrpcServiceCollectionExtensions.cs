@@ -38,14 +38,11 @@ public static class GrpcServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(address);
         ValidateAddress(address);
 
-        var builder = services.AddGrpcClient<TClient>(options =>
+        return services.AddGrpcClient<TClient>(options =>
         {
             options.Address = address;
+            configure?.Invoke(options);
         });
-
-        return configure is null
-            ? builder
-            : builder.ConfigureGrpcClient(configure);
     }
 
     /// <summary>
@@ -63,14 +60,11 @@ public static class GrpcServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(address);
         ValidateAddress(address);
 
-        var builder = services.AddGrpcClient<TClient>(name, options =>
+        return services.AddGrpcClient<TClient>(name, options =>
         {
             options.Address = address;
+            configure?.Invoke(options);
         });
-
-        return configure is null
-            ? builder
-            : builder.ConfigureGrpcClient(configure);
     }
 
     private static void ValidateAddress(Uri address)
