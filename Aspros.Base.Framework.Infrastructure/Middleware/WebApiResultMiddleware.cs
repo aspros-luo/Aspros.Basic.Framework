@@ -45,7 +45,7 @@ public sealed class WebApiResultMiddleware : ActionFilterAttribute
             return;
         }
 
-        if (context.Result is FileContentResult or EmptyResult)
+        if (context.Result is FileResult or EmptyResult)
         {
             return;
         }
@@ -56,7 +56,9 @@ public sealed class WebApiResultMiddleware : ActionFilterAttribute
         }
 
         // Do not rewrite error payloads such as ProblemDetails.
-        if (objectResult.StatusCode is >= 300)
+        if (objectResult.StatusCode is >= 300 ||
+            objectResult.StatusCode == StatusCodes.Status204NoContent ||
+            objectResult.Value is null)
         {
             return;
         }
