@@ -1,18 +1,19 @@
-﻿using Aspros.Base.Framework.Infrastructure;
+namespace Aspros.Base.Framework.Domain;
 
-namespace Aspros.Base.Framework.Domain
+/// <summary>
+/// Small repository base that depends only on the domain-side set provider abstraction.
+/// Concrete data-access concerns stay in Infrastructure.
+/// </summary>
+public abstract class BaseRepository<TAggregateRoot> : IRepository<TAggregateRoot>
+    where TAggregateRoot : class, IAggregateRoot
 {
-    public abstract class BaseRepository<TAggregateRoot> : IRepository<TAggregateRoot> where TAggregateRoot : class, IAggregateRoot
+    protected BaseRepository(IEntitySetProvider setProvider)
     {
-        public readonly IQueryable<TAggregateRoot> Entities;
-
-        protected BaseRepository(IDbContext dbContext) => Entities = dbContext.Set<TAggregateRoot>();
-
-        public IQueryable<TAggregateRoot> GetAll()
-        {
-            return Entities;
-        }
-
+        ArgumentNullException.ThrowIfNull(setProvider);
+        Entities = setProvider.Set<TAggregateRoot>();
     }
 
+    protected IQueryable<TAggregateRoot> Entities { get; }
+
+    public IQueryable<TAggregateRoot> GetAll() => Entities;
 }

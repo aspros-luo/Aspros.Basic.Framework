@@ -4,11 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.0.5</Version>
+    <Version>1.0.0</Version>
   </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Aspros.Base.Framework.Abstractions\Aspros.Base.Framework.Abstractions.csproj" />
-  </ItemGroup>
 
 </Project>
