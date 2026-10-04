@@ -179,3 +179,12 @@ Feature integrations remain explicit:
     builder.Services.AddFrameworkGrpc();
     builder.Services.AddFrameworkServiceDiscovery();
     builder.Services.AddFrameworkPermissionValidation();
+
+For service-to-service gRPC calls made from inside another gRPC handler, call-context propagation can be enabled explicitly:
+
+    builder.Services
+        .AddFrameworkGrpcClient<YourGrpc.YourGrpcClient>(
+            new Uri("https://service-address"))
+        .PropagateGrpcCallContext();
+
+This propagates the parent gRPC deadline and cancellation context. For clients that are also used outside a gRPC call context, pass true to suppressMissingContextErrors when appropriate.
