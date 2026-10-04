@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Globalization;
-using System.Net.Http.Headers;
 using System.Security.Claims;
 
 namespace Aspros.Base.Framework.Infrastructure;
@@ -78,23 +77,16 @@ public sealed class WorkContext(IHttpContextAccessor contextAccessor) : IWorkCon
     private async Task<JObject?> GetTokenPayloadAsync()
     {
         var httpContext = _contextAccessor.HttpContext;
-        if (httpContext?.User?.Identity?.IsAuthenticated != true)
-        {
-            return null;
-        }
 
-        if (!AuthenticationHeaderValue.TryParse(
-                httpContext.Request.Headers.Authorization.ToString(),
-                out var authorization) ||
-            !string.Equals(authorization.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) ||
-            string.IsNullOrWhiteSpace(authorization.Parameter))
+        if (httpContext is null ||
+            !httpContext.TryGetAuthenticatedBearerToken(out var token))
         {
             return null;
         }
 
         try
         {
-            var payload = Jose.JWT.Payload(authorization.Parameter);
+            var payload = Jose.JWT.Payload(token);
             return JsonConvert.DeserializeObject<JObject>(payload);
         }
         catch (Exception ex) when (ex is FormatException or ArgumentException or JsonException)
