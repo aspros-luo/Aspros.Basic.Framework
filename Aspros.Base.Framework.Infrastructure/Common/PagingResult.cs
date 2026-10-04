@@ -1,32 +1,45 @@
-﻿namespace Aspros.Base.Framework.Infrastructure
+namespace Aspros.Base.Framework.Infrastructure;
+
+public sealed class PagingResult<T>
 {
-    public class PagingResult<T>(IEnumerable<T> data, int totalCount, int pageSize)
+    public PagingResult(
+        IEnumerable<T> data,
+        int totalCount,
+        int pageSize)
     {
-        public IEnumerable<T> Data { get; } = data;
+        ArgumentNullException.ThrowIfNull(data);
 
-        public int TotalCount { get; } = totalCount;
-
-        public int PageSize { get; } = pageSize;
-
-        public int TotalPage
-        {
-            get
-            {
-                if (TotalCount % PageSize > 0)
-                {
-                    return TotalCount / PageSize + 1;
-                }
-
-                return TotalCount / PageSize;
-            }
-        }
+        Data = data;
+        TotalCount = Math.Max(0, totalCount);
+        PageSize = pageSize > 0 ? pageSize : 10;
     }
-    public class PagingParams(int pageNo, int pageSize = 10)
+
+    public IEnumerable<T> Data { get; }
+
+    public int TotalCount { get; }
+
+    public int PageSize { get; }
+
+    public int TotalPage =>
+        TotalCount == 0
+            ? 0
+            : (TotalCount + PageSize - 1) / PageSize;
+}
+
+public sealed class PagingParams
+{
+    public PagingParams(
+        int pageNo,
+        int pageSize = 10)
     {
-        public int PageNo { get; set; } = pageNo < 0 ? 1 : pageNo;
-
-        public int PageSize { get; set; } = pageSize;
-
-        public int Skip => (PageNo - 1) * PageSize;
+        PageNo = pageNo > 0 ? pageNo : 1;
+        PageSize = pageSize > 0 ? pageSize : 10;
     }
+
+    public int PageNo { get; set; }
+
+    public int PageSize { get; set; }
+
+    public int Skip =>
+        (PageNo - 1) * PageSize;
 }
