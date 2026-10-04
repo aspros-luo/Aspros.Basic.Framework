@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net.Http.Headers;
 
 namespace Aspros.Base.Framework.Infrastructure;
 
@@ -65,29 +64,15 @@ public static class FrameworkGrpcExtensions
 
                 var httpContext = httpContextAccessor?.HttpContext;
 
-                if (httpContext?.User?.Identity?.IsAuthenticated != true)
-                {
-                    return Task.CompletedTask;
-                }
-
-                var authorization =
-                    httpContext.Request.Headers.Authorization.ToString();
-
-                if (!AuthenticationHeaderValue.TryParse(
-                        authorization,
-                        out var header) ||
-                    !string.Equals(
-                        header.Scheme,
-                        "Bearer",
-                        StringComparison.OrdinalIgnoreCase) ||
-                    string.IsNullOrWhiteSpace(header.Parameter))
+                if (httpContext is null ||
+                    !httpContext.TryGetAuthenticatedBearerToken(out var token))
                 {
                     return Task.CompletedTask;
                 }
 
                 metadata.Add(
                     "authorization",
-                    $"Bearer {header.Parameter}");
+                    $"Bearer {token}");
 
                 return Task.CompletedTask;
             });
