@@ -3,6 +3,7 @@ using Framework.Core.Grpc;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddAsprosFramework();
 builder.Services.AddControllers();
 
 var endpoint = new Uri(
