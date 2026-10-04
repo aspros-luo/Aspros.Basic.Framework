@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option csharp_namespace = "Aspros.Base.Framework.Tests.Grpc";
+
+package framework.tests.grpc;
+
+service TestGreeter {
+  rpc SayHello (HelloRequest) returns (HelloReply);
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloReply {
+  string message = 1;
+}
