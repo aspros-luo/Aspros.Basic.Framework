@@ -68,3 +68,4 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 - [x] Added RollbackAsync and aligned sync/async rollback behavior.
 - [x] Rollback clears EF ChangeTracker state to prevent accidental persistence after rollback.
 - [x] Moved permission middleware implementation into the framework namespace; the legacy SaaS type is now only a compatibility wrapper.
+- [x] Added opt-in gRPC deadline/cancellation context propagation.
