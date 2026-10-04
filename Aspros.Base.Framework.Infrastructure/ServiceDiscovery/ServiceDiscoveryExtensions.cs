@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Aspros.Base.Framework.Infrastructure;
 
@@ -9,7 +10,7 @@ public static class ServiceDiscoveryExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddTransient<IServiceDiscovery, NacosServiceDiscovery>();
+        services.TryAddTransient<IServiceDiscovery, NacosServiceDiscovery>();
         return services;
     }
 }
