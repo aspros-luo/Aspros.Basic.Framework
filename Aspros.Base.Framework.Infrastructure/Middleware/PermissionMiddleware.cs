@@ -81,9 +81,14 @@ public sealed class PermissionMiddleware(RequestDelegate next)
                     retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
 
             var response = await policy.ExecuteAsync(
-                () => url
-                    .AllowAnyHttpStatus()
-                    .GetAsync(cancellationToken: context.RequestAborted));
+                async () =>
+                {
+                    var flurlResponse = await url
+                        .AllowAnyHttpStatus()
+                        .GetAsync(cancellationToken: context.RequestAborted);
+
+                    return flurlResponse.ResponseMessage;
+                });
 
             if (!response.IsSuccessStatusCode)
             {
