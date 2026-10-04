@@ -6,51 +6,46 @@ using System.Security.Claims;
 
 namespace Aspros.Base.Framework.Infrastructure;
 
-/// <summary>
-/// Reads request-scoped identity data from the authenticated ClaimsPrincipal.
-/// JWT payload decoding is used only as a compatibility fallback for custom claims.
-/// </summary>
 public sealed class WorkContext(IHttpContextAccessor contextAccessor) : IWorkContext
 {
     private readonly IHttpContextAccessor _contextAccessor =
         contextAccessor ?? throw new ArgumentNullException(nameof(contextAccessor));
 
-    public async Task<T> Get<T>(string key)
+    public Task<T> Get<T>(string key)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
         if (TryGetClaim(key, out var claimValue))
         {
-            return ConvertClaimValue<T>(claimValue);
+            return Task.FromResult(ConvertClaimValue<T>(claimValue));
         }
 
-        var tokenPayload = await GetTokenPayloadAsync();
+        var tokenPayload = GetTokenPayload();
         var value = tokenPayload?[key];
 
-        return value is null || value.Type == JTokenType.Null
-            ? default!
-            : value.ToObject<T>()!;
+        return Task.FromResult(
+            value is null || value.Type == JTokenType.Null
+                ? default!
+                : value.ToObject<T>()!);
     }
 
-    public async Task<long> GetTenantId()
-    {
-        var value = await Get<long>("tenant_id");
-        return value;
-    }
+    public Task<long> GetTenantId() => Get<long>("tenant_id");
 
-    public async Task<long> GetUserId()
+    public Task<long> GetUserId()
     {
         if (TryGetClaim("user_id", out var userId) ||
             TryGetClaim(ClaimTypes.NameIdentifier, out userId) ||
             TryGetClaim("sub", out userId))
         {
-            return ConvertClaimValue<long>(userId);
+            return Task.FromResult(ConvertClaimValue<long>(userId));
         }
 
-        var tokenPayload = await GetTokenPayloadAsync();
-        return tokenPayload?["user_id"]?.ToObject<long>()
-               ?? tokenPayload?["sub"]?.ToObject<long>()
-               ?? 0L;
+        var tokenPayload = GetTokenPayload();
+
+        return Task.FromResult(
+            tokenPayload?["user_id"]?.ToObject<long>()
+            ?? tokenPayload?["sub"]?.ToObject<long>()
+            ?? 0L);
     }
 
     private bool TryGetClaim(string key, out string value)
@@ -65,6 +60,7 @@ public sealed class WorkContext(IHttpContextAccessor contextAccessor) : IWorkCon
 
         var claim = user.Claims.FirstOrDefault(
             x => x.Type.Equals(key, StringComparison.Ordinal));
+
         if (claim is null || string.IsNullOrWhiteSpace(claim.Value))
         {
             return false;
@@ -74,7 +70,7 @@ public sealed class WorkContext(IHttpContextAccessor contextAccessor) : IWorkCon
         return true;
     }
 
-    private async Task<JObject?> GetTokenPayloadAsync()
+    private JObject? GetTokenPayload()
     {
         var httpContext = _contextAccessor.HttpContext;
 
@@ -89,7 +85,8 @@ public sealed class WorkContext(IHttpContextAccessor contextAccessor) : IWorkCon
             var payload = Jose.JWT.Payload(token);
             return JsonConvert.DeserializeObject<JObject>(payload);
         }
-        catch (Exception ex) when (ex is FormatException or ArgumentException or JsonException)
+        catch (Exception ex)
+            when (ex is FormatException or ArgumentException or JsonException)
         {
             return null;
         }
