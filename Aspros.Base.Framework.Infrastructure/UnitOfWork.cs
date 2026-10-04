@@ -68,8 +68,7 @@ public sealed class UnitOfWork(
     {
         if (DbContextTransaction is null)
         {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-            return true;
+            return await _dbContext.SaveChangesAsync(cancellationToken) > 0;
         }
 
         try
