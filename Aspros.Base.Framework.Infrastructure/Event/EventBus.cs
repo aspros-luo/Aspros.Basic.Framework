@@ -1,13 +1,26 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Aspros.Base.Framework.Infrastructure
+namespace Aspros.Base.Framework.Infrastructure;
+
+/// <summary>
+/// In-process event dispatcher only.
+/// It intentionally provides no durability guarantee; distributed consistency
+/// should use the configured message bus / integration-event mechanism.
+/// </summary>
+public sealed class EventBus(IServiceProvider serviceProvider) : IEventBus
 {
-    public class EventBus : IEventBus
+    private readonly IServiceProvider _serviceProvider =
+        serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+
+    public async Task PublishAsync<T>(T @event) where T : IEvent
     {
-        public async Task PublishAsync<T>(T @event) where T : IEvent
+        ArgumentNullException.ThrowIfNull(@event);
+
+        var handlers = _serviceProvider.GetServices<IEventHandler<T>>().ToArray();
+
+        foreach (var handler in handlers)
         {
-            var eventHandler = ServiceLocator.Instance.GetService<IEventHandler<T>>();
-            await eventHandler.HandleAsync(@event);
+            await handler.HandleAsync(@event);
         }
     }
 }
