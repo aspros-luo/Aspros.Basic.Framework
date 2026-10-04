@@ -3,14 +3,15 @@ using Flurl.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using Nacos.V2;
+using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 
 namespace Aspros.SaaS.System.Infrastructure;
 
 public static class PermissionExtensions
 {
-    public static IApplicationBuilder UsePermissionValid(this IApplicationBuilder builder)
+    public static IApplicationBuilder UsePermissionValid(
+        this IApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
         return builder.UseMiddleware<PermissionMiddleware>();
@@ -30,12 +31,14 @@ public sealed class PermissionMiddleware(RequestDelegate next)
 
     public async Task Invoke(
         HttpContext context,
-        INacosNamingService namingService,
-        IWorkContext workContext)
+        IServiceDiscovery serviceDiscovery,
+        IWorkContext workContext,
+        IOptions<PermissionOptions> options)
     {
         ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(namingService);
+        ArgumentNullException.ThrowIfNull(serviceDiscovery);
         ArgumentNullException.ThrowIfNull(workContext);
+        ArgumentNullException.ThrowIfNull(options);
 
         var endpoint = GetEndpoint(context);
         var permission = endpoint?.Metadata.GetMetadata<Permission>();
@@ -47,9 +50,16 @@ public sealed class PermissionMiddleware(RequestDelegate next)
         }
 
         var userId = await workContext.GetUserId();
-        var instance = await namingService.SelectOneHealthyInstance(
-            "saas-system",
-            "DEFAULT_GROUP");
+        var settings = options.Value;
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(settings.ServiceName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(settings.GroupName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(settings.ValidationPath);
+
+        var instance = await serviceDiscovery.GetHealthyEndpointAsync(
+            settings.ServiceName,
+            settings.GroupName,
+            context.RequestAborted);
 
         if (instance is null)
         {
@@ -60,15 +70,12 @@ public sealed class PermissionMiddleware(RequestDelegate next)
             return;
         }
 
-        var host = $"{instance.Ip}:{instance.Port}";
-        var baseUrl = instance.Metadata.TryGetValue("secure", out _)
-            ? $"https://{host}"
-            : $"http://{host}";
-
-        var url =
-            $"{baseUrl}/system/user.permission.valid" +
-            $"?PermissionCode={Uri.EscapeDataString(permission.Code)}" +
-            $"&userId={userId}";
+        var url = new UriBuilder(instance.Address)
+        {
+            Path = settings.ValidationPath,
+            Query =
+                $"PermissionCode={Uri.EscapeDataString(permission.Code)}&userId={userId}"
+        }.Uri.ToString();
 
         try
         {
@@ -105,7 +112,8 @@ public sealed class PermissionMiddleware(RequestDelegate next)
                 return;
             }
         }
-        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        catch (OperationCanceledException)
+            when (context.RequestAborted.IsCancellationRequested)
         {
             throw;
         }
@@ -127,6 +135,7 @@ public sealed class PermissionMiddleware(RequestDelegate next)
         string message)
     {
         context.Response.StatusCode = statusCode;
+
         await context.Response.WriteAsJsonAsync(
             new { is_success = false, msg = message },
             context.RequestAborted);
