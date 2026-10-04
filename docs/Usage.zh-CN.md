@@ -137,3 +137,23 @@ proto 始终归业务服务自己管理，框架只做基础设施接入。
 它会注册 HttpContextAccessor、WorkContext、UnitOfWork、DapperExecutor、进程内 EventBus，并扫描传入的业务程序集。
 
 gRPC、Nacos 服务发现、权限校验、MQ 等仍然按需显式注册，避免每个服务启动时自动加载全部能力。
+
+## 10. 异步事务回滚
+
+推荐在异步业务中使用：
+
+    await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+    try
+    {
+        await unitOfWork.RegisterDirty(first);
+        await unitOfWork.RegisterDirty(second);
+        await unitOfWork.CommitAsync(cancellationToken);
+    }
+    catch
+    {
+        await unitOfWork.RollbackAsync(cancellationToken);
+        throw;
+    }
+
+Commit 或 Rollback 后当前 UnitOfWork 的事务状态会被清理；回滚还会清除 EF Core 当前 ChangeTracker 中的修改，避免后续误 SaveChanges。
