@@ -55,3 +55,5 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 - [x] Added IServiceDiscovery / ServiceEndpoint with Nacos as the default adapter.
 - [x] Permission validation now resolves the permission service through the discovery abstraction.
 - [x] Permission service name, group and validation path are configurable options.
+
+- [x] Added AddAsprosFramework for one-line registration of common runtime services.
