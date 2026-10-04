@@ -6,6 +6,8 @@ using Aspros.Base.Framework.Domain.Kernel;
 using Aspros.Base.Framework.Infrastructure;
 using Aspros.Base.Framework.Infrastructure.Event;
 using Aspros.Base.Framework.Infrastructure.Persistence;
+using Aspros.Base.Framework.Infrastructure.Grpc;
+using Aspros.Base.Framework.Tests.Grpc;
 using MediatR;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -188,6 +190,22 @@ public sealed class FrameworkDddKernelTests
                 TestContext.Current.CancellationToken));
     }
 
+
+    [Fact]
+    public void FrameworkGrpc_registers_server_and_typed_client()
+    {
+        var services = new ServiceCollection();
+
+        services.AddFrameworkGrpc();
+        services.AddFrameworkGrpcClient<TestGreeter.TestGreeterClient>(
+            new Uri("https://user.internal:5001"));
+
+        await using var provider = services.BuildServiceProvider();
+
+        var client = provider.GetRequiredService<TestGreeter.TestGreeterClient>();
+
+        Assert.NotNull(client);
+    }
 
     [Fact]
     public async Task AutoInject_wires_application_pipeline_for_framework_and_raw_mediatr_handlers()
