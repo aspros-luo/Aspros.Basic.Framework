@@ -57,3 +57,10 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 - [x] Permission service name, group and validation path are configurable options.
 
 - [x] Added AddAsprosFramework for one-line registration of common runtime services.
+
+- [x] Hardened pagination for invalid page numbers/page sizes and zero totals.
+- [x] Hardened string conversion helpers for null and empty inputs.
+- [x] Made DisposableAction idempotent.
+- [x] Added range validation to Snowflake worker/datacenter/sequence inputs.
+- [x] Prevented duplicate successful API envelopes and preserved error results.
+- [x] Added a framework-native permission middleware entry point.
