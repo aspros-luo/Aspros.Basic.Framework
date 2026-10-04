@@ -163,3 +163,19 @@ For applications that need the legacy permission middleware:
     app.UsePermissionValid();
 
 Permission checks fail closed: an unavailable permission service returns 503 and a denied permission returns 403.
+
+## One-line runtime registration
+
+Most business services can start with:
+
+    builder.Services.AddAsprosFramework(
+        typeof(SomeApplicationService).Assembly,
+        typeof(SomeRepository).Assembly);
+
+This registers the common runtime services: HttpContextAccessor, WorkContext, UnitOfWork, DapperExecutor and in-process EventBus, then scans the supplied business assemblies with AddAutoInject.
+
+Feature integrations remain explicit:
+
+    builder.Services.AddFrameworkGrpc();
+    builder.Services.AddFrameworkServiceDiscovery();
+    builder.Services.AddFrameworkPermissionValidation();
