@@ -43,15 +43,28 @@ namespace Aspros.Base.Framework.Infrastructure
 
         public IdWorker(long workerId, long datacenterId, long sequence = 0L)
         {
+            if (sequence < 0 || sequence > SequenceMask)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(sequence),
+                    sequence,
+                    $"Sequence must be between 0 and {SequenceMask}.");
+            }
             // 如果超出范围就抛出异常
             if (workerId > MaxWorkerId || workerId < 0)
             {
-                throw new ArgumentException(string.Format("worker Id 必须大于0，且不能大于MaxWorkerId： {0}", MaxWorkerId));
+                throw new ArgumentOutOfRangeException(
+                    nameof(workerId),
+                    workerId,
+                    $"WorkerId must be between 0 and {MaxWorkerId}.");
             }
 
             if (datacenterId > MaxDatacenterId || datacenterId < 0)
             {
-                throw new ArgumentException(string.Format("region Id 必须大于0，且不能大于MaxWorkerId： {0}", MaxDatacenterId));
+                throw new ArgumentOutOfRangeException(
+                    nameof(datacenterId),
+                    datacenterId,
+                    $"DatacenterId must be between 0 and {MaxDatacenterId}.");
             }
 
             //先检验再赋值
@@ -76,7 +89,7 @@ namespace Aspros.Base.Framework.Infrastructure
                 {
                     //sequence自增，和sequenceMask相与一下，去掉高位
                     _sequence = (_sequence + 1) & SequenceMask;
-                    //判断是否溢出,也就是每毫秒内超过1024，当为1024时，与sequenceMask相与，sequence就等于0
+                    // The 12-bit sequence overflows at 4096 IDs in the same millisecond.
                     if (_sequence == 0)
                     {
                         //等待到下一毫秒
