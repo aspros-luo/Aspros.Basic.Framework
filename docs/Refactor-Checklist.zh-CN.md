@@ -61,3 +61,4 @@
 - [x] 增加 RollbackAsync，并让同步/异步回滚行为一致。
 - [x] 回滚时清理 EF ChangeTracker，避免回滚后的 tracked entity 被再次持久化。
 - [x] 将权限中间件实现迁移到框架原生命名空间，旧 SaaS 类型仅作为兼容包装。
+- [x] 增加 gRPC deadline/cancellation 上下文的显式传播能力。
