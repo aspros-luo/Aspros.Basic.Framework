@@ -122,6 +122,7 @@ This source-breaking change is part of the **2.0.0** package line.
 - [Application Pipeline](docs/architecture/application-pipeline-design.md)
 - [Dependency Rules](docs/architecture/dependency-rules.md)
 - [Framework Validation](docs/architecture/framework-validation.md)
+- [gRPC Architecture](docs/architecture/grpc.md)
 - [v10 Migration Plan](docs/migration/v10-migration-plan.md)
 - [Refactor Checklist](docs/refactor-checklist.md)
 - [Framework Demo](docs/demo/framework-v10-demo.md)
