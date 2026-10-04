@@ -1,0 +1,78 @@
+name: Consumer Validation
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: framework-consumer-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  user-validation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Framework
+        uses: actions/checkout@v4
+        with:
+          path: framework
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Pack Framework
+        working-directory: framework
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/nuget
+
+          dotnet restore Aspros.Base.Framework.sln
+
+          dotnet pack Aspros.Base.Framework.Domain/Aspros.Base.Framework.Domain.csproj             --configuration Release             --no-restore             --output .artifacts/nuget
+
+          dotnet pack Aspros.Base.Framework.Application/Aspros.Base.Framework.Application.csproj             --configuration Release             --no-restore             --output .artifacts/nuget
+
+          dotnet pack Aspros.Base.Framework.Infrastructure/Aspros.Base.Framework.Infrastructure.csproj             --configuration Release             --no-restore             --output .artifacts/nuget
+
+      - name: Checkout Xr.User validation branch
+        uses: actions/checkout@v4
+        with:
+          repository: aspros-luo/Xr.User
+          ref: feature/framework-v10-migration
+          path: xr-user
+
+      - name: Pin Xr.User to Framework 2.0.0 for validation
+        working-directory: xr-user
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          replacements = {
+              'Aspros.Base.Framework.Domain': '2.0.0',
+              'Aspros.Base.Framework.Application': '2.0.0',
+              'Aspros.Base.Framework.Infrastructure': '2.0.0',
+          }
+          for path in Path('.').rglob('*.csproj'):
+              text = path.read_text(encoding='utf-8-sig')
+              for package, version in replacements.items():
+                  import re
+                  text = re.sub(
+                      rf'(<PackageReference\s+Include="{re.escape(package)}"\s+Version=")[^"]+(")',
+                      rf'\g<1>{version}\g<2>',
+                      text,
+                  )
+              path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Restore Xr.User against current Framework
+        working-directory: xr-user
+        run: |
+          set -euo pipefail
+          dotnet restore Xr.User.WebApi/Xr.User.WebApi.csproj             --source ../framework/.artifacts/nuget             --source https://api.nuget.org/v3/index.json             --no-cache
+
+      - name: Build Xr.User
+        working-directory: xr-user
+        run: |
+          dotnet build Xr.User.WebApi/Xr.User.WebApi.csproj             --configuration Release             --no-restore

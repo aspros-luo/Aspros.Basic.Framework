@@ -71,23 +71,22 @@ namespace Aspros.Base.Framework.Infrastructure
 
     public class NullToEmptyStringValueProvider : IValueProvider
     {
-        PropertyInfo _MemberInfo;
+        private readonly PropertyInfo _memberInfo;
+
         public NullToEmptyStringValueProvider(PropertyInfo memberInfo)
         {
-            _MemberInfo = memberInfo;
+            _memberInfo = memberInfo;
         }
 
-        public object GetValue(object target)
+        public object? GetValue(object target)
         {
-            object result = _MemberInfo.GetValue(target);
-            if (result == null) result = "";
-            return result;
-
+            var result = _memberInfo.GetValue(target);
+            return result ?? "";
         }
 
-        public void SetValue(object target, object value)
+        public void SetValue(object target, object? value)
         {
-            _MemberInfo.SetValue(target, value);
+            _memberInfo.SetValue(target, value);
         }
     }
 }

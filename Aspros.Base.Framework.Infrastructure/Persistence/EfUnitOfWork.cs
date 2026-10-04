@@ -3,19 +3,21 @@ using Aspros.Base.Framework.Application.Abstractions.Events;
 using Aspros.Base.Framework.Application.Abstractions.Persistence;
 using Aspros.Base.Framework.Domain;
 using Aspros.Base.Framework.Domain.Kernel;
-using DotNetCore.CAP;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aspros.Base.Framework.Infrastructure.Persistence;
 
+using ApplicationWorkContext = Aspros.Base.Framework.Application.Abstractions.IWorkContext;
+using KernelAggregateRoot = Aspros.Base.Framework.Domain.Kernel.IAggregateRoot;
+
 /// <summary>
 /// 基于 EF Core 的轻量 Unit of Work。
-/// Register* 只负责登记变更，CommitAsync 才持久化；显式事务通过 ITransactionalUnitOfWork。
+/// Register* 只负责登记变更，CommitAsync 只负责持久化；显式事务通过 ITransactionalUnitOfWork。
+/// CAP 等消息基础设施的事务参与由具体数据库 Provider / 消费者适配层负责，Framework 不绑定某一种数据库。
 /// </summary>
 public sealed class EfUnitOfWork(
     IDbContext dbContext,
-    IWorkContext workContext,
-    ICapPublisher? capPublisher = null,
+    ApplicationWorkContext workContext,
     IDomainEventDispatcher? domainEventDispatcher = null)
     : ITransactionalUnitOfWork, IScoped
 {
@@ -58,8 +60,8 @@ public sealed class EfUnitOfWork(
     {
         ArgumentNullException.ThrowIfNull(entities);
         var materialized = entities as TEntity[] ?? entities.ToArray();
-        var userId = await workContext.GetUserId();
 
+        var userId = await workContext.GetUserId();
         foreach (var entity in materialized)
         {
             if (entity is IAuditableEntity auditable)
@@ -83,10 +85,9 @@ public sealed class EfUnitOfWork(
             return true;
         }
 
-        var userId = await workContext.GetUserId();
         if (entity is IAuditableEntity auditable)
         {
-            auditable.ModifiedBy = userId;
+            auditable.ModifiedBy = await workContext.GetUserId();
             auditable.ModifiedAt = DateTime.Now;
             auditable.IsDeleted = true;
         }
@@ -95,9 +96,7 @@ public sealed class EfUnitOfWork(
         return true;
     }
 
-    public async Task<bool> RegisterRangeDeleted<TEntity>(
-        IEnumerable<TEntity> entities,
-        bool isDel = false) where TEntity : class
+    public async Task<bool> RegisterRangeDeleted<TEntity>(IEnumerable<TEntity> entities, bool isDel = false) where TEntity : class
     {
         ArgumentNullException.ThrowIfNull(entities);
         var materialized = entities as TEntity[] ?? entities.ToArray();
@@ -127,16 +126,16 @@ public sealed class EfUnitOfWork(
         => await dbContext.SaveChangesAsync(cancellationToken) > 0;
 
     public async Task ExecuteInTransactionAsync(
-        Func<CancellationToken, Task> operation,
+        Func<CancellationToken, Task> action,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(action);
 
         await using var transaction = await BeginTransactionAsync(cancellationToken);
 
         try
         {
-            await operation(cancellationToken);
+            await action(cancellationToken);
             await SaveChangesAndDispatchDomainEventsAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
@@ -148,16 +147,16 @@ public sealed class EfUnitOfWork(
     }
 
     public async Task<TResult> ExecuteInTransactionAsync<TResult>(
-        Func<CancellationToken, Task<TResult>> operation,
+        Func<CancellationToken, Task<TResult>> action,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(action);
 
         await using var transaction = await BeginTransactionAsync(cancellationToken);
 
         try
         {
-            var result = await operation(cancellationToken);
+            var result = await action(cancellationToken);
             await SaveChangesAndDispatchDomainEventsAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return result;
@@ -213,7 +212,7 @@ public sealed class EfUnitOfWork(
             var aggregateRoots = dbContext.ChangeTracker
                 .Entries()
                 .Select(entry => entry.Entity)
-                .OfType<IAggregateRoot>()
+                .OfType<KernelAggregateRoot>()
                 .Distinct()
                 .ToArray();
 
@@ -242,7 +241,7 @@ public sealed class EfUnitOfWork(
         }
     }
 
-    private Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(
+    private async Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(
         CancellationToken cancellationToken)
     {
         if (dbContext.Database.CurrentTransaction is not null)
@@ -253,14 +252,6 @@ public sealed class EfUnitOfWork(
                 "compose the work inside the existing transaction instead.");
         }
 
-        if (capPublisher is not null)
-        {
-            return dbContext.Database.BeginTransactionAsync(
-                capPublisher,
-                autoCommit: false,
-                cancellationToken: cancellationToken);
-        }
-
-        return dbContext.Database.BeginTransactionAsync(cancellationToken);
+        return await dbContext.Database.BeginTransactionAsync(cancellationToken);
     }
 }

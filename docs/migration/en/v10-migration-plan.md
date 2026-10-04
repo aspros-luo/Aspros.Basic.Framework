@@ -18,7 +18,7 @@ Already implemented:
 3. A lightweight Unit of Work transaction boundary is available.
 4. Domain Event Handler / Dispatcher is available.
 5. Integration Event Publisher abstraction is available.
-6. Domain Event → Integration Event → CAP Outbox can participate in the same transaction boundary.
+6. Domain Event → Integration Event → CAP Outbox is an explicit consumer transaction-adaptation scenario, not a Framework default.
 
 Future capabilities remain driven by real business problems:
 
@@ -35,7 +35,7 @@ Current capabilities:
 - EF Core: default transactional persistence;
 - Dapper: complex SQL and specialized queries;
 - ClickHouse: analytics, user profiles, recommendation, and large-scale aggregation;
-- RPC: minimal Application calling contract with concrete implementations in Infrastructure;
+- gRPC: Infrastructure provides common server/typed-client registration; business `.proto` contracts remain in consumer/shared Contracts;
 - CAP: Integration Event / Outbox implementation.
 
 The framework does not default to introducing:
@@ -58,7 +58,7 @@ The two event models should not be treated as interchangeable. The legacy event 
 
 Domain Events do not directly depend on a message broker and are not required for every business operation.
 
-Simple business should prefer `IUnitOfWork.CommitAsync()`. Multi-step business that requires all-or-nothing behavior should explicitly use `IUnitOfWork.ExecuteInTransactionAsync(...)`.
+Simple business should prefer `IUnitOfWork.CommitAsync()`. Multi-step business that requires all-or-nothing behavior should explicitly use `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)`.
 
 
 
@@ -80,7 +80,15 @@ CAP Outbox
 Message Broker
 ```
 
-Commands involving Domain Events should use `IUnitOfWork.ExecuteInTransactionAsync(...)` so business data, database changes made by Domain Event Handlers, and CAP Outbox records remain inside the same transaction boundary.
+Commands involving Domain Events should use `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` so business data and database changes made by Domain Event Handlers remain inside the same local transaction. If CAP Outbox records must share that transaction, the consumer Infrastructure supplies the database-provider-specific CAP transaction adapter.
+
+## v10 Source-Breaking Changes
+
+`Aspros.Base.Framework.Domain.Status` is removed from the Domain root namespace because a generic Framework type named `Status` conflicts with business-owned `Status` types in real consumers such as Xr.Category.
+
+The generic Framework lifecycle status is now `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`, and `BasicEntity.Status` uses that type.
+
+Consumers using the old source form `Status = Status.Deleted` or `Status = Status.Normal` must migrate those expressions to an explicit `EntityStatus` reference. This is an intentional v10 source migration; the Framework does not reintroduce the root `Domain.Status` type merely to preserve ambiguous consumer syntax.
 
 ## Migration Strategy
 
@@ -99,6 +107,46 @@ The lightweight Pipeline is now connected to the existing MediatR runtime.
 - `AutoInject()` explicitly registers discovered open generic Behaviors.
 
 No separate Application Dispatcher or Runtime has been introduced.
+
+## AutoInject Positioning
+
+`AutoInject()` is a convenience DI registration layer, not a DDD capability.
+
+A consumer can use standard Microsoft DI directly: `AddScoped`, `AddSingleton`, `AddTransient`, and `AddMediatR`.
+
+The Framework's Domain and Application contracts must work without AutoInject.
+
+## gRPC
+
+gRPC is part of the v10 microservice infrastructure capability.
+
+Framework provides:
+- ASP.NET Core gRPC server registration through `AddFrameworkGrpc()`;
+- typed client registration through `AddFrameworkGrpcClient<TClient>()`;
+- named clients;
+- configuration convention `Grpc:Services:<serviceName>:Address`.
+
+Business `.proto` contracts remain in consumer/shared Contracts projects.
+
+Use an Application business Port for domain-level cross-service calls. Infrastructure can implement that Port with the generated gRPC client.
+
+Framework does not embed Nacos/service discovery and does not introduce a generic `IRpcClient`.
+
+Use gRPC for synchronous internal calls that need an immediate response. Use Integration Event + CAP Outbox + MQ for asynchronous relationships and eventual consistency.
+
+## Package version boundary
+
+The refactor uses **Framework v10** as the architecture/migration line and **2.0.0** as the NuGet SemVer line.
+
+The three framework packages are aligned to:
+
+- `Aspros.Base.Framework.Domain 2.0.0`
+- `Aspros.Base.Framework.Application 2.0.0`
+- `Aspros.Base.Framework.Infrastructure 2.0.0`
+
+The 2.0.0 line is intentional because removing the root `Domain.Status` type is source-breaking.
+
+A `v2.0.0` Git tag/release should only be created after real consumer validation projects restore and build successfully against the new package line.
 
 ## Consumer-driven guidance
 

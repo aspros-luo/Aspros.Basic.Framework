@@ -22,7 +22,8 @@ Application defines contracts such as:
 - Domain Event Handler / Dispatcher
 - Integration Event Publisher
 - Unit of Work
-- RPC client abstraction
+
+When a real synchronous cross-service business call exists, the consuming service may define a business-specific RPC Port in Application. The Framework does not require a generic RPC client abstraction.
 
 These contracts must remain independent from concrete infrastructure technologies.
 
@@ -34,7 +35,7 @@ Infrastructure provides implementations for external technologies, including:
 - Dapper
 - ClickHouse
 - CAP
-- RPC implementations
+- RPC implementations for consumer-defined ports
 
 ## Dependency Direction
 
@@ -60,4 +61,4 @@ Infrastructure
   +--> EF Core / CAP / Message Broker
 ```
 
-Concrete message-broker or Outbox technology must not leak into Domain.
+Concrete message-broker, Outbox, or transport technology must not leak into Domain.

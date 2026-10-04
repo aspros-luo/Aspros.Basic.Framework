@@ -1,3 +1,5 @@
+using Aspros.Base.Framework.Domain.ValueObjects;
+
 namespace Aspros.Base.Framework.Domain;
 
 public class BasicEntity : IAuditableEntity
@@ -7,10 +9,11 @@ public class BasicEntity : IAuditableEntity
     public long Modifier { get; set; } = 0;
     public DateTime GmtModified { get; set; } = DateTime.Now;
     public bool IsDeleted { get; set; } = false;
+
     /// <summary>
-    /// 状态，1：正常；-1：删除；-2：屏蔽
+    /// 状态，0：正常；-1：删除；-2：停用。
     /// </summary>
-    public Status Status { get; protected set; } = Status.Normal;
+    public EntityStatus Status { get; protected set; } = EntityStatus.Normal;
 
     long IAuditableEntity.CreatedBy
     {

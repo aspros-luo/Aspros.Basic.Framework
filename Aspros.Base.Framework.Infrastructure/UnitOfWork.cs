@@ -1,3 +1,4 @@
+using Aspros.Base.Framework.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -6,7 +7,7 @@ using System.Data;
 namespace Aspros.Base.Framework.Infrastructure
 {
     /// <summary>
-    /// Legacy EF Core Unit of Work。
+    /// Legacy EF Core Unit of Work.
     /// Register* 只负责变更跟踪，CommitAsync 才执行 SaveChanges；事务仅在业务明确需要时开启。
     /// </summary>
     public class UnitOfWork(IDbContext dbContext, IWorkContext workContext) : IUnitOfWork
@@ -45,9 +46,9 @@ namespace Aspros.Base.Framework.Infrastructure
             return DbContextTransaction = Database.BeginTransaction();
         }
 
-        public async Task<bool> CommitAsync()
+        public async Task<bool> CommitAsync(CancellationToken cancellationToken = default)
         {
-            var affected = await _dbContext.SaveChangesAsync();
+            var affected = await _dbContext.SaveChangesAsync(cancellationToken);
 
             if (DbContextTransaction is null)
             {
@@ -56,7 +57,7 @@ namespace Aspros.Base.Framework.Infrastructure
 
             try
             {
-                await DbContextTransaction.CommitAsync();
+                await DbContextTransaction.CommitAsync(cancellationToken);
                 return true;
             }
             finally

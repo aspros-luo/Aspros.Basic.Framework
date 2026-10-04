@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools" Version="2.84.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.12" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="xunit.v3" Version="4.0.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Grpc\test-greeter.proto" GrpcServices="Client" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aspros.Base.Framework.Application\Aspros.Base.Framework.Application.csproj" />
+    <ProjectReference Include="..\Aspros.Base.Framework.Domain\Aspros.Base.Framework.Domain.csproj" />
+    <ProjectReference Include="..\Aspros.Base.Framework.Infrastructure\Aspros.Base.Framework.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

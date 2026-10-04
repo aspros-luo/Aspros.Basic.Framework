@@ -1,6 +1,7 @@
 using Aspros.Base.Framework.Application.Abstractions.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Aspros.Base.Framework.Infrastructure
 {

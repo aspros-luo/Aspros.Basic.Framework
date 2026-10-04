@@ -64,6 +64,8 @@ IUnitOfWork.CommitAsync()
 Database
 ```
 
+`CommitAsync()` only persists the changes currently tracked by the Unit of Work. It does not automatically dispatch Domain Events.
+
 For multi-step business that requires all-or-nothing behavior, the handler explicitly uses `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)`.
 
 An explicit transaction scope must be the outermost scope for the current `DbContext`. The Framework intentionally does not emulate nested database transactions: calling `ExecuteInTransactionAsync(...)` while the same `DbContext` already has an active transaction fails immediately with a clear configuration error. Compose the inner work inside the existing transaction instead.
@@ -112,7 +114,7 @@ Application 层的 `IUnitOfWork` 是轻量持久化会话，提供 `RegisterNew`
 
 只有确实要求本地多步操作全部成功或全部失败的少数用例，才依赖 `ITransactionalUnitOfWork` 并调用 `ExecuteInTransactionAsync(...)`。
 
-在显式事务内部，如业务必须先取得数据库生成的主键，可以在事务仍然打开时调用 `CommitAsync()` 触发一次 `SaveChanges`。此操作只会写入当前数据库事务并获取生成键，不会提交外层事务；最终事务提交仍由 `ExecuteInTransactionAsync(...)` 负责。不要把这种用法当作第二个事务提交点。
+在显式事务内部，如业务必须先取得数据库生成的主键，可以在事务仍然打开时调用 `CommitAsync()` 触发一次 `SaveChanges`。此操作只会写入当前数据库事务并获取生成键，不会提交外层事务；Domain Event 仍由外层事务协调。不要把这种用法当作第二个事务提交点。
 
 当前实现策略
 

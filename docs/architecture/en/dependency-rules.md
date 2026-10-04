@@ -22,7 +22,8 @@ Application defines contracts such as:
 - Domain Event Handler / Dispatcher
 - Integration Event Publisher
 - Unit of Work
-- RPC client abstraction
+
+When a real synchronous cross-service call exists, the consuming Application may define a business-specific Port. The Framework does not define a generic RPC client abstraction.
 
 These contracts must remain independent from concrete infrastructure technologies.
 
@@ -35,6 +36,7 @@ Infrastructure provides implementations for external technologies, including:
 - ClickHouse
 - CAP
 - RPC implementations
+- Database-specific CAP transaction adapters when required by a consuming service
 
 ## Dependency Direction
 

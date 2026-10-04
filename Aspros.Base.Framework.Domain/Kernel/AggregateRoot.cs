@@ -25,7 +25,7 @@ public abstract class AggregateRoot<TId> : Entity<TId>, IAggregateRoot
     {
         ArgumentNullException.ThrowIfNull(domainEvents);
 
-        foreach (var domainEvent in domainEvents)
+        foreach (var domainEvent in domainEvents.ToArray())
         {
             _domainEvents.Remove(domainEvent);
         }

@@ -59,7 +59,7 @@ Domain Event and Integration Event are deliberately different concepts:
 - `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` is an explicit business choice for multi-step operations that require all-or-nothing behavior; it is not required for every command.
 - When persistence changes, Domain Event handling, and reliable Integration Event publication must share one transaction boundary, use the `ITransactionalUnitOfWork` path.
 
-When `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the local Unit of Work transaction. With CAP transaction integration enabled, business data and the Outbox record are committed together.
+When `ITransactionalUnitOfWork.ExecuteInTransactionAsync(...)` is used, Domain Event handling occurs inside the local Unit of Work transaction. If CAP Outbox records must share that exact database transaction, the consuming service must provide the database-specific CAP transaction adapter. The core Framework does not bind the EF Unit of Work to a particular CAP database Provider.
 
 ## RPC Boundary
 
@@ -176,6 +176,14 @@ Commit
 ```
 
 EF Core supports multiple SaveChanges calls inside an explicit transaction, allowing domain-event handlers to participate in the same transaction boundary.
+
+## Dependency Injection
+
+`AutoInject()` is an optional convenience layer. It is not required by the DDD model or by the Framework runtime.
+
+A consuming service can register the same capabilities explicitly with standard Microsoft DI APIs such as `AddScoped`, `AddSingleton`, `AddTransient`, and `AddMediatR`.
+
+The Domain and Application contracts must remain usable when a consumer chooses explicit registration.
 
 ## Migration Principle
 
