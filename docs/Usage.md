@@ -89,3 +89,37 @@ Use in-process events only for local decoupling. They are not a replacement for 
 For cross-service consistency, prefer:
 
     DB commit -> durable MQ -> consumer -> own DB
+
+## 7. Service discovery
+
+With Nacos already configured by the host application:
+
+    builder.Services.AddFrameworkServiceDiscovery();
+
+Business code depends on IServiceDiscovery:
+
+    public sealed class TradeClient(IServiceDiscovery discovery)
+    {
+        public Task<ServiceEndpoint?> ResolveAsync(
+            CancellationToken cancellationToken) =>
+            discovery.GetHealthyEndpointAsync(
+                "xr.trade",
+                cancellationToken: cancellationToken);
+    }
+
+The framework returns a healthy instance endpoint and metadata. Business code does not need to know the Nacos Instance type.
+
+## 8. Permission validation
+
+The legacy permission middleware can now be configured without hard-coded service names:
+
+    builder.Services.AddFrameworkPermissionValidation(options =>
+    {
+        options.ServiceName = "saas-system";
+        options.GroupName = "DEFAULT_GROUP";
+        options.ValidationPath = "/system/user.permission.valid";
+    });
+
+    app.UsePermissionValid();
+
+Permission failures are fail-closed: unavailable permission service -> 503; denied permission -> 403.
