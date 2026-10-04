@@ -116,6 +116,20 @@ A consumer can use standard Microsoft DI directly: `AddScoped`, `AddSingleton`, 
 
 The Framework's Domain and Application contracts must work without AutoInject.
 
+## Package version boundary
+
+The refactor uses **Framework v10** as the architecture/migration line and **2.0.0** as the NuGet SemVer line.
+
+The three framework packages are aligned to:
+
+- `Aspros.Base.Framework.Domain 2.0.0`
+- `Aspros.Base.Framework.Application 2.0.0`
+- `Aspros.Base.Framework.Infrastructure 2.0.0`
+
+The 2.0.0 line is intentional because removing the root `Domain.Status` type is source-breaking.
+
+A `v2.0.0` Git tag/release should only be created after real consumer validation projects restore and build successfully against the new package line.
+
 ## Consumer-driven guidance
 
 The current Framework shape is derived from real consumers. Normal commands use a lightweight Unit of Work and one final Commit; explicit transactions are exceptional. Legacy in-process events remain for compatibility, while cross-service reliability uses Integration Event + Outbox + MQ.
