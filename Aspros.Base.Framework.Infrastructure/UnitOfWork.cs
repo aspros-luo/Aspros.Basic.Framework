@@ -16,6 +16,8 @@ public sealed class UnitOfWork(
     private readonly IWorkContext _workContext =
         workContext ?? throw new ArgumentNullException(nameof(workContext));
 
+    private bool _ownsTransaction;
+
     public IDbContext DbContext => _dbContext;
 
     public DatabaseFacade Database => _dbContext.Database;
@@ -32,31 +34,55 @@ public sealed class UnitOfWork(
             return DbContextTransaction;
         }
 
-        DbContextTransaction =
-            dbContextTransaction ?? Database.BeginTransaction();
+        if (dbContextTransaction is null)
+        {
+            DbContextTransaction = Database.BeginTransaction();
+            _ownsTransaction = true;
+        }
+        else
+        {
+            DbContextTransaction = dbContextTransaction;
+            _ownsTransaction = false;
+        }
 
         return DbContextTransaction;
     }
 
-    public async Task<bool> CommitAsync()
+    public async Task<IDbContextTransaction> BeginTransactionAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (DbContextTransaction is not null)
+        {
+            return DbContextTransaction;
+        }
+
+        DbContextTransaction =
+            await Database.BeginTransactionAsync(cancellationToken);
+        _ownsTransaction = true;
+        return DbContextTransaction;
+    }
+
+    public Task<bool> CommitAsync() => CommitAsync(CancellationToken.None);
+
+    public async Task<bool> CommitAsync(CancellationToken cancellationToken)
     {
         if (DbContextTransaction is null)
         {
-            await _dbContext.SaveChangesAsync();
+            await _dbContext.SaveChangesAsync(cancellationToken);
             return true;
         }
 
         try
         {
-            await _dbContext.SaveChangesAsync();
-            await DbContextTransaction.CommitAsync();
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await DbContextTransaction.CommitAsync(cancellationToken);
             return true;
         }
         catch
         {
             try
             {
-                await DbContextTransaction.RollbackAsync();
+                await DbContextTransaction.RollbackAsync(CancellationToken.None);
             }
             catch
             {
@@ -219,6 +245,7 @@ public sealed class UnitOfWork(
         {
             DbContextTransaction.Dispose();
             DbContextTransaction = null;
+            _ownsTransaction = false;
         }
     }
 
@@ -288,7 +315,12 @@ public sealed class UnitOfWork(
             return;
         }
 
-        await DbContextTransaction.DisposeAsync();
+        if (_ownsTransaction)
+        {
+            await DbContextTransaction.DisposeAsync();
+        }
+
         DbContextTransaction = null;
+        _ownsTransaction = false;
     }
 }
