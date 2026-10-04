@@ -1,0 +1,11 @@
+@consumer = https://localhost:7141
+@provider = https://localhost:7041
+
+### Provider health
+GET {{provider}}/health
+
+### Consumer health
+GET {{consumer}}/health
+
+### Consumer -> gRPC Provider
+GET {{consumer}}/core/ping?message=framework-smoke
