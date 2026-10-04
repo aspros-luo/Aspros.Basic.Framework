@@ -1,147 +1,294 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Aspros.Base.Framework.Domain;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
 
-namespace Aspros.Base.Framework.Infrastructure
+namespace Aspros.Base.Framework.Infrastructure;
+
+public sealed class UnitOfWork(
+    IDbContext dbContext,
+    IWorkContext workContext) : IUnitOfWork
 {
-    public class UnitOfWork(IDbContext dbContext, IWorkContext workContext) : IUnitOfWork
+    private readonly IDbContext _dbContext =
+        dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+
+    private readonly IWorkContext _workContext =
+        workContext ?? throw new ArgumentNullException(nameof(workContext));
+
+    public IDbContext DbContext => _dbContext;
+
+    public DatabaseFacade Database => _dbContext.Database;
+
+    public IDbConnection Connection => _dbContext.Database.GetDbConnection();
+
+    public IDbContextTransaction? DbContextTransaction { get; private set; }
+
+    public IDbContextTransaction BeginTransaction(
+        IDbContextTransaction? dbContextTransaction = null)
     {
-        private readonly IDbContext _dbContext = dbContext;
-        private readonly IWorkContext _workContext = workContext;
-        public IDbContext DbContext => _dbContext;
-
-        public DatabaseFacade Database => _dbContext.Database;
-
-        public IDbConnection Connection => _dbContext.Database.GetDbConnection();
-
-        public IDbContextTransaction? DbContextTransaction { get; set; }
-
-        public IDbContextTransaction BeginTransaction(IDbContextTransaction? dbContextTransaction = null)
+        if (DbContextTransaction is not null)
         {
-            if (Connection.State == ConnectionState.Closed)
-                Connection.Open();
-            if (dbContextTransaction != null)
-                return DbContextTransaction = dbContextTransaction;
-            return DbContextTransaction = Database.BeginTransaction();
+            return DbContextTransaction;
         }
 
-        public async Task<bool> CommitAsync()
+        DbContextTransaction =
+            dbContextTransaction ?? Database.BeginTransaction();
+
+        return DbContextTransaction;
+    }
+
+    public async Task<bool> CommitAsync()
+    {
+        if (DbContextTransaction is null)
         {
-            if (Connection.State == ConnectionState.Closed)
-                Connection.Open();
-            if (DbContextTransaction == null)
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+            await DbContextTransaction.CommitAsync();
+            return true;
+        }
+        catch
+        {
+            try
             {
-                var result = await _dbContext.SaveChangesAsync() > 0;
-                Connection.Close();
-                Connection.Dispose();
-                return result;
+                await DbContextTransaction.RollbackAsync();
             }
-            DbContextTransaction.Commit();
+            catch
+            {
+                // Preserve the original persistence exception.
+            }
+
+            throw;
+        }
+        finally
+        {
+            await DisposeTransactionAsync();
+        }
+    }
+
+    public Task<int> ExecuteSqlCommandAsync(
+        string sql,
+        CancellationToken cancellationToken = default,
+        params object[] parameters)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sql);
+
+        return _dbContext.Database.ExecuteSqlRawAsync(
+            sql,
+            parameters,
+            cancellationToken);
+    }
+
+    public async Task<bool> RegisterNew<TEntity>(TEntity entity)
+        where TEntity : class
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        var now = DateTime.UtcNow;
+        var userId = await _workContext.GetUserId();
+
+        ApplyCreateAudit(entity, userId, now);
+
+        await _dbContext.Set<TEntity>().AddAsync(entity);
+        return true;
+    }
+
+    public async Task<bool> RegisterRangeNew<TEntity>(
+        IEnumerable<TEntity> entities)
+        where TEntity : class
+    {
+        ArgumentNullException.ThrowIfNull(entities);
+
+        var materialized = entities as TEntity[] ?? entities.ToArray();
+        var now = DateTime.UtcNow;
+        var userId = await _workContext.GetUserId();
+
+        foreach (var entity in materialized)
+        {
+            ArgumentNullException.ThrowIfNull(entity);
+            ApplyCreateAudit(entity, userId, now);
+        }
+
+        await _dbContext.Set<TEntity>().AddRangeAsync(materialized);
+        return true;
+    }
+
+    public async Task<bool> RegisterDirty<TEntity>(TEntity entity)
+        where TEntity : class
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        ApplyModifyAudit(
+            entity,
+            await _workContext.GetUserId(),
+            DateTime.UtcNow);
+
+        _dbContext.Set<TEntity>().Update(entity);
+        return true;
+    }
+
+    public async Task<bool> RegisterRangeDirty<TEntity>(
+        IEnumerable<TEntity> entities)
+        where TEntity : class
+    {
+        ArgumentNullException.ThrowIfNull(entities);
+
+        var materialized = entities as TEntity[] ?? entities.ToArray();
+        var now = DateTime.UtcNow;
+        var userId = await _workContext.GetUserId();
+
+        foreach (var entity in materialized)
+        {
+            ArgumentNullException.ThrowIfNull(entity);
+            ApplyModifyAudit(entity, userId, now);
+        }
+
+        _dbContext.Set<TEntity>().UpdateRange(materialized);
+        return true;
+    }
+
+    public async Task<bool> RegisterDeleted<TEntity>(
+        TEntity entity,
+        bool isDel = false)
+        where TEntity : class
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        if (isDel)
+        {
+            _dbContext.Set<TEntity>().Remove(entity);
+            return true;
+        }
+
+        var userId = await _workContext.GetUserId();
+        var now = DateTime.UtcNow;
+
+        ApplyModifyAudit(entity, userId, now);
+        ApplySoftDelete(entity);
+
+        _dbContext.Set<TEntity>().Update(entity);
+        return true;
+    }
+
+    public async Task<bool> RegisterRangeDeleted<TEntity>(
+        IEnumerable<TEntity> entities,
+        bool isDel = false)
+        where TEntity : class
+    {
+        ArgumentNullException.ThrowIfNull(entities);
+
+        var materialized = entities as TEntity[] ?? entities.ToArray();
+
+        if (isDel)
+        {
+            _dbContext.Set<TEntity>().RemoveRange(materialized);
+            return true;
+        }
+
+        var userId = await _workContext.GetUserId();
+        var now = DateTime.UtcNow;
+
+        foreach (var entity in materialized)
+        {
+            ArgumentNullException.ThrowIfNull(entity);
+            ApplyModifyAudit(entity, userId, now);
+            ApplySoftDelete(entity);
+        }
+
+        _dbContext.Set<TEntity>().UpdateRange(materialized);
+        return true;
+    }
+
+    public void Rollback()
+    {
+        if (DbContextTransaction is null)
+        {
+            return;
+        }
+
+        try
+        {
+            DbContextTransaction.Rollback();
+        }
+        finally
+        {
+            DbContextTransaction.Dispose();
             DbContextTransaction = null;
-            Connection.Close();
-            Connection.Dispose();
-            return true;
+        }
+    }
+
+    private static void ApplyCreateAudit<TEntity>(
+        TEntity entity,
+        long userId,
+        DateTime now)
+        where TEntity : class
+    {
+        switch (entity)
+        {
+            case BasicEntity basicEntity:
+                basicEntity.Creator = userId;
+                basicEntity.GmtCreated = now;
+                basicEntity.Modifier = userId;
+                basicEntity.GmtModified = now;
+                break;
+
+            case BaseEntity baseEntity:
+                baseEntity.Creator = userId;
+                baseEntity.CreateTime = now;
+                baseEntity.Updater = userId;
+                baseEntity.UpdateTime = now;
+                break;
+        }
+    }
+
+    private static void ApplyModifyAudit<TEntity>(
+        TEntity entity,
+        long userId,
+        DateTime now)
+        where TEntity : class
+    {
+        switch (entity)
+        {
+            case BasicEntity basicEntity:
+                basicEntity.Modifier = userId;
+                basicEntity.GmtModified = now;
+                break;
+
+            case BaseEntity baseEntity:
+                baseEntity.Updater = userId;
+                baseEntity.UpdateTime = now;
+                break;
+        }
+    }
+
+    private static void ApplySoftDelete<TEntity>(TEntity entity)
+        where TEntity : class
+    {
+        switch (entity)
+        {
+            case BasicEntity basicEntity:
+                basicEntity.IsDeleted = true;
+                break;
+
+            case BaseEntity baseEntity:
+                baseEntity.Deleted = true;
+                break;
+        }
+    }
+
+    private async Task DisposeTransactionAsync()
+    {
+        if (DbContextTransaction is null)
+        {
+            return;
         }
 
-        public async Task<int> ExecuteSqlCommandAsync(string sql, CancellationToken cancellationToken = default, params object[] parameters)
-        {
-            return await _dbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken, parameters);
-        }
-
-        public async Task<bool> RegisterDeleted<TEntity>(TEntity entity, bool isDel = false) where TEntity : class
-        {
-            if (isDel)
-                _dbContext.Set<TEntity>().Remove(entity);
-            else
-            {
-                var userId = await _workContext.GetUserId();
-                _dbContext.Entry(entity).Entity.GetType().GetProperty("Modifier")?.SetValue(entity, userId);
-                _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtModified")?.SetValue(entity, DateTime.Now);
-                _dbContext.Entry(entity).Entity.GetType().GetProperty("IsDeleted")?.SetValue(entity, true);
-                _dbContext.Set<TEntity>().Update(entity);
-            }
-            if (DbContextTransaction != null)
-                return await _dbContext.SaveChangesAsync() > 0;
-            return true;
-        }
-
-        public async Task<bool> RegisterDirty<TEntity>(TEntity entity) where TEntity : class
-        {
-            var userId = await _workContext.GetUserId();
-            _dbContext.Entry(entity).Entity.GetType().GetProperty("Modifier")?.SetValue(entity, userId);
-            _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtModified")?.SetValue(entity, DateTime.Now);
-            _dbContext.Set<TEntity>().Update(entity);
-            if (DbContextTransaction != null)
-                return await _dbContext.SaveChangesAsync() > 0;
-            return true;
-        }
-
-        public async Task<bool> RegisterNew<TEntity>(TEntity entity) where TEntity : class
-        {
-            var userId = await _workContext.GetUserId();
-            _dbContext.Entry(entity).Entity.GetType().GetProperty("Creator")?.SetValue(entity, userId);
-            _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtCreated")?.SetValue(entity, DateTime.Now);
-            _dbContext.Entry(entity).Entity.GetType().GetProperty("Modifier")?.SetValue(entity, userId);
-            _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtModified")?.SetValue(entity, DateTime.Now);
-            //if (_dbContext.Entry(entity).Property("Creator").CurrentValue!=null)
-            //    _dbContext.Entry(entity).Property("Creator").CurrentValue = userId;
-            //if (_dbContext.Entry(entity).Property("GmtCreated")?.CurrentValue!=null)
-            //    _dbContext.Entry(entity).Property("GmtCreated").CurrentValue = DateTime.Now;
-            //if (_dbContext.Entry(entity).Property("Modifier").CurrentValue != null)
-            //    _dbContext.Entry(entity).Property("Modifier").CurrentValue = userId;
-            //if (_dbContext.Entry(entity).Property("GmtModified").CurrentValue != null)
-            //    _dbContext.Entry(entity).Property("GmtModified").CurrentValue = DateTime.Now;
-            await _dbContext.Set<TEntity>().AddAsync(entity);
-            if (DbContextTransaction != null)
-                return await _dbContext.SaveChangesAsync() > 0;
-            return true;
-        }
-
-        public async Task<bool> RegisterRangeDeleted<TEntity>(IEnumerable<TEntity> entities, bool isDel = false) where TEntity : class
-        {
-            if (isDel)
-                _dbContext.Set<TEntity>().RemoveRange(entities);
-            else
-                _dbContext.Set<TEntity>().UpdateRange(entities);
-            if (DbContextTransaction != null)
-                return await _dbContext.SaveChangesAsync() > 0;
-            return true;
-        }
-
-        public async Task<bool> RegisterRangeDirty<TEntity>(IEnumerable<TEntity> entities) where TEntity : class
-        {
-            var userId = await _workContext.GetUserId();
-            foreach (var entity in entities)
-            {
-                _dbContext.Entry(entity).Entity.GetType().GetProperty("Modifier")?.SetValue(entity, userId);
-                _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtModified")?.SetValue(entity, DateTime.Now);
-            }
-            _dbContext.Set<TEntity>().UpdateRange(entities);
-            if (DbContextTransaction != null)
-                return await _dbContext.SaveChangesAsync() > 0;
-            return true;
-        }
-
-        public async Task<bool> RegisterRangeNew<TEntity>(IEnumerable<TEntity> entities) where TEntity : class
-        {
-            var userId = await _workContext.GetUserId();
-            foreach (var entity in entities)
-            {
-                _dbContext.Entry(entity).Entity.GetType().GetProperty("Creator")?.SetValue(entity, userId);
-                _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtCreated")?.SetValue(entity, DateTime.Now);
-                _dbContext.Entry(entity).Entity.GetType().GetProperty("Modifier")?.SetValue(entity, userId);
-                _dbContext.Entry(entity).Entity.GetType().GetProperty("GmtModified")?.SetValue(entity, DateTime.Now);
-            }
-            await _dbContext.Set<TEntity>().AddRangeAsync(entities);
-            if (DbContextTransaction != null)
-                return await _dbContext.SaveChangesAsync() > 0;
-            return true;
-        }
-
-        public void Rollback()
-        {
-            DbContextTransaction?.Rollback();
-        }
+        await DbContextTransaction.DisposeAsync();
+        DbContextTransaction = null;
     }
 }
