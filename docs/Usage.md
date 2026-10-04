@@ -120,7 +120,7 @@ The legacy permission middleware can now be configured without hard-coded servic
         options.ValidationPath = "/system/user.permission.valid";
     });
 
-    app.UsePermissionValid();
+    app.UseFrameworkPermissionValidation();
 
 Permission failures are fail-closed: unavailable permission service -> 503; denied permission -> 403.
 
