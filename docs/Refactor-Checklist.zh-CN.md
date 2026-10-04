@@ -50,3 +50,10 @@
 - [x] 权限服务名称、Group 和路径改为 Options 配置。
 
 - [x] 增加 AddAsprosFramework，一次性注册常用基础运行时能力。
+
+- [x] 修复分页的 0 页码、0 页大小和总页数计算边界。
+- [x] 修复字符串转换工具的空值与逐字符处理问题。
+- [x] 修复 DisposableAction 重复 Dispose 重复执行 action 的问题。
+- [x] 为 Snowflake worker/datacenter/sequence 增加范围校验。
+- [x] 防止 API Result Filter 二次包装成功响应并保留错误响应。
+- [x] 为权限中间件增加框架原生命名空间入口。
