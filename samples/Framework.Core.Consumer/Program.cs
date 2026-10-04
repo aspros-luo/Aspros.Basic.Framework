@@ -8,7 +8,9 @@ builder.Services.AddControllers();
 var endpoint = new Uri(
     builder.Configuration["Grpc:Provider"] ?? "https://localhost:7041");
 
-builder.Services.AddFrameworkGrpcClient<CoreService.CoreServiceClient>(endpoint);
+builder.Services
+    .AddFrameworkGrpcClient<CoreService.CoreServiceClient>(endpoint)
+    .ForwardAuthorizationHeader();
 
 var app = builder.Build();
 
