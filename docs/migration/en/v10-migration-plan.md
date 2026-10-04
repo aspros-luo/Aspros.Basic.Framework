@@ -35,7 +35,7 @@ Current capabilities:
 - EF Core: default transactional persistence;
 - Dapper: complex SQL and specialized queries;
 - ClickHouse: analytics, user profiles, recommendation, and large-scale aggregation;
-- RPC: minimal Application calling contract with concrete implementations in Infrastructure;
+- gRPC: Infrastructure provides common server/typed-client registration; business `.proto` contracts remain in consumer/shared Contracts;
 - CAP: Integration Event / Outbox implementation.
 
 The framework does not default to introducing:
@@ -115,6 +115,24 @@ No separate Application Dispatcher or Runtime has been introduced.
 A consumer can use standard Microsoft DI directly: `AddScoped`, `AddSingleton`, `AddTransient`, and `AddMediatR`.
 
 The Framework's Domain and Application contracts must work without AutoInject.
+
+## gRPC
+
+gRPC is part of the v10 microservice infrastructure capability.
+
+Framework provides:
+- ASP.NET Core gRPC server registration through `AddFrameworkGrpc()`;
+- typed client registration through `AddFrameworkGrpcClient<TClient>()`;
+- named clients;
+- configuration convention `Grpc:Services:<serviceName>:Address`.
+
+Business `.proto` contracts remain in consumer/shared Contracts projects.
+
+Use an Application business Port for domain-level cross-service calls. Infrastructure can implement that Port with the generated gRPC client.
+
+Framework does not embed Nacos/service discovery and does not introduce a generic `IRpcClient`.
+
+Use gRPC for synchronous internal calls that need an immediate response. Use Integration Event + CAP Outbox + MQ for asynchronous relationships and eventual consistency.
 
 ## Package version boundary
 
