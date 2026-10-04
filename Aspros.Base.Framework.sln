@@ -7,15 +7,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "0.Abstractions", "0.Abstrac
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspros.Base.Framework.Abstractions", "Aspros.Base.Framework.Abstractions\Aspros.Base.Framework.Abstractions.csproj", "{A26D9A1D-1B6A-4A4E-8B54-3C1B3D5F9A4E}"
 EndProject
-Project("{2150E333-8D7B-4F5F-9B9B-CC1B4E7EE001}") = "1.Domain", "1.Domain", "{E0FC308B-668D-474C-99F7-11E104B26D43}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "1.Domain", "1.Domain", "{E0FC308B-668D-474C-99F7-11E104B26D43}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspros.Base.Framework.Domain", "Aspros.Base.Framework.Domain\Aspros.Base.Framework.Domain.csproj", "{ADBA01EF-63D5-4AC8-9C94-DE89503ED005}"
 EndProject
-Project("{2150E333-8D7B-4F5F-9B9B-CC1B4E7EE001}") = "2.Infrastructure", "2.Infrastructure", "{366D08D3-3F37-44AD-A0C7-49E41A83FE64}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2.Infrastructure", "2.Infrastructure", "{366D08D3-3F37-44AD-A0C7-49E41A83FE64}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspros.Base.Framework.Infrastructure", "Aspros.Base.Framework.Infrastructure\Aspros.Base.Framework.Infrastructure.csproj", "{C4C2CA91-76FB-4CDD-A96A-F9C52E478CEC}"
 EndProject
-Project("{2150E333-8D7B-4F5F-9B9B-CC1B4E7EE001}") = "3.Samples", "3.Samples", "{5F2F5E16-62C4-4C2E-90C6-9A5D5A36B711}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3.Samples", "3.Samples", "{5F2F5E16-62C4-4C2E-90C6-9A5D5A36B711}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Framework.Core.Provider", "samples\Framework.Core.Provider\Framework.Core.Provider.csproj", "{7D4F0D9A-68F6-4AE2-85F2-0B8AADE7A5D1}"
 EndProject
@@ -40,7 +40,6 @@ Global
 		{C4C2CA91-76FB-4CDD-A96A-F9C52E478CEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C4C2CA91-76FB-4CDD-A96A-F9C52E478CEC}.Release|Any CPU.Build.0 = Release|Any CPU
 		{7D4F0D9A-68F6-4AE2-85F2-0B8AADE7A5D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7D4F0D9A-68F6-4AE2-85F2-0B8AADE7A5D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7D4F0D9A-68F6-4AE2-85F2-0B8AADE7A5D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7D4F0D9A-68F6-4AE2-85F2-0B8AADE7A5D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7D4F0D9A-68F6-4AE2-85F2-0B8AADE7A5D1}.Release|Any CPU.Build.0 = Release|Any CPU
