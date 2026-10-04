@@ -35,13 +35,13 @@ Infrastructure 继续复用现有技术栈，仅在实际项目中出现明确�
 - EF Core：默认事务型持久化；
 - Dapper：复杂 SQL / 专项查询；
 - ClickHouse：分析、用户画像、推荐和大规模聚合；
-- RPC：Application 最小调用契约，具体协议实现位于 Infrastructure；
+- gRPC：Infrastructure 提供统一 Server / typed Client 注册入口，具体业务 `.proto` Contract 属于消费者或共享 Contracts；
 - CAP：Integration Event / Outbox 实现。
 
 仍不默认增加：
 
-- RPC 注册中心抽象
-- RPC 服务发现抽象
+- 通用 RPC 注册中心抽象
+- 通用 RPC 服务发现抽象
 - 通用数据访问抽象
 - 独立 Observability Framework
 - 完整验证 Runtime
@@ -111,6 +111,24 @@ No separate Application Dispatcher or Runtime has been introduced.
 ## AutoInject 定位
 
 `AutoInject()` 只是 DI 注册便利层，不是 DDD 能力的一部分。业务项目可以完全不用它，直接使用标准 DI：`AddScoped`、`AddSingleton`、`AddTransient`、`AddMediatR`。Framework 的 Domain / Application 契约不得依赖 AutoInject 才成立。
+
+## gRPC
+
+gRPC is part of the v10 microservice infrastructure capability.
+
+Framework provides:
+- ASP.NET Core gRPC server registration through `AddFrameworkGrpc()`;
+- typed client registration through `AddFrameworkGrpcClient<TClient>()`;
+- named clients;
+- configuration convention `Grpc:Services:<serviceName>:Address`.
+
+Business `.proto` contracts remain in consumer/shared Contracts projects.
+
+Use an Application business Port for domain-level cross-service calls. Infrastructure can implement that Port with the generated gRPC client.
+
+Framework does not embed Nacos/service-discovery logic and does not introduce a generic `IRpcClient`.
+
+Use gRPC for synchronous calls requiring an immediate response. Use Integration Event + CAP Outbox + MQ for asynchronous relationships and eventual consistency.
 
 ## Package version boundary
 
