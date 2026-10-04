@@ -64,3 +64,6 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 - [x] Added range validation to Snowflake worker/datacenter/sequence inputs.
 - [x] Prevented duplicate successful API envelopes and preserved error results.
 - [x] Added a framework-native permission middleware entry point.
+
+- [x] Added RollbackAsync and aligned sync/async rollback behavior.
+- [x] Rollback clears EF ChangeTracker state to prevent accidental persistence after rollback.
