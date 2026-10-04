@@ -122,7 +122,7 @@ proto 始终归业务服务自己管理，框架只做基础设施接入。
         options.ValidationPath = "/system/user.permission.valid";
     });
 
-    app.UsePermissionValid();
+    app.UseFrameworkPermissionValidation();
 
 权限服务不可用返回 503；权限不足返回 403，不再出现校验失败但请求继续向下执行的问题。
 
