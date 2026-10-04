@@ -1,6 +1,7 @@
 using Aspros.Base.Framework.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddAsprosFramework();
 builder.Services.AddFrameworkGrpc();
 
 var app = builder.Build();
