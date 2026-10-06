@@ -107,7 +107,8 @@ dotnet run --project Aspros.Basic.Framework.Tools -- db migration script \
   --output "$OUTPUT_DIR/upgrade.sql"
 
 test -s "$OUTPUT_DIR/upgrade.sql"
-grep -q "RENAME COLUMN" "$OUTPUT_DIR/upgrade.sql"
+grep -q "DisplayName" "$OUTPUT_DIR/upgrade.sql"
+! grep -qi "DROP COLUMN.*Name" "$OUTPUT_DIR/upgrade.sql"
 
 echo "== Apply reviewed rename migration =="
 dotnet run --project Aspros.Basic.Framework.Tools -- db migration update \
