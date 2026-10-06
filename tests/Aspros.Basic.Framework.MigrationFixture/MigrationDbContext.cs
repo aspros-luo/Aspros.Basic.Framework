@@ -19,12 +19,6 @@ public sealed class MigrationDbContext(DbContextOptions<MigrationDbContext> opti
     }
 }
 
-public sealed class MigrationCustomer
-{
-    public long Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-}
-
 public sealed class MigrationDbContextFactory : IDesignTimeDbContextFactory<MigrationDbContext>
 {
     public MigrationDbContext CreateDbContext(string[] args)
