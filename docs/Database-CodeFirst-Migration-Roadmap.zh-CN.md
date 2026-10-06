@@ -107,9 +107,9 @@ EF Core 可以生成结构迁移，但不能替业务判断“数据如何安全
 | EF Mapping 提取 | 完成 |
 | DbContext 注册 | 完成 |
 | CLI Foundation | 完成 |
-| Provider / Design-time 验证 | 进行中 |
-| Migration 测试矩阵 | 待执行 |
-| MySQL / Pomelo 测试 | 待执行 |
-| Data-loss 测试 | 待执行 |
-| Production SQL / Bundle 流程 | 待执行 |
+| Provider / Design-time 验证 | 已具备可执行夹具，Runtime 待执行 |
+| Migration 测试矩阵 | 已覆盖核心 add / script / update / rename 场景，Runtime 待执行 |
+| MySQL / Pomelo 测试 | 已具备 disposable Docker 回归，Runtime 待执行 |
+| Data-loss 测试 | 已加入 destructive scaffold 检查与 reviewed RenameColumn 数据保留回归，Runtime 待执行 |
+| Production SQL / Bundle 流程 | 仍待独立生产化流程建设 |
 | 中英文文档 | 进行中 |
