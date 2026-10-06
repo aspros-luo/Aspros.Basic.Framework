@@ -1,6 +1,6 @@
 # Framework 临时开发 / 测试环境
 
-提供可重复、可销毁的 Docker 验证环境：.NET 8 SDK、EF Core CLI 8.0.12、MySQL 8.4。
+提供可重复、可销毁的 Docker 验证环境：.NET 8 SDK、EF Core CLI 8.0.12、MySQL 8.4，并预置 Redis、RabbitMQ、Nacos 作为可选基础设施。
 
 ## 启动
 
@@ -13,7 +13,7 @@ docker compose --profile test run --rm framework-test
 进入测试容器：
 
 ```bash
-docker compose run --rm framework-test bash
+docker compose --profile test run --rm framework-test bash
 dotnet build Aspros.Base.Framework.sln
 dotnet ef --version
 ```
@@ -24,4 +24,11 @@ dotnet ef --version
 docker compose down -v
 ```
 
-这不是生产部署配置，也不会创建 GitHub Actions。后续 Migration Matrix 将以此作为可重复实验环境。
+这不是生产部署配置，也不会创建 GitHub Actions。完整回归使用 `--profile test`；需要消息与服务发现基础设施时，再启动 `infra` profile：
+
+```bash
+docker compose --profile infra up -d redis rabbitmq nacos
+docker compose --profile test run --rm framework-test
+```
+
+完整环境用于后续 MySQL / Redis / RabbitMQ / Nacos / gRPC / CAP 回归。
