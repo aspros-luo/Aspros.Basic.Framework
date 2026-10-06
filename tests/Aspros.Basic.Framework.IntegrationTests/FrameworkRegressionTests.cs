@@ -1,10 +1,12 @@
 using Aspros.Base.Framework.Infrastructure;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Http;
+using Aspros.Basic.Framework.IntegrationTests.Grpc;
 using DotNetCore.CAP;
+using Grpc.Net.Client;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Aspros.Basic.Framework.IntegrationTests;
@@ -15,9 +17,7 @@ public sealed class FrameworkRegressionTests
     public void AddAsprosFramework_RegistersCoreRuntimeServices()
     {
         var services = new ServiceCollection();
-
         services.AddAsprosFramework();
-
         using var provider = services.BuildServiceProvider();
 
         Assert.NotNull(provider.GetService<IWorkContext>());
@@ -30,13 +30,9 @@ public sealed class FrameworkRegressionTests
     public void AddFrameworkResilientHttpClient_CreatesNamedClient()
     {
         var services = new ServiceCollection();
-
-        services.AddFrameworkResilientHttpClient(
-            "identity",
-            client => client.BaseAddress = new Uri("http://identity"));
+        services.AddFrameworkResilientHttpClient("identity", client => client.BaseAddress = new Uri("http://identity"));
 
         using var provider = services.BuildServiceProvider();
-
         var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient("identity");
 
         Assert.Equal(new Uri("http://identity/"), client.BaseAddress);
@@ -46,16 +42,10 @@ public sealed class FrameworkRegressionTests
     public void AddFrameworkRateLimiting_RegistersOptions()
     {
         var services = new ServiceCollection();
-
         services.AddFrameworkRateLimiting(options =>
-        {
-            options.AddFixedWindowLimiter(
-                "framework-test",
-                limiter => limiter.PermitLimit = 2);
-        });
+            options.AddFixedWindowLimiter("framework-test", limiter => limiter.PermitLimit = 2));
 
         using var provider = services.BuildServiceProvider();
-
         Assert.NotNull(provider);
     }
 
@@ -63,45 +53,65 @@ public sealed class FrameworkRegressionTests
     public void AddFrameworkHealthChecks_RegistersFrameworkSelfCheck()
     {
         var services = new ServiceCollection();
-
         services.AddFrameworkHealthChecks();
 
         using var provider = services.BuildServiceProvider();
-        var healthChecks =
-            provider.GetRequiredService<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckService>();
-
-        Assert.NotNull(healthChecks);
+        Assert.NotNull(provider.GetRequiredService<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckService>());
     }
 
     [Fact]
     public void AddFrameworkGrpc_RegistersGrpcServerInfrastructure()
     {
         var services = new ServiceCollection();
-
         services.AddFrameworkGrpc();
 
         using var provider = services.BuildServiceProvider();
-
         Assert.NotNull(provider);
+    }
+
+    [Fact]
+    public async Task FrameworkGrpcClient_CanCallFrameworkGrpcServer()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddFrameworkGrpc();
+
+        var app = builder.Build();
+        app.MapFrameworkGrpcService<RegressionGreeterService>();
+        await app.StartAsync();
+
+        var services = new ServiceCollection();
+        services.AddFrameworkGrpcClient<RegressionGreeter.RegressionGreeterClient>(
+            "regression",
+            new Uri("http://localhost"))
+            .ConfigurePrimaryHttpMessageHandler(() => app.GetTestServer().CreateHandler());
+
+        await using var provider = services.BuildServiceProvider();
+        var client = provider
+            .GetRequiredService<Grpc.Net.ClientFactory.GrpcClientFactory>()
+            .CreateClient<RegressionGreeter.RegressionGreeterClient>("regression");
+
+        var response = await client.SayHelloAsync(
+            new HelloRequest { Name = "framework" });
+
+        Assert.Equal("hello framework", response.Message);
+
+        await app.StopAsync();
+        await app.DisposeAsync();
     }
 
     [Fact]
     public void UseFrameworkResilience_CanExtendAnExistingClient()
     {
         var services = new ServiceCollection();
-
-        services
-            .AddHttpClient("identity")
-            .UseFrameworkResilience();
+        services.AddHttpClient("identity").UseFrameworkResilience();
 
         using var provider = services.BuildServiceProvider();
-
-        var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient("identity");
-
-        Assert.NotNull(client);
+        Assert.NotNull(provider.GetRequiredService<IHttpClientFactory>().CreateClient("identity"));
     }
 
-    public static bool MySqlAvailable => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase"));
+    public static bool MySqlAvailable =>
+        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase"));
 
     [Fact(SkipUnless = nameof(MySqlAvailable), SkipType = typeof(FrameworkRegressionTests))]
     public async Task MySql_Uow_And_Dapper_UseTheSameConnection_WhenDatabaseIsAvailable()
@@ -109,15 +119,12 @@ public sealed class FrameworkRegressionTests
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase")!;
 
         var services = new ServiceCollection();
-        services.AddScoped<Aspros.Base.Framework.Infrastructure.IWorkContext, TestWorkContext>();
+        services.AddScoped<IWorkContext, TestWorkContext>();
         services.AddAsprosDbContext<MySqlTestDbContext>(options =>
             options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
-        services.AddScoped<Aspros.Base.Framework.Infrastructure.IDbContext>(
-            sp => sp.GetRequiredService<MySqlTestDbContext>());
-        services.AddScoped<Aspros.Base.Framework.Infrastructure.IUnitOfWork,
-            Aspros.Base.Framework.Infrastructure.UnitOfWork>();
-        services.AddScoped<Aspros.Base.Framework.Infrastructure.IDapperExecutor,
-            Aspros.Base.Framework.Infrastructure.DapperExecutor>();
+        services.AddScoped<IDbContext>(sp => sp.GetRequiredService<MySqlTestDbContext>());
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IDapperExecutor, DapperExecutor>();
 
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -125,11 +132,11 @@ public sealed class FrameworkRegressionTests
         var db = scope.ServiceProvider.GetRequiredService<MySqlTestDbContext>();
         await db.Database.EnsureCreatedAsync();
 
-        var uow = scope.ServiceProvider.GetRequiredService<Aspros.Base.Framework.Infrastructure.IUnitOfWork>();
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
         await uow.RegisterNew(new MySqlTestRow { Name = "framework-regression" });
         Assert.True(await uow.CommitAsync());
 
-        var dapper = scope.ServiceProvider.GetRequiredService<Aspros.Base.Framework.Infrastructure.IDapperExecutor>();
+        var dapper = scope.ServiceProvider.GetRequiredService<IDapperExecutor>();
         var count = await dapper.QuerySingleOrDefaultAsync<int>(
             "SELECT COUNT(*) FROM FrameworkRegressionRows WHERE Name = @Name",
             new { Name = "framework-regression" });
@@ -141,22 +148,17 @@ public sealed class FrameworkRegressionTests
     public void AddFrameworkCap_RegistersCapPublisher()
     {
         var services = new ServiceCollection();
-
-        services.AddDbContext<TestDbContext>(options =>
-            options.UseInMemoryDatabase("framework-cap-test"));
-
+        services.AddDbContext<TestDbContext>(options => options.UseInMemoryDatabase("framework-cap-test"));
         services.AddFrameworkCap<TestDbContext>();
 
         using var provider = services.BuildServiceProvider();
-
         Assert.NotNull(provider.GetRequiredService<ICapPublisher>());
     }
 
     [Fact]
     public void ServiceCollection_CanBeCreated()
     {
-        var services = new ServiceCollection();
-        Assert.NotNull(services);
+        Assert.NotNull(new ServiceCollection());
     }
 
     [Fact]
@@ -166,12 +168,19 @@ public sealed class FrameworkRegressionTests
     }
 }
 
+internal sealed class RegressionGreeterService : RegressionGreeter.RegressionGreeterBase
+{
+    public override Task<HelloReply> SayHello(
+        HelloRequest request,
+        Grpc.Core.ServerCallContext context) =>
+        Task.FromResult(new HelloReply { Message = $"hello {request.Name}" });
+}
 
 internal sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options)
 {
 }
 
-internal sealed class MySqlTestDbContext(DbContextOptions<MySqlTestDbContext> options) : DbContext(options), Aspros.Base.Framework.Infrastructure.IDbContext
+internal sealed class MySqlTestDbContext(DbContextOptions<MySqlTestDbContext> options) : DbContext(options), IDbContext
 {
     public DbSet<MySqlTestRow> Rows => Set<MySqlTestRow>();
 
@@ -188,7 +197,7 @@ internal sealed class MySqlTestRow
     public string Name { get; set; } = string.Empty;
 }
 
-internal sealed class TestWorkContext : Aspros.Base.Framework.Infrastructure.IWorkContext
+internal sealed class TestWorkContext : IWorkContext
 {
     public Task<long> GetUserId() => Task.FromResult(1L);
 }
