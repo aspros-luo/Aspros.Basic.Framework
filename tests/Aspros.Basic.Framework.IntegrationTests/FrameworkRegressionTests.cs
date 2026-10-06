@@ -101,6 +101,54 @@ public sealed class FrameworkRegressionTests
         await app.DisposeAsync();
     }
 
+    public static bool CapAvailable =>
+        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase")) &&
+        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TestRabbitMq__Host"));
+
+    [Fact(SkipUnless = nameof(CapAvailable), SkipType = typeof(FrameworkRegressionTests))]
+    public async Task Cap_RabbitMq_CanPublishAndConsumeWithEfStorage()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase")!;
+        var rabbitHost = Environment.GetEnvironmentVariable("TestRabbitMq__Host")!;
+
+        var services = new ServiceCollection();
+        services.AddDbContext<MySqlTestDbContext>(options =>
+            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+
+        var received = new TaskCompletionSource<string>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        services.AddSingleton(new CapRegressionSubscriber(received));
+        services.AddFrameworkCap<MySqlTestDbContext>(options =>
+            options.UseRabbitMQ(rabbitHost));
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var db = scope.ServiceProvider.GetRequiredService<MySqlTestDbContext>();
+        await db.Database.EnsureCreatedAsync();
+
+        var publisher = scope.ServiceProvider.GetRequiredService<ICapPublisher>();
+        var marker = $"cap-regression-{Guid.NewGuid():N}";
+
+        using (var transaction = db.Database.BeginTransaction(publisher, autoCommit: true))
+        {
+            db.Rows.Add(new MySqlTestRow { Name = marker });
+            await db.SaveChangesAsync();
+            await publisher.PublishAsync("aspros.framework.regression", marker);
+        }
+
+        var completed = await Task.WhenAny(
+            received.Task,
+            Task.Delay(TimeSpan.FromSeconds(15)));
+
+        Assert.Same(received.Task, completed);
+        Assert.Equal(marker, await received.Task);
+
+        var exists = await db.Rows.AnyAsync(x => x.Name == marker);
+        Assert.True(exists);
+    }
+
     public static bool NacosAvailable =>
         !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TestNacos__Address"));
 
@@ -241,6 +289,23 @@ internal sealed class MySqlTestRow
 {
     public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
+}
+
+internal sealed class CapRegressionSubscriber : ICapSubscribe
+{
+    private readonly TaskCompletionSource<string> _received;
+
+    public CapRegressionSubscriber(TaskCompletionSource<string> received)
+    {
+        _received = received;
+    }
+
+    [CapSubscribe("aspros.framework.regression", Group = "framework-regression")]
+    public Task ReceiveAsync(string marker)
+    {
+        _received.TrySetResult(marker);
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed class TestWorkContext : IWorkContext
