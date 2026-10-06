@@ -13,7 +13,7 @@ services:
       TestRabbitMq__Host: "rabbitmq"
       TestRabbitMq__Port: "5672"
       TestNacos__Address: "http://nacos:8848"
-    command: ["bash", "-lc", "dotnet --info && dotnet ef --version && dotnet test tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --no-restore"]
+    command: ["bash", "-lc", "dotnet --info && dotnet restore Aspros.Base.Framework.sln && dotnet ef --version && dotnet test tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --no-restore"]
     profiles: ["test"]
 
   mysql:
@@ -43,7 +43,7 @@ services:
     image: rabbitmq:3-management
     ports:
       - "15672:15672"
-      - "15672:15672"
+      - "5672:5672"
       - "5672:5672"
     profiles: ["infra"]
 
