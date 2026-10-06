@@ -9,7 +9,11 @@ services:
         condition: service_healthy
     environment:
       ConnectionStrings__TestDatabase: "Server=mysql;Port=3306;Database=aspros_framework_test;User=framework;Password=framework_password;"
-    command: ["bash", "-lc", "dotnet --info && dotnet ef --version"]
+      ConnectionStrings__TestRedis: "redis:6379"
+      TestRabbitMq__Host: "rabbitmq"
+      TestRabbitMq__Port: "5672"
+      TestNacos__Address: "http://nacos:8848"
+    command: ["bash", "-lc", "dotnet --info && dotnet ef --version && dotnet test tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --no-restore"]
     profiles: ["test"]
 
   mysql:
@@ -28,6 +32,30 @@ services:
       retries: 20
     volumes:
       - framework-mysql-data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "16379:6379"
+    profiles: ["infra"]
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "15672:15672"
+      - "15672:15672"
+      - "5672:5672"
+    profiles: ["infra"]
+
+  nacos:
+    image: nacos/nacos-server:v2.5.1
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+    ports:
+      - "18848:8848"
+      - "19848:9848"
+    profiles: ["infra"]
 
 volumes:
   framework-mysql-data:
