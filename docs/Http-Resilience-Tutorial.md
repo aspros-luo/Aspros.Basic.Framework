@@ -10,7 +10,7 @@ Resilience does not guarantee success. It controls resource usage and failure pr
 
 `Concurrency Limit -> Total Timeout -> Retry -> Circuit Breaker -> Attempt Timeout -> Downstream`
 
-The Framework supplies the infrastructure entry point; each service owns retry, fallback and idempotency decisions.
+The Framework supplies the infrastructure entry point and disables retries for unsafe HTTP methods by default; each service still owns retry, fallback and idempotency decisions.
 
 ## 2. Framework usage
 
