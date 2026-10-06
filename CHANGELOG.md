@@ -86,6 +86,16 @@ The framework refactor is considered code-complete only after a real .NET 8 solu
 - Kept business DbContext, entity mappings, tenant models and provider configuration inside consuming services.
 - Added bilingual documentation for the extracted EF Core conventions.
 
+## 1.1.6 - Regression and reliability completion gate
+
+- Restored the complete framework-native permission middleware implementation.
+- Repaired the disposable Docker regression environment and provider profile.
+- Added runtime-oriented Health, RateLimit and Permission regression coverage.
+- Added transient HTTP retry coverage and disabled automatic retries for unsafe HTTP methods by default.
+- Added Nacos and CAP provider-level regression coverage to the disposable environment.
+- Kept GitHub Actions/workflows absent by design.
+- Bumped Infrastructure and Tools package versions to 1.1.6.
+
 ## 1.1.5 - Microservice reliability foundations
 
 - Added opt-in CAP registration tied to the business DbContext for durable messaging patterns.
