@@ -15,6 +15,21 @@ builder.Services.AddDbContext<MigrationDbContext>(options =>
 
 var app = builder.Build();
 
+if (args.Contains("--reset", StringComparer.OrdinalIgnoreCase))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<MigrationDbContext>();
+    await db.Database.OpenConnectionAsync();
+
+    await using var command = db.Database.GetDbConnection().CreateCommand();
+    command.CommandText = """
+        DROP TABLE IF EXISTS MigrationCustomers;
+        DROP TABLE IF EXISTS __FrameworkMigrationFixtureHistory;
+        """;
+    await command.ExecuteNonQueryAsync();
+    return;
+}
+
 if (args.Contains("--seed-v1", StringComparer.OrdinalIgnoreCase))
 {
     await using var scope = app.Services.CreateAsyncScope();
