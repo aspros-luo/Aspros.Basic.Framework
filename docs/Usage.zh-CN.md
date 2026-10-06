@@ -169,3 +169,30 @@ Commit 或 Rollback 后当前 UnitOfWork 的事务状态会被清理；回滚还
 
 这样下游调用可以继承上游 gRPC 的 deadline 和 cancellation。
 
+
+## 12. 新微服务推荐启动顺序
+
+Framework 不要求所有微服务使用同一套“全家桶”注册方式。推荐按实际能力组合：
+
+    builder.Services.AddAsprosFramework(
+        typeof(TradeService).Assembly,
+        typeof(TradeRepository).Assembly);
+
+    builder.Services.AddAsprosDbContext<TradeDbContext>(options =>
+        options.UseMySql(connectionString, serverVersion));
+
+    builder.Services.AddFrameworkServiceDiscovery();
+    builder.Services.AddFrameworkGrpc();
+
+    // 只有使用 CQRS 的服务才注册 MediatR。
+    // 只有使用 Redis / CAP / MQ 的服务才注册对应组件。
+
+业务服务最终仍然只负责：
+
+- Domain Entity / Repository Contract
+- Application Service / optional Command & Query
+- DbContext 与业务 Mapping
+- Repository 中的业务查询
+- Controller / gRPC Contract
+
+Framework 负责跨服务重复的基础机制，而不是接管业务代码。
