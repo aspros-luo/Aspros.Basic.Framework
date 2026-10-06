@@ -37,7 +37,8 @@ public sealed class MigrationDbContextFactory : IDesignTimeDbContextFactory<Migr
         var options = new DbContextOptionsBuilder<MigrationDbContext>()
             .UseMySql(
                 connectionString,
-                ServerVersion.AutoDetect(connectionString))
+                ServerVersion.AutoDetect(connectionString),
+                mysql => mysql.MigrationsHistoryTable("__FrameworkMigrationFixtureHistory"))
             .Options;
 
         return new MigrationDbContext(options);
