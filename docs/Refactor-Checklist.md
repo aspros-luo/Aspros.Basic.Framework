@@ -101,3 +101,7 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 - [ ] Full .NET build/runtime smoke test remains a local-environment gate because this execution environment does not provide the .NET SDK.
 
 - [x] Extracted the repeated AddDbContext + AddScoped<IDbContext> registration into an opt-in EF Core helper while keeping provider configuration in the business service.
+
+- [x] Final static audit found no `BuildServiceProvider()`, raw `new HttpClient`, `TODO`, or `NotImplementedException` in Framework code; legacy `ServiceLocator` remains only as a compatibility API where required by existing consumers.
+- [x] Confirmed no GitHub Actions workflow was introduced.
+- [x] Confirmed optional infrastructure remains opt-in rather than being forced through the base registration method.
