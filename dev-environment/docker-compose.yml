@@ -5,7 +5,28 @@ services:
       dockerfile: dev-environment/Dockerfile
     working_dir: /workspace
     depends_on:
+      framework-provider-test:
+    build:
+      context: ..
+      dockerfile: dev-environment/Dockerfile
+    working_dir: /workspace
+    depends_on:
       mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      nacos:
+        condition: service_started
+    environment:
+      ConnectionStrings__TestDatabase: "Server=mysql;Port=3306;Database=aspros_framework_test;User=framework;Password=framework_password;"
+      ConnectionStrings__TestRedis: "redis:6379"
+      TestRabbitMq__Host: "rabbitmq"
+      TestRabbitMq__Port: "5672"
+      TestNacos__Address: "http://nacos:8848"
+    command: ["bash", "-lc", "dotnet --info && dotnet restore Aspros.Base.Framework.sln && dotnet test tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --no-restore --filter FullyQualifiedName~Nacos_ServiceDiscovery_CanRegisterAndResolveHealthyInstance"]
+    profiles: ["provider-test"]
+
+  mysql:
         condition: service_healthy
     environment:
       ConnectionStrings__TestDatabase: "Server=mysql;Port=3306;Database=aspros_framework_test;User=framework;Password=framework_password;"
