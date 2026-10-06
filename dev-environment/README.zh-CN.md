@@ -10,6 +10,12 @@ docker compose up -d mysql
 docker compose --profile test run --rm framework-test
 ```
 
+完整 Provider 回归（真实 MySQL / RabbitMQ / Nacos）：
+
+```bash
+docker compose --profile infra --profile provider-test run --rm framework-provider-test
+```
+
 进入测试容器：
 
 ```bash
