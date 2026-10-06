@@ -204,6 +204,42 @@ public sealed class FrameworkRegressionTests
         Assert.NotNull(provider.GetRequiredService<IHttpClientFactory>().CreateClient("identity"));
     }
 
+    public static bool RedisAvailable =>
+        !string.IsNullOrWhiteSpace(
+            Environment.GetEnvironmentVariable("ConnectionStrings__TestRedis"));
+
+    [Fact(SkipUnless = nameof(RedisAvailable), SkipType = typeof(FrameworkRegressionTests))]
+    public async Task Redis_DistributedCache_CanRoundTrip_WhenRedisIsAvailable()
+    {
+        var redisConnection =
+            Environment.GetEnvironmentVariable("ConnectionStrings__TestRedis")!;
+
+        var services = new ServiceCollection();
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisConnection;
+            options.InstanceName = "aspros-framework-regression:";
+        });
+
+        await using var provider = services.BuildServiceProvider();
+
+        var cache = provider.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>();
+        var key = $"roundtrip-{Guid.NewGuid():N}";
+        var value = $"redis-regression-{Guid.NewGuid():N}";
+
+        await cache.SetStringAsync(
+            key,
+            value,
+            new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1)
+            });
+
+        var actual = await cache.GetStringAsync(key);
+
+        Assert.Equal(value, actual);
+    }
+
     public static bool MySqlAvailable =>
         !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase"));
 
