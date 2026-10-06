@@ -40,7 +40,7 @@ internal static class AsprosTool
 
     private static List<string> BuildEfArguments(string command, Options options)
     {
-        var result = new List<string> { "ef", "migrations", command };
+        var result = command == "update"\n            ? new List<string> { "ef", "database", "update" }\n            : new List<string> { "ef", "migrations", command };
 
         if (command == "add")
         {
