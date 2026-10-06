@@ -59,11 +59,11 @@ dotnet run --project Aspros.Basic.Framework.Tools -- db migration add RenameName
 
 RENAME_FILE="$(find "$MIGRATIONS" -maxdepth 1 -name '*_RenameName.cs' -print -quit)"
 test -n "$RENAME_FILE"
-grep -q "DropColumn" "$RENAME_FILE"
 
-echo "== Replace destructive scaffold with reviewed RenameColumn migration =="
-MIGRATION_ID="$(basename "$RENAME_FILE" .cs)"
-python3 - "$RENAME_FILE" "$MIGRATION_ID" <<'PY'
+if grep -q "DropColumn" "$RENAME_FILE"; then
+  echo "== Replace destructive scaffold with reviewed RenameColumn migration =="
+  MIGRATION_ID="$(basename "$RENAME_FILE" .cs)"
+  python3 - "$RENAME_FILE" "$MIGRATION_ID" <<'PY'
 from pathlib import Path
 import sys
 
@@ -97,6 +97,10 @@ public partial class RenameName : Migration
 }}
 """)
 PY
+else
+  echo "== Provider emitted RenameColumn directly; retain generated migration =="
+  grep -q "RenameColumn" "$RENAME_FILE"
+fi
 
 echo "== Migration regression: generate upgrade SQL =="
 dotnet run --project Aspros.Basic.Framework.Tools -- db migration script \
