@@ -20,7 +20,7 @@ internal static class AsprosTool
             return 2;
         }
 
-        var options = ParseOptions(args[3..]);
+        Options options;\n        try\n        {\n            options = ParseOptions(args[3..]);\n        }\n        catch (ArgumentException ex)\n        {\n            Console.Error.WriteLine(ex.Message);\n            return 2;\n        }
 
         if (command == "add" && options.Positionals.Count != 1)
         {
