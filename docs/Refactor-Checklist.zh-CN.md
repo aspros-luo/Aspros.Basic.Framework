@@ -100,3 +100,13 @@
 - [x] 最终静态审计未发现 Framework 内存在 `BuildServiceProvider()`、裸 `new HttpClient`、`TODO` 或 `NotImplementedException`；旧 `ServiceLocator` 仅作为现有消费者兼容 API 保留。
 - [x] 确认没有新增 GitHub Actions workflow。
 - [x] 确认可选基础设施仍保持按需启用，没有全部强制塞进基础注册方法。
+
+## 微服务可靠性基础能力
+
+- [x] 增加按需 CAP 注册入口，并绑定业务 DbContext。
+- [x] 增加按需 HTTP 标准弹性能力入口。
+- [x] 增加按需 ASP.NET Core 限流入口。
+- [x] 增加独立 Liveness / Readiness 健康检查入口。
+- [x] 明确分布式事务边界：本地事务 + 可靠消息，不做跨服务 2PC。
+- [x] 明确幂等、分布式锁、级联故障以及 Saga/补偿的设计边界。
+- [x] 可靠性能力不强制塞入 AddAsprosFramework 默认注册。
