@@ -153,6 +153,7 @@ public sealed class UnitOfWork(
     /// 将新实体加入 EF Core ChangeTracker；不会在这里提交数据库。
     /// </summary>
     public async Task<bool> RegisterNew<TEntity>(
+        TEntity entity)
         where TEntity : class
     {
         ArgumentNullException.ThrowIfNull(entity);
@@ -191,6 +192,7 @@ public sealed class UnitOfWork(
     /// 将实体标记为修改状态；真正的数据库写入发生在 Commit。
     /// </summary>
     public async Task<bool> RegisterDirty<TEntity>(
+        TEntity entity)
         where TEntity : class
     {
         ArgumentNullException.ThrowIfNull(entity);
