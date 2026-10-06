@@ -85,3 +85,12 @@ The framework refactor is considered code-complete only after a real .NET 8 solu
 - Added `AddAsprosDbContext<TContext>` to remove repeated `AddDbContext` + `IDbContext` registration boilerplate.
 - Kept business DbContext, entity mappings, tenant models and provider configuration inside consuming services.
 - Added bilingual documentation for the extracted EF Core conventions.
+
+## 1.1.5 - Microservice reliability foundations
+
+- Added opt-in CAP registration tied to the business DbContext for durable messaging patterns.
+- Added opt-in standard HTTP resilience registration.
+- Added opt-in ASP.NET Core rate limiting registration.
+- Added liveness/readiness health-check helpers.
+- Added bilingual reliability guidance for distributed transactions, idempotency, locks, degradation and cascading failures.
+- Kept all new reliability capabilities outside the default framework registration.
