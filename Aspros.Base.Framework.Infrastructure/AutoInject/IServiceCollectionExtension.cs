@@ -9,12 +9,28 @@ public static class IServiceCollectionExtension
 {
     /// <summary>
     /// Backward-compatible entry point that scans currently loaded assemblies.
+    /// 兼容旧代码的入口：扫描当前已经加载的程序集。
     /// </summary>
     public static void AutoInject(this IServiceCollection services)
     {
         services.AddAutoInject();
     }
 
+    /// <summary>
+    /// Registers framework-marked services discovered from the specified assemblies.
+    /// 从指定程序集扫描并注册带有 Framework 生命周期标记的服务。
+    ///
+    /// <para>
+    /// If no assemblies are supplied, the method scans currently loaded non-dynamic assemblies.
+    /// 不传程序集时，会扫描当前已加载的非动态程序集。
+    /// 实际业务项目更推荐显式传入程序集，这样扫描范围更可预测。
+    /// </para>
+    ///
+    /// <para>
+    /// <c>params Assembly[]</c> lets callers pass zero or more assemblies directly.
+    /// <c>params Assembly[]</c> 允许调用方直接传入零个或多个程序集，编译器会自动组合成数组。
+    /// </para>
+    /// </summary>
     public static IServiceCollection AddAutoInject(
         this IServiceCollection services,
         params Assembly[] assemblies)
