@@ -10,6 +10,12 @@ docker compose up -d mysql
 docker compose --profile test run --rm framework-test
 ```
 
+Run the full provider regression with real MySQL, RabbitMQ and Nacos:
+
+```bash
+docker compose --profile infra --profile provider-test run --rm framework-provider-test
+```
+
 Enter the test container:
 
 ```bash
