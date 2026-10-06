@@ -49,7 +49,7 @@ public sealed class FrameworkPollyRegressionTests
     {
         var policy = PollyExtend.GetFallbackPolicy();
 
-        using var response = await policy.ExecuteAsync<HttpResponseMessage>(
+        using var response = await policy.ExecuteAsync(
             () => Task.FromException<HttpResponseMessage>(
                 new HttpRequestException("regression")));
 
