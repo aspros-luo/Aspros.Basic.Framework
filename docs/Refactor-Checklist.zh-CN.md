@@ -94,3 +94,5 @@
 - [x] 业务 DbContext、实体、Mapping 类以及租户规则继续留在业务服务中。
 - [x] 增加中英文 EF Core 模型约定说明。
 - [ ] 完整 .NET build/runtime smoke test 仍需要在具备 .NET SDK 的环境中完成；当前执行环境没有可用 dotnet SDK。
+
+- [x] 将重复的 AddDbContext + AddScoped<IDbContext> 注册提炼为按需 EF Core 辅助方法，同时保留业务服务自己的数据库 Provider 配置。
