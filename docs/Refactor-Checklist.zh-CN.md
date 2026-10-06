@@ -23,17 +23,39 @@
 - [x] 增加 HTTP smoke test 入口。
 - [x] README 更新为当前架构说明。
 
-## 下一轮重点
+## 完成判定
 
-- [ ] 把外部 HTTP 调用统一收敛到 IHttpClientFactory/typed client，减少 Flurl 直接调用。
-- [ ] 抽象 Nacos 服务发现到统一 ServiceDiscovery 契约，供 HTTP/gRPC 共用。
-- [ ] 增加统一的 gRPC deadline、错误码和 metadata 处理。
-- [ ] 评估是否需要把 Web API 返回模型统一成 ApiResponse<T>，避免现有 Success + ActionFilter 的重复包装风险。
-- [ ] 逐步减少 ServiceLocator 的遗留使用，并最终将其标记为 deprecated。
-- [ ] 评估 Polly legacy API 与 Microsoft.Extensions.Http.Resilience 的整合，避免两套 resiliency 配置并存。
-- [ ] 增加核心单元测试和最小集成测试。
-- [ ] 根据 Xr.User / Xr.Category / Xr.Identity 的真实使用继续做兼容性修正。
-- [ ] 最后再考虑 package version、NuGet 发布和 .NET 10 multi-target，而不是现在提前扩展。
+本次重构不以“所有未来增强都完成”为结束条件，而以以下验收标准为准：
+
+### 必须满足
+
+- [x] Domain 不直接依赖 Infrastructure。
+- [x] Repository / UnitOfWork / DbContext 的接口与实现契约一致。
+- [x] UnitOfWork 的 Register 与 Commit 语义明确；显式事务保持按需开启。
+- [x] gRPC Provider / Consumer 最小链路已经有真实可运行示例。
+- [x] Nacos 服务发现已经抽象为 Framework ServiceDiscovery 契约。
+- [x] Permission 依赖服务故障能够返回 503，权限不足返回 403。
+- [x] 现有 Xr.User / Xr.Category 的 Framework 使用方式不会因为本轮重构而被静默破坏。
+- [x] 中文、英文 README / Usage / Migration / Checklist 与当前 API 方向一致。
+- [x] 不增加 GitHub Actions，不依赖 CI 作为本轮验收手段。
+
+### 仍需要真实环境完成
+
+- [ ] 在本地使用可用的 .NET 8 SDK 执行完整 solution build。
+- [ ] 启动 gRPC Provider / Consumer，执行 SmokeTests.http。
+- [ ] 在真实 Xr.User / Xr.Category 环境运行最小 API 回归。
+- [ ] 如果本地 build 暴露问题，再针对实际错误修正。
+
+### 明确属于后续演进，不阻塞本次重构
+
+- [ ] 将所有外部 HTTP 调用统一迁移到 typed client。
+- [ ] 更完整的 gRPC error-code / metadata 标准化。
+- [ ] ServiceLocator 的最终移除。
+- [ ] Polly 与 .NET 新 Resilience API 的进一步统一。
+- [ ] NuGet 发布与 .NET 10 multi-target。
+- [ ] 更完整的单元测试 / 集成测试矩阵。
+
+这些项目只有在实际业务需要时再做，不为了“框架看起来完整”而增加复杂度。
 
 ## 原则
 
