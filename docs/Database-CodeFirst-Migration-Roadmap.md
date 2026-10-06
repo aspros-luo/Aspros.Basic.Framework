@@ -14,7 +14,7 @@ This is intentionally not a reflection-based Entity-to-SQL generator.
 - Generic DbContext registration: complete.
 - Code First architecture: designed.
 - Migration CLI/tooling foundation: implemented as `Aspros.Basic.Framework.Tools`; EF Core remains the execution engine.
-- Automated migration integration tests: not implemented yet.
+- Disposable MySQL migration regression fixture: implemented; runtime execution remains pending in the current environment.
 - Production SQL/bundle workflow: designed, not implemented.
 
 ## Phase 1 — Tooling foundation
@@ -128,9 +128,9 @@ The database feature is complete only when:
 | EF mapping extraction | Done |
 | DbContext registration | Done |
 | Tool design | In progress |
-| CLI implementation | Foundation done; provider/design-time validation pending |
-| Migration tests | Pending |
-| MySQL/Pomelo tests | Pending |
-| Data-loss tests | Pending |
+| CLI implementation | Complete; disposable provider/design-time validation wired |
+| Migration tests | Core regression fixture implemented; runtime execution pending |
+| MySQL/Pomelo tests | Disposable Docker regression wired; runtime execution pending |
+| Data-loss tests | Destructive scaffold check + reviewed rename/data-preservation fixture implemented; runtime execution pending |
 | Production script/bundle workflow | Pending |
 | Documentation | In progress |
