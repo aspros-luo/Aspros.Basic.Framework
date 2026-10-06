@@ -10,6 +10,12 @@ docker compose up -d mysql
 docker compose --profile test run --rm framework-test
 ```
 
+Run the MySQL migration regression:
+
+```bash
+docker compose --profile migration-test run --rm framework-migration-test
+```
+
 Run the full provider regression with real MySQL, RabbitMQ and Nacos:
 
 ```bash
