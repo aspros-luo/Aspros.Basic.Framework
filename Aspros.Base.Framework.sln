@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspros.Basic.Framework.Tool
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspros.Basic.Framework.IntegrationTests", "tests\Aspros.Basic.Framework.IntegrationTests\Aspros.Basic.Framework.IntegrationTests.csproj", "{B2A2A1D8-5B17-4D0E-9C53-0A9DCC3A3A10}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspros.Basic.Framework.MigrationFixture", "tests\Aspros.Basic.Framework.MigrationFixture\Aspros.Basic.Framework.MigrationFixture.csproj", "{C030D3D1-C909-4C58-809A-7674A581D02B}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3.Samples", "3.Samples", "{5F2F5E16-62C4-4C2E-90C6-9A5D5A36B711}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Framework.Core.Provider", "samples\Framework.Core.Provider\Framework.Core.Provider.csproj", "{7D4F0D9A-68F6-4AE2-85F2-0B8AADE7A5D1}"
