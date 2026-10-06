@@ -40,4 +40,4 @@ Provider 级真实基础设施测试：
 docker compose --profile infra --profile provider-test run --rm framework-provider-test
 ```
 
-当前 Provider 测试会真实注册临时 Nacos 实例，再通过 Framework 的 `IServiceDiscovery` 查询并验证，最后注销实例。
+Provider 测试会真实启动并连接 MySQL、RabbitMQ、Nacos。当前包含 Nacos 注册/发现回归，以及 CAP + RabbitMQ 消息发布/消费回归。
