@@ -77,3 +77,11 @@ The repository was statically reviewed through GitHub after critical changes. Lo
 
 ### Completion gate
 The framework refactor is considered code-complete only after a real .NET 8 solution build, the Core gRPC Provider/Consumer smoke test, and a minimal regression against the real Xr.User/Xr.Category consumers succeed. Static GitHub review alone is not treated as runtime verification.
+
+## 2026-10-06 - Reverse extraction: EF Core infrastructure
+
+- Added reusable EF Core entity-mapping assembly discovery and `EntityMappingConfiguration<T>`.
+- Added composable global QueryFilter support that preserves existing filters.
+- Added `AddAsprosDbContext<TContext>` to remove repeated `AddDbContext` + `IDbContext` registration boilerplate.
+- Kept business DbContext, entity mappings, tenant models and provider configuration inside consuming services.
+- Added bilingual documentation for the extracted EF Core conventions.
