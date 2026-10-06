@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Aspros.Base.Framework.Infrastructure;
 
@@ -9,22 +10,30 @@ namespace Aspros.Base.Framework.Infrastructure;
 /// 提供标准的存活探针与就绪探针入口。
 ///
 /// <para>
-/// Dependency checks should be registered by the consuming service because the
-/// framework cannot know which dependencies are mandatory for a particular service.
-/// 依赖检查由业务服务自行注册，因为 Framework 无法判断某个依赖对具体服务是否“必须”。
+/// Dependencies should be tagged with "ready" when their availability determines
+/// whether the instance can receive traffic. Liveness should remain lightweight.
+/// 当依赖决定实例能否接收流量时，应标记为 "ready"；liveness 应保持轻量。
 /// </para>
 /// </summary>
 public static class FrameworkHealthCheckExtensions
 {
     /// <summary>
-    /// Registers the framework health-check infrastructure.
-    /// 注册 Framework 健康检查基础设施。
+    /// Registers framework health-check infrastructure and a lightweight self check.
+    /// 注册 Framework 健康检查基础设施与轻量级自身检查。
     /// </summary>
     public static IServiceCollection AddFrameworkHealthChecks(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        Action<IHealthChecksBuilder>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
-        services.AddHealthChecks();
+
+        var builder = services.AddHealthChecks()
+            .AddCheck(
+                "framework",
+                () => HealthCheckResult.Healthy(),
+                tags: ["live", "ready"]);
+
+        configure?.Invoke(builder);
         return services;
     }
 
@@ -41,8 +50,20 @@ public static class FrameworkHealthCheckExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(livenessPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(readinessPath);
 
-        endpoints.MapHealthChecks(livenessPath);
-        endpoints.MapHealthChecks(readinessPath);
+        endpoints.MapHealthChecks(
+            livenessPath,
+            new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("live")
+            });
+
+        endpoints.MapHealthChecks(
+            readinessPath,
+            new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("ready")
+            });
+
         return endpoints;
     }
 }
