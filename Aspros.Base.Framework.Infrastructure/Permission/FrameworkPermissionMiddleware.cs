@@ -141,6 +141,16 @@ public class FrameworkPermissionMiddleware(RequestDelegate next)
                 "权限服务不可用");
             return;
         }
+        catch (FlurlHttpException)
+        {
+            // Flurl may wrap transport failures in FlurlHttpException.
+            // Flurl 也可能把底层传输异常包装成 FlurlHttpException，不能让依赖故障变成 500。
+            await WriteErrorAsync(
+                context,
+                StatusCodes.Status503ServiceUnavailable,
+                "权限服务不可用");
+            return;
+        }
 
         await _next(context);
     }
