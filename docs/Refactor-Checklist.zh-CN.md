@@ -96,3 +96,7 @@
 - [ ] 完整 .NET build/runtime smoke test 仍需要在具备 .NET SDK 的环境中完成；当前执行环境没有可用 dotnet SDK。
 
 - [x] 将重复的 AddDbContext + AddScoped<IDbContext> 注册提炼为按需 EF Core 辅助方法，同时保留业务服务自己的数据库 Provider 配置。
+
+- [x] 最终静态审计未发现 Framework 内存在 `BuildServiceProvider()`、裸 `new HttpClient`、`TODO` 或 `NotImplementedException`；旧 `ServiceLocator` 仅作为现有消费者兼容 API 保留。
+- [x] 确认没有新增 GitHub Actions workflow。
+- [x] 确认可选基础设施仍保持按需启用，没有全部强制塞进基础注册方法。
