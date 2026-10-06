@@ -166,3 +166,29 @@ When a gRPC service calls another gRPC service, propagation can be enabled expli
         .PropagateGrpcCallContext();
 
 This propagates the parent gRPC deadline and cancellation context.
+
+## 12. Recommended startup shape for a new microservice
+
+Framework does not require every service to enable the same feature set. Compose only the capabilities the service actually needs:
+
+    builder.Services.AddAsprosFramework(
+        typeof(TradeService).Assembly,
+        typeof(TradeRepository).Assembly);
+
+    builder.Services.AddAsprosDbContext<TradeDbContext>(options =>
+        options.UseMySql(connectionString, serverVersion));
+
+    builder.Services.AddFrameworkServiceDiscovery();
+    builder.Services.AddFrameworkGrpc();
+
+Only services using CQRS need MediatR; Redis, CAP and MQ integrations remain explicit.
+
+The business service owns:
+
+- Domain entities and repository contracts
+- Application services and optional commands/queries
+- Its DbContext and entity mappings
+- Business-specific repository queries
+- Controller and gRPC contracts
+
+Framework owns repeated infrastructure mechanics rather than taking ownership of business code.
