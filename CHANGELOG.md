@@ -51,3 +51,17 @@
 ### Verification note
 
 The repository was statically reviewed through GitHub after critical changes. Local compilation/integration execution is still required because this environment does not provide a usable .NET SDK runtime, and CI was intentionally not triggered.
+
+## 2026-10-06 — Post-refactor API Audit
+
+### Correctness fixes
+- Restored the entity parameter on the generic UnitOfWork RegisterNew/RegisterDirty implementations so they match IUnitOfWork and compile correctly.
+- Restored the FrameworkPermissionMiddleware type declaration after the bilingual-comment refactor.
+- Kept the compatibility PermissionMiddleware inheritance path working by leaving the framework middleware extensible.
+- Added fail-closed handling for Flurl transport failures in permission validation so dependency outages return 503 instead of escaping as 500.
+
+### Verification
+- Re-checked the Domain/Infrastructure repository boundary and confirmed BaseRepository remains a Domain-side contract/base query implementation without a direct EF Core dependency.
+- Re-checked the Core gRPC Provider/Consumer sample: proto, generated client/server configuration, HTTP/2 provider hosting, HTTP/1 consumer hosting and SmokeTests.http are aligned.
+- Re-checked current master after the fixes; no GitHub Actions/workflows were added or triggered.
+- Local build/integration execution remains intentionally pending because the current execution environment does not provide a usable .NET SDK, and CI must remain disabled to avoid unwanted workflow notifications.
