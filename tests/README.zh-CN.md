@@ -14,7 +14,7 @@
 | Repository | EF Repository / Dapper executor |
 | EF Mapping | 1:N / N:N / Value Object / indexes |
 | Migration | add / script / update |
-| gRPC | server/client / bearer / call context |
+| gRPC | server/client / bearer / call context / real TestServer call |
 | Service Discovery | Nacos adapter / endpoint |
 | Permission | 403 / dependency unavailable |
 | HTTP Resilience | timeout / retry / breaker / concurrency |
@@ -76,3 +76,13 @@ MySQL -> EF Core DbContext -> Framework UnitOfWork -> Commit
 - FAIL：已经实际执行并失败。
 
 不要把“测试代码已经写好”标记成 PASS。
+
+### gRPC 当前回归
+
+`FrameworkGrpcClient_CanCallFrameworkGrpcServer` 会在测试进程内启动 ASP.NET Core TestServer，使用 `AddFrameworkGrpc()` 注册服务端，并使用 `AddFrameworkGrpcClient<TClient>()` 注册客户端，再通过真实 protobuf 调用 `SayHello`。
+
+这验证的是 Framework 的 gRPC Server/Client 注册链路和实际 RPC 调用，而不是仅检查 DI 容器中存在服务。
+
+### Nacos 当前边界
+
+Framework 当前公开的 `IServiceDiscovery` 是查询抽象，Nacos 实现负责 `SelectOneHealthyInstance`；目前没有把“应用注册/注销”作为 Framework 公共 API 暴露。因此回归测试不会伪造一个注册 API。下一阶段会针对现有 Nacos 配置和真实注册中心做 provider-level 验证，并分别记录查询与注册能力。
