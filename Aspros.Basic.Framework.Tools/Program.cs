@@ -20,7 +20,16 @@ internal static class AsprosTool
             return 2;
         }
 
-        Options options;\n        try\n        {\n            options = ParseOptions(args[3..]);\n        }\n        catch (ArgumentException ex)\n        {\n            Console.Error.WriteLine(ex.Message);\n            return 2;\n        }
+        Options options;
+        try
+        {
+            options = ParseOptions(args[3..]);
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
+        }
 
         if (command == "add" && options.Positionals.Count != 1)
         {
@@ -40,7 +49,9 @@ internal static class AsprosTool
 
     private static List<string> BuildEfArguments(string command, Options options)
     {
-        var result = command == "update"\n            ? new List<string> { "ef", "database", "update" }\n            : new List<string> { "ef", "migrations", command };
+        var result = command == "update"
+            ? new List<string> { "ef", "database", "update" }
+            : new List<string> { "ef", "migrations", command };
 
         if (command == "add")
         {
