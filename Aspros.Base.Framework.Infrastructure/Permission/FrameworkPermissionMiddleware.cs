@@ -19,7 +19,7 @@ namespace Aspros.Base.Framework.Infrastructure;
 /// </para>
 /// </summary>
 /// <param name="next">The next middleware in the ASP.NET Core pipeline. / ASP.NET Core 管道中的下一个中间件。</param>
-/// 
+public class FrameworkPermissionMiddleware(RequestDelegate next)
 {
     private readonly RequestDelegate _next =
         next ?? throw new ArgumentNullException(nameof(next));
