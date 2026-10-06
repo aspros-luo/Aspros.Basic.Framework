@@ -141,6 +141,29 @@ public sealed class FrameworkHttpRegressionTests
     }
 
     [Fact]
+    public async Task PermissionMiddleware_AllowsWhenPermissionServiceApproves()
+    {
+        await using var permissionServer = await PermissionStub.StartAsync("true");
+
+        var builder = CreatePermissionTestBuilder(permissionServer.Endpoint);
+        var app = builder.Build();
+
+        app.UseRouting();
+        app.UseFrameworkPermissionValidation();
+        app.MapGet("/protected", () => Results.Ok("allowed"))
+            .WithMetadata(new Permission("orders.read"));
+
+        await app.StartAsync();
+
+        var response = await app.GetTestClient().GetAsync("/protected");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
+    [Fact]
     public async Task PermissionMiddleware_Returns503WhenPermissionServiceIsUnavailable()
     {
         var builder = WebApplication.CreateBuilder();
