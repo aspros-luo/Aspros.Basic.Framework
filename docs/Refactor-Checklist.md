@@ -105,3 +105,13 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 - [x] Final static audit found no `BuildServiceProvider()`, raw `new HttpClient`, `TODO`, or `NotImplementedException` in Framework code; legacy `ServiceLocator` remains only as a compatibility API where required by existing consumers.
 - [x] Confirmed no GitHub Actions workflow was introduced.
 - [x] Confirmed optional infrastructure remains opt-in rather than being forced through the base registration method.
+
+## Microservice reliability foundation
+
+- [x] Added opt-in CAP registration bound to the business DbContext.
+- [x] Added opt-in standard HTTP resilience registration.
+- [x] Added opt-in ASP.NET Core rate limiting registration.
+- [x] Added liveness/readiness health-check helpers.
+- [x] Documented distributed transaction boundaries: local transaction + durable message, not cross-service 2PC.
+- [x] Documented idempotency, distributed lock, cascading-failure and Saga/compensation boundaries.
+- [x] Kept reliability capabilities out of the default AddAsprosFramework registration.
