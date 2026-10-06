@@ -99,3 +99,5 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 - [x] Kept business DbContext, entities, Mapping classes and tenant rules inside each business service.
 - [x] Added bilingual documentation explaining the extraction boundary and usage.
 - [ ] Full .NET build/runtime smoke test remains a local-environment gate because this execution environment does not provide the .NET SDK.
+
+- [x] Extracted the repeated AddDbContext + AddScoped<IDbContext> registration into an opt-in EF Core helper while keeping provider configuration in the business service.
