@@ -84,3 +84,13 @@
 - [x] 回滚时清理 EF ChangeTracker，避免回滚后的 tracked entity 被再次持久化。
 - [x] 将权限中间件实现迁移到框架原生命名空间，旧 SaaS 类型仅作为兼容包装。
 - [x] 增加 gRPC deadline/cancellation 上下文的显式传播能力。
+
+
+## 真实消费者反向提炼审计
+
+- [x] 不再只检查 Framework 自身，同时检查真实业务消费者的基础设施实现。
+- [x] 将 EF Core 实体 Mapping 程序集自动发现提炼到 Framework Infrastructure。
+- [x] 将全局 QueryFilter 的表达式组合机制提炼到 Framework Infrastructure。
+- [x] 业务 DbContext、实体、Mapping 类以及租户规则继续留在业务服务中。
+- [x] 增加中英文 EF Core 模型约定说明。
+- [ ] 完整 .NET build/runtime smoke test 仍需要在具备 .NET SDK 的环境中完成；当前执行环境没有可用 dotnet SDK。
