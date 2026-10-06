@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Nacos.V2;
 using Xunit;
 
 namespace Aspros.Basic.Framework.IntegrationTests;
@@ -98,6 +99,51 @@ public sealed class FrameworkRegressionTests
 
         await app.StopAsync();
         await app.DisposeAsync();
+    }
+
+    public static bool NacosAvailable =>
+        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TestNacos__Address"));
+
+    [Fact(SkipUnless = nameof(NacosAvailable), SkipType = typeof(FrameworkRegressionTests))]
+    public async Task Nacos_ServiceDiscovery_CanRegisterAndResolveHealthyInstance()
+    {
+        var address = Environment.GetEnvironmentVariable("TestNacos__Address")!;
+
+        var services = new ServiceCollection();
+        services.AddNacosV2Naming(options =>
+        {
+            options.ServerAddresses = new List<string> { address };
+            options.Namespace = "public";
+            options.ConfigUseRpc = true;
+            options.NamingUseRpc = true;
+        });
+        services.AddFrameworkServiceDiscovery();
+
+        await using var provider = services.BuildServiceProvider();
+        var naming = provider.GetRequiredService<INacosNamingService>();
+        var discovery = provider.GetRequiredService<IServiceDiscovery>();
+
+        const string serviceName = "aspros-framework-regression";
+        const string groupName = "DEFAULT_GROUP";
+        const string ip = "127.0.0.1";
+        const int port = 18081;
+
+        try
+        {
+            await naming.RegisterInstance(serviceName, groupName, ip, port);
+
+            var endpoint = await discovery.GetHealthyEndpointAsync(
+                serviceName,
+                groupName);
+
+            Assert.NotNull(endpoint);
+            Assert.Equal(new Uri("http://127.0.0.1:18081/"), endpoint!.Address);
+        }
+        finally
+        {
+            await naming.DeregisterInstance(serviceName, groupName, ip, port);
+            await naming.ShutDown();
+        }
     }
 
     [Fact]
