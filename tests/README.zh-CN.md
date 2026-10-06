@@ -16,10 +16,10 @@
 | Migration | add / script / update |
 | gRPC | server/client / bearer / call context / real TestServer call |
 | Service Discovery | Nacos adapter / endpoint |
-| Permission | 403 / dependency unavailable |
-| HTTP Resilience | timeout / retry / breaker / concurrency |
-| Health | liveness / readiness |
-| Rate Limit | rejected requests |
+| Permission | 真实 HTTP 权限服务 / 403 / 503 |
+| HTTP Resilience | transient retry / unsafe POST protection / timeout / breaker / concurrency |
+| Health | 真实 liveness / readiness HTTP |
+| Rate Limit | 真实 HTTP 429 |
 | CAP | local transaction + durable message boundary |
 | Compatibility | legacy ServiceLocator / permission APIs |
 | Serialization | response envelope / Newtonsoft compatibility |
