@@ -204,3 +204,18 @@ These capabilities are intentionally not enabled by `AddAsprosFramework`. Busine
 See:
 - `docs/Microservice-Reliability.md`
 - `docs/Microservice-Reliability.zh-CN.md`
+
+
+## Database Code First / Migration
+
+Database schema generation follows the standard EF Core Code First path: Entity/Aggregate → explicit mapping → DbContext → Migration → SQL.
+
+数据库生成遵循标准 EF Core Code First：Entity/Aggregate → 显式 Mapping → DbContext → Migration → SQL。
+
+The optional CLI is packaged as `Aspros.Basic.Framework.Tools`:
+
+    dotnet tool install --global Aspros.Basic.Framework.Tools
+    aspros db migration add InitialCreate --project ./Xr.Trade.Infrastructure --startup-project ./Xr.Trade.Api --context TradeDbContext
+    aspros db migration script --project ./Xr.Trade.Infrastructure --startup-project ./Xr.Trade.Api --context TradeDbContext --idempotent
+
+`update` requires explicit `--allow-update` and is intended for development/test databases. Production should normally use a reviewed SQL script or migration bundle. See `docs/Database-CodeFirst-Migration-Roadmap.md` and its Chinese counterpart.
