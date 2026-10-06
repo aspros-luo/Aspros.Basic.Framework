@@ -32,3 +32,12 @@ docker compose --profile test run --rm framework-test
 ```
 
 完整环境用于后续 MySQL / Redis / RabbitMQ / Nacos / gRPC / CAP 回归。
+
+Provider 级真实基础设施测试：
+
+```bash
+# 启动 MySQL、RabbitMQ、Nacos，并执行 Nacos Provider 回归
+docker compose --profile infra --profile provider-test run --rm framework-provider-test
+```
+
+当前 Provider 测试会真实注册临时 Nacos 实例，再通过 Framework 的 `IServiceDiscovery` 查询并验证，最后注销实例。
