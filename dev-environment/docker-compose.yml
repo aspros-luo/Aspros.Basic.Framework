@@ -1,0 +1,33 @@
+services:
+  framework-test:
+    build:
+      context: ..
+      dockerfile: dev-environment/Dockerfile
+    working_dir: /workspace
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__TestDatabase: "Server=mysql;Port=3306;Database=aspros_framework_test;User=framework;Password=framework_password;"
+    command: ["bash", "-lc", "dotnet --info && dotnet ef --version"]
+    profiles: ["test"]
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: aspros_framework_test
+      MYSQL_USER: framework
+      MYSQL_PASSWORD: framework_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "13306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "framework", "-pframework_password"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - framework-mysql-data:/var/lib/mysql
+
+volumes:
+  framework-mysql-data:
