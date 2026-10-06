@@ -37,6 +37,19 @@ services:
     command: ["bash", "-lc", "dotnet --info && dotnet restore Aspros.Base.Framework.sln && dotnet test tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --no-restore"]
     profiles: ["provider-test"]
 
+  framework-migration-test:
+    build:
+      context: ..
+      dockerfile: dev-environment/Dockerfile
+    working_dir: /workspace
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__MigrationDatabase: "Server=mysql;Port=3306;Database=aspros_framework_test;User=framework;Password=framework_password;"
+    command: ["bash", "-lc", "dotnet restore Aspros.Base.Framework.sln && bash dev-environment/run-migration-regression.sh"]
+    profiles: ["migration-test"]
+
   mysql:
     image: mysql:8.4
     environment:
