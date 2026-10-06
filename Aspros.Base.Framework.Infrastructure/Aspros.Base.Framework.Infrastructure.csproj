@@ -14,6 +14,20 @@
 
   <ItemGroup>
     <PackageReference Include="Flurl.Http" Version="4.0.2" />
+    <PackageReference Include="SkyAPM.Agent.AspNetCore" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="8.10.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="8.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.12" />
+    <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="BouncyCastle.NetCore" Version="2.2.1" />
+    <PackageReference Include="DotNetCore.CAP.RedisStreams" Version="8.3.2" />
+    <PackageReference Include="DotNetCore.CAP.RabbitMQ" Version="8.3.2" />
+    <PackageReference Include="DotNetCore.CAP.MySql" Version="8.3.2" />
+    <PackageReference Include="DotNetCore.CAP" Version="8.3.2" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.4" />
+    <PackageReference Include="Mapster" Version="7.4.0" />
+    <PackageReference Include="AspectCore.Core" Version="2.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.12" />
     <PackageReference Include="jose-jwt" Version="5.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
