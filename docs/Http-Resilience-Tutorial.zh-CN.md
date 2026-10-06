@@ -8,7 +8,7 @@ Resilience 的目标不是保证请求永远成功，而是在依赖异常时控
 
 `Concurrency Limit -> Total Timeout -> Retry -> Circuit Breaker -> Attempt Timeout -> Downstream`
 
-Framework 提供统一入口，但业务仍然决定 Retry、Fallback 和幂等策略。
+Framework 提供统一入口，并默认关闭 unsafe HTTP method 的自动 Retry；业务仍然决定 Retry、Fallback 和幂等策略。
 
 ## 2. Framework 当前入口
 
