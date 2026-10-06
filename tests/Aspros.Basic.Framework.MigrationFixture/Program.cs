@@ -11,7 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<MigrationDbContext>(options =>
     options.UseMySql(
         connectionString,
-        ServerVersion.AutoDetect(connectionString)));
+        ServerVersion.AutoDetect(connectionString),
+        mysql => mysql.MigrationsHistoryTable("__FrameworkMigrationFixtureHistory")));
 
 var app = builder.Build();
 
