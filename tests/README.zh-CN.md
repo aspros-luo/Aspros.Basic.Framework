@@ -20,6 +20,7 @@
 | HTTP Resilience | transient retry / unsafe POST protection / timeout / breaker / concurrency |
 | Health | 真实 liveness / readiness HTTP |
 | Rate Limit | 真实 HTTP 429 |
+| Redis | 真实 DistributedCache round-trip |
 | CAP | local transaction + durable message boundary |
 | Compatibility | legacy ServiceLocator / permission APIs |
 | Serialization | response envelope / Newtonsoft compatibility |
