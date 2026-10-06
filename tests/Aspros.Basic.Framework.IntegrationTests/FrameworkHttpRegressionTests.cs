@@ -146,7 +146,7 @@ public sealed class FrameworkHttpRegressionTests
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddAsprosFramework();
-        builder.Services.AddScoped<IWorkContext, TestWorkContext>();
+        builder.Services.AddScoped<IWorkContext, PermissionTestWorkContext>();
         builder.Services.AddFrameworkPermissionValidation();
         builder.Services.AddSingleton<IServiceDiscovery, UnavailableServiceDiscovery>();
 
@@ -172,7 +172,7 @@ public sealed class FrameworkHttpRegressionTests
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddAsprosFramework();
-        builder.Services.AddScoped<IWorkContext, TestWorkContext>();
+        builder.Services.AddScoped<IWorkContext, PermissionTestWorkContext>();
         builder.Services.AddFrameworkPermissionValidation(options =>
         {
             options.ServiceName = "permission-regression";
@@ -239,7 +239,7 @@ internal sealed class UnavailableServiceDiscovery : IServiceDiscovery
     }
 }
 
-internal sealed class TestWorkContext : IWorkContext
+internal sealed class PermissionTestWorkContext : IWorkContext
 {
     public Task<long> GetUserId() => Task.FromResult(1L);
 }
