@@ -93,6 +93,8 @@ The framework refactor is considered code-complete only after a real .NET 8 solu
 - Added runtime-oriented Health, RateLimit and Permission regression coverage.
 - Added transient HTTP retry coverage and disabled automatic retries for unsafe HTTP methods by default.
 - Added Nacos and CAP provider-level regression coverage to the disposable environment.
+- Added Polly timeout/circuit-breaker/fallback regression tests and a Permission allow-path regression.
+- Added a disposable MySQL migration fixture covering add/script/update/repeat-update plus reviewed RenameColumn data-preservation flow.
 - Kept GitHub Actions/workflows absent by design.
 - Bumped Infrastructure and Tools package versions to 1.1.6.
 
