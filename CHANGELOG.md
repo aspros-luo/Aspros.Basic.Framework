@@ -65,3 +65,15 @@ The repository was statically reviewed through GitHub after critical changes. Lo
 - Re-checked the Core gRPC Provider/Consumer sample: proto, generated client/server configuration, HTTP/2 provider hosting, HTTP/1 consumer hosting and SmokeTests.http are aligned.
 - Re-checked current master after the fixes; no GitHub Actions/workflows were added or triggered.
 - Local build/integration execution remains intentionally pending because the current execution environment does not provide a usable .NET SDK, and CI must remain disabled to avoid unwanted workflow notifications.
+
+## 2026-10-06 — Completion Gate Defined
+
+### Final audit decisions
+- Removed accidental duplicate permission middleware declaration.
+- Preserved compatibility dependencies required by the existing Xr.Category/Xr.User integration instead of removing them as an unsafe package cleanup.
+- Added an explicit Newtonsoft.Json dependency because Infrastructure uses it directly.
+- Aligned Microsoft.EntityFrameworkCore.Relational with the EF Core 8.0.12 package line.
+- Reclassified typed HTTP migration, richer gRPC conventions, ServiceLocator removal, resilience modernization, NuGet/.NET 10 targeting, and broader tests as future evolution rather than blockers for this refactor.
+
+### Completion gate
+The framework refactor is considered code-complete only after a real .NET 8 solution build, the Core gRPC Provider/Consumer smoke test, and a minimal regression against the real Xr.User/Xr.Category consumers succeed. Static GitHub review alone is not treated as runtime verification.
