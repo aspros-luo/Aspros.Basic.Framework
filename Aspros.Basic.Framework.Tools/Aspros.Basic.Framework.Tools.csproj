@@ -8,7 +8,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>aspros</ToolCommandName>
     <PackageId>Aspros.Basic.Framework.Tools</PackageId>
-    <Version>1.1.5</Version>
+    <Version>1.1.6</Version>
     <Description>CLI helpers for Aspros Basic Framework database migrations.</Description>
   </PropertyGroup>
 
