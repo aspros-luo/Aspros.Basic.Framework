@@ -5,7 +5,6 @@ using Microsoft.Extensions.Http;
 using DotNetCore.CAP;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
-using System.Data;
 using Xunit;
 
 namespace Aspros.Basic.Framework.IntegrationTests;
