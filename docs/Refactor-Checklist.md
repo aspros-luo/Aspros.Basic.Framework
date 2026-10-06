@@ -89,3 +89,13 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 - [x] Rollback clears EF ChangeTracker state to prevent accidental persistence after rollback.
 - [x] Moved permission middleware implementation into the framework namespace; the legacy SaaS type is now only a compatibility wrapper.
 - [x] Added opt-in gRPC deadline/cancellation context propagation.
+
+
+## Reverse-extraction audit
+
+- [x] Audited real Framework consumers beyond the core Framework project.
+- [x] Extracted reusable EF Core entity-mapping assembly discovery into Infrastructure.
+- [x] Extracted reusable global QueryFilter expression composition into Infrastructure.
+- [x] Kept business DbContext, entities, Mapping classes and tenant rules inside each business service.
+- [x] Added bilingual documentation explaining the extraction boundary and usage.
+- [ ] Full .NET build/runtime smoke test remains a local-environment gate because this execution environment does not provide the .NET SDK.
