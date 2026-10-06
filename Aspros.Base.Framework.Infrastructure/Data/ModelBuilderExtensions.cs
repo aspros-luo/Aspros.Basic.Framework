@@ -126,7 +126,7 @@ public static class ModelBuilderExtensions
             // Ignore types that cannot be loaded because an optional dependency
             // is unavailable. This matches the framework's resilient scanning model.
             // 某些可选依赖缺失时，忽略无法加载的类型，保持框架扫描能力的容错性。
-            return exception.Types.Where(type => type is not null)!;
+            return exception.Types.OfType<Type>();
         }
     }
 }
