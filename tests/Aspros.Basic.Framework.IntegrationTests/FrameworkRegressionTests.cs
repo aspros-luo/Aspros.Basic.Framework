@@ -101,15 +101,12 @@ public sealed class FrameworkRegressionTests
         Assert.NotNull(client);
     }
 
-    [Fact]
+    public static bool MySqlAvailable => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase"));
+
+    [Fact(SkipUnless = nameof(MySqlAvailable), SkipType = typeof(FrameworkRegressionTests))]
     public async Task MySql_Uow_And_Dapper_UseTheSameConnection_WhenDatabaseIsAvailable()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase");
-
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            return;
-        }
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase")!;
 
         var services = new ServiceCollection();
         services.AddScoped<Aspros.Base.Framework.Infrastructure.IWorkContext, TestWorkContext>();
