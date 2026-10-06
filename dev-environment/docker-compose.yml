@@ -32,7 +32,7 @@ services:
       TestRabbitMq__Host: "rabbitmq"
       TestRabbitMq__Port: "5672"
       TestNacos__Address: "http://nacos:8848"
-    command: ["bash", "-lc", "dotnet --info && dotnet restore Aspros.Base.Framework.sln && dotnet test tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --no-restore"]
+    command: ["bash", "-lc", "for target in mysql:3306 redis:6379 rabbitmq:5672 nacos:8848; do host=\${target%:*}; port=\${target#*:}; until (echo > /dev/tcp/\$host/\$port) 2>/dev/null; do sleep 1; done; done; dotnet --info && dotnet restore Aspros.Base.Framework.sln && dotnet test tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --no-restore"]
     profiles: ["provider-test"]
 
   framework-migration-test:
