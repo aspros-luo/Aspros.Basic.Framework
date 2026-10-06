@@ -188,3 +188,19 @@ For service-to-service gRPC calls made from inside another gRPC handler, call-co
         .PropagateGrpcCallContext();
 
 This propagates the parent gRPC deadline and cancellation context. For clients that are also used outside a gRPC call context, pass true to suppressMissingContextErrors when appropriate.
+
+## Microservice reliability
+
+The Framework now exposes opt-in foundations for common microservice reliability concerns:
+
+- CAP registration for durable messaging with the business DbContext.
+- Standard outbound HTTP resilience: timeout, retry, circuit breaker and concurrency limiting.
+- ASP.NET Core inbound rate limiting.
+- Separate liveness/readiness health endpoints.
+- Explicit guidance for idempotency, distributed locks, cascading-failure protection and Saga/compensation boundaries.
+
+These capabilities are intentionally not enabled by `AddAsprosFramework`. Business services choose their policies.
+
+See:
+- `docs/Microservice-Reliability.md`
+- `docs/Microservice-Reliability.zh-CN.md`
