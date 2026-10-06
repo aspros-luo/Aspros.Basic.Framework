@@ -13,7 +13,7 @@
 | UnitOfWork | Commit / Rollback / transaction ownership |
 | Repository | EF Repository / Dapper executor |
 | EF Mapping | 1:N / N:N / Value Object / indexes |
-| Migration | add / script / update |
+| Migration | add / script / update / rename / data preservation |
 | gRPC | server/client / bearer / call context / real TestServer call |
 | Service Discovery | Nacos adapter / endpoint |
 | Permission | 真实 HTTP 权限服务 / 403 / 503 |
