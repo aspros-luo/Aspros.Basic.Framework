@@ -2,6 +2,8 @@ using Aspros.Base.Framework.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
+using DotNetCore.CAP;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace Aspros.Basic.Framework.IntegrationTests;
@@ -99,6 +101,21 @@ public sealed class FrameworkRegressionTests
     }
 
     [Fact]
+    public void AddFrameworkCap_RegistersCapPublisher()
+    {
+        var services = new ServiceCollection();
+
+        services.AddDbContext<TestDbContext>(options =>
+            options.UseInMemoryDatabase("framework-cap-test"));
+
+        services.AddFrameworkCap<TestDbContext>();
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetRequiredService<ICapPublisher>());
+    }
+
+    [Fact]
     public void ServiceCollection_CanBeCreated()
     {
         var services = new ServiceCollection();
@@ -110,4 +127,9 @@ public sealed class FrameworkRegressionTests
     {
         Assert.True(typeof(FactAttribute).Assembly is not null);
     }
+}
+
+
+internal sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options)
+{
 }
