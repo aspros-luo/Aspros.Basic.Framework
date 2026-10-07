@@ -1,6 +1,6 @@
 # Aspros Basic Framework
 
-面向 .NET 8 的轻量级业务基础框架，按 .NET 10 的工程思路持续演进。
+面向 .NET 10 的轻量级业务基础框架，保持“少而够用”的工程边界。
 
 ## 当前定位
 
@@ -114,7 +114,7 @@ Consumer 暴露 GET /core/ping，通过框架注册的 gRPC ClientFactory 调用
                              |
                              +-> durable MQ / CAP / MassTransit
 
-当前代码以 .NET 8 为基线，设计上避免绑定过多业务能力，为后续 .NET 10 升级保留空间。
+当前代码基线为 .NET 10；框架本身保持业务无关，EF Core 10 作为默认 ORM 基线，MySQL 迁移夹具使用 Oracle MySQL EF Core 10 Provider。
 
 ## 本地 Smoke Test
 
