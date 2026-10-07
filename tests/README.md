@@ -4,7 +4,7 @@ The preferred disposable acceptance entry point is `docker compose --profile inf
 
 This is the independent regression test project.
 
-The final matrix covers DI, AutoInject, UnitOfWork, Repository, EF mapping, migrations, gRPC, service discovery, permission, HTTP resilience, health, rate limiting, CAP, compatibility and serialization.
+The final matrix covers DI, AutoInject, UnitOfWork, Repository, EF mapping, migrations, gRPC, service discovery, permission, HTTP resilience, health, rate limiting, CAP, Redis, compatibility, serialization and core utility behavior.
 
 A disposable MySQL migration fixture now exercises add, idempotent script generation, protected update, repeated update, a reviewed rename migration and data-preservation verification.
 
