@@ -1,6 +1,6 @@
-# Framework 1.1.6 最终回归验收矩阵
+# Framework 2.0.0（.NET 10）最终回归验收矩阵
 
-这是 Framework 1.1.6 的最终验收入口和状态定义。
+这是 Framework 2.0.0 / .NET 10 的最终验收入口和状态定义。
 
 状态定义：
 - PASS：真实 Runtime 已执行并通过。
@@ -20,10 +20,11 @@ docker compose --profile infra --profile full-regression run --rm framework-full
 | DI / AutoInject | 注册 / TryAdd / Assembly Scan | STATIC VERIFIED |
 | UnitOfWork | stage / commit / rollback / audit | BLOCKED Runtime；测试已接线 |
 | EF + Dapper | 同数据库链路 | BLOCKED Runtime；测试已接线 |
-| MySQL | EF Core + Pomelo | BLOCKED Runtime；测试已接线 |
+| MySQL | EF Core 10 + Oracle MySQL Provider | BLOCKED Runtime；测试已接线 |
 | Migration | add / script / update / repeat update | BLOCKED Runtime；Docker 夹具已接线 |
 | Migration Safety | destructive scaffold / RenameColumn / 数据保留 | BLOCKED Runtime；夹具已接线 |
 | gRPC | 真实 protobuf + TestServer RPC | BLOCKED Runtime；测试已接线 |
+| Packaged Core API consumer | local NuGet pack -> restore -> build -> startup -> /health | BLOCKED Runtime；脚本已接线 |
 | Core Provider/Consumer | Solution Build + Smoke 资产 | STATIC VERIFIED |
 | HTTP Resilience | transient GET retry / unsafe POST protection | BLOCKED Runtime；测试已接线 |
 | Polly Timeout | 超时拒绝 | BLOCKED Runtime；测试已接线 |
@@ -41,4 +42,4 @@ docker compose --profile infra --profile full-regression run --rm framework-full
 | GitHub Actions | Workflow 文件 | PASS：按约定保持 0 个 |
 
 不能把“源码已经写好”或“测试代码已经存在”标成 PASS。
-当前环境没有 dotnet / docker / podman / qemu，因此 Runtime 项目前保持 BLOCKED，直到在可运行的 Docker + .NET 8 环境执行一键验收命令。
+当前环境没有 dotnet / Docker，因此 Runtime 项目前保持 BLOCKED，直到在可运行的 Docker + .NET 10 环境执行一键验收命令。

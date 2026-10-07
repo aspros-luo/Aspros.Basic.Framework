@@ -55,9 +55,9 @@ The test model must cover:
 11. Column rename.
 12. Column type/length/precision changes.
 
-## Phase 3 — MySQL/Pomelo validation
+## Phase 3 — MySQL EF Core 10 validation
 
-The first provider target is the same MySQL/Pomelo stack already used by real Framework consumers.
+The migration fixture uses Oracle's MySql.EntityFrameworkCore 10.x provider so the regression path stays aligned with EF Core 10.
 
 Validation must include:
 - migration generation;
@@ -113,7 +113,7 @@ The database feature is complete only when:
 - 1:N and N:N schemas are correct;
 - value objects map correctly;
 - indexes and constraints survive generation;
-- MySQL/Pomelo scripts execute successfully;
+- MySQL EF Core 10 scripts execute successfully;
 - an upgrade migration preserves existing data in the tested rename scenario;
 - destructive changes are visible for review;
 - production SQL can be generated without starting the application;
@@ -130,7 +130,7 @@ The database feature is complete only when:
 | Tool design | In progress |
 | CLI implementation | Complete; disposable provider/design-time validation wired |
 | Migration tests | Core regression fixture implemented; runtime execution pending |
-| MySQL/Pomelo tests | Disposable Docker regression wired; runtime execution pending |
+| MySQL EF Core 10 tests | Disposable Docker regression wired; runtime execution pending |
 | Data-loss tests | Destructive scaffold check + reviewed rename/data-preservation fixture implemented; runtime execution pending |
 | Production script/bundle workflow | Pending |
 | Documentation | In progress |

@@ -1,6 +1,6 @@
 # Final Regression Matrix
 
-Acceptance matrix for Framework 1.1.6.
+Acceptance matrix for Framework 2.0.0 on .NET 10.
 
 Status semantics:
 - PASS: executed in a real runtime and passed.
@@ -20,10 +20,11 @@ The command performs restore, dotnet ef verification, full solution build, the c
 | DI / AutoInject | registration / TryAdd / assembly scanning | STATIC VERIFIED |
 | UnitOfWork | stage / commit / rollback / audit | BLOCKED runtime; test wired |
 | EF + Dapper | same database path | BLOCKED runtime; test wired |
-| MySQL | EF Core + Pomelo | BLOCKED runtime; test wired |
+| MySQL | EF Core 10 + Oracle MySQL provider | BLOCKED runtime; test wired |
 | Migration | add / script / update / repeat update | BLOCKED runtime; disposable fixture wired |
 | Migration safety | destructive scaffold / RenameColumn / data preservation | BLOCKED runtime; fixture wired |
 | gRPC | real protobuf RPC using TestServer | BLOCKED runtime; test wired |
+| Packaged Core API consumer | local NuGet pack -> restore -> build -> startup -> /health | BLOCKED runtime; script wired |
 | Core Provider/Consumer | solution build + smoke assets | STATIC VERIFIED |
 | HTTP Resilience | transient GET retry / unsafe POST protection | BLOCKED runtime; test wired |
 | Polly Timeout | overdue operation rejection | BLOCKED runtime; test wired |
@@ -41,4 +42,4 @@ The command performs restore, dotnet ef verification, full solution build, the c
 | GitHub Actions | workflow files | PASS: none present by design |
 
 Static verification must never be reported as runtime PASS.
-Current execution environment has no dotnet, Docker, Podman or QEMU, so runtime rows remain BLOCKED until the disposable environment is actually executed.
+Current execution environment has no dotnet or Docker, so runtime rows remain BLOCKED until the disposable .NET 10 disposable environment is actually executed.
