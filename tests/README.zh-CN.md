@@ -1,5 +1,7 @@
 # Framework 回归测试
 
+推荐的最终验收入口：`docker compose --profile infra --profile full-regression run --rm framework-full-regression`。
+
 这里是 Framework 的独立测试工程。
 
 之前 Framework 重构主要依赖 GitHub 静态审查、Xr.User / Xr.Category / Xr.Identity 真实业务兼容性和人工验证，这不足以作为长期回归保障。
