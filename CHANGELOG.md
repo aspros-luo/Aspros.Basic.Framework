@@ -1,3 +1,16 @@
+## 2026-10-07 — .NET 10 Upgrade
+
+### Platform
+- Moved all framework, sample, migration-fixture and integration-test projects from `net8.0` to `net10.0`.
+- Bumped framework package versions to 2.0.0 to mark the target-framework breaking change.
+- Updated the disposable development image to the .NET 10 SDK and `dotnet-ef 10.0.12`.
+- Aligned EF Core / ASP.NET Core package references with the .NET 10 servicing line (10.0.12).
+- Switched the migration fixture to Oracle's `MySql.EntityFrameworkCore 10.0.9` provider because the official Pomelo provider had not published a stable EF Core 10 release as of this upgrade.
+
+### Verification note
+- GitHub Actions were not triggered.
+- Static project/package consistency has been reviewed. Real .NET 10 build, gRPC smoke test and disposable infrastructure regression remain required before the upgrade can be called runtime-verified.
+
 # Changelog
 
 ## 2026-10-04 — Framework Refactor Checkpoint
@@ -76,7 +89,7 @@ The repository was statically reviewed through GitHub after critical changes. Lo
 - Reclassified typed HTTP migration, richer gRPC conventions, ServiceLocator removal, resilience modernization, NuGet/.NET 10 targeting, and broader tests as future evolution rather than blockers for this refactor.
 
 ### Completion gate
-The framework refactor is considered code-complete only after a real .NET 8 solution build, the Core gRPC Provider/Consumer smoke test, and a minimal regression against the real Xr.User/Xr.Category consumers succeed. Static GitHub review alone is not treated as runtime verification.
+The framework refactor is considered runtime-verified only after a real .NET 10 solution build, the Core gRPC Provider/Consumer smoke test, and a minimal regression against the real Xr.User/Xr.Category consumers succeed. Static GitHub review alone is not treated as runtime verification.
 
 ## 2026-10-06 - Reverse extraction: EF Core infrastructure
 
