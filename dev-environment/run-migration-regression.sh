@@ -39,6 +39,15 @@ dotnet run --project Aspros.Basic.Framework.Tools -- db migration script \
 test -s "$OUTPUT_DIR/initial.sql"
 grep -q "MigrationCustomers" "$OUTPUT_DIR/initial.sql"
 
+echo "== Verify update is protected without --allow-update =="
+if dotnet run --project Aspros.Basic.Framework.Tools -- db migration update \
+  --project "$FIXTURE" \
+  --startup-project "$FIXTURE" \
+  --context MigrationDbContext; then
+  echo "Expected protected update to fail without --allow-update."
+  exit 1
+fi
+
 echo "== Migration regression: apply InitialCreate =="
 dotnet run --project Aspros.Basic.Framework.Tools -- db migration update \
   --allow-update \
