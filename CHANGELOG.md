@@ -1,3 +1,12 @@
+## 2026-10-07 — Packaged Core consumer simulation
+
+### Consumer verification
+- Added `samples/Framework.Core.Api` as a standalone .NET 10 Web API.
+- The Core API references `Aspros.Base.Framework.Infrastructure` 2.0.0 through NuGet `PackageReference`, not a project reference.
+- Added a disposable regression script that packs the three framework packages, restores the Core API from a local package feed, builds it, starts the service and verifies `/health`.
+- Added a dedicated Docker Compose profile: `core-package-consumer`.
+- Added bilingual consumer documentation.
+- Runtime execution remains pending until a machine with .NET 10 SDK / Docker runs the regression script.
 ## 2026-10-07 — .NET 10 Upgrade
 
 ### Platform
