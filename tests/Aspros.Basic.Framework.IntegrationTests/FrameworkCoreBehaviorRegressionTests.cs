@@ -9,6 +9,33 @@ namespace Aspros.Basic.Framework.IntegrationTests;
 
 public sealed class FrameworkCoreBehaviorRegressionTests
 {
+    public static bool RedisAvailable =>
+        !string.IsNullOrWhiteSpace(
+            Environment.GetEnvironmentVariable("ConnectionStrings__TestRedis"));
+
+    [Fact(SkipUnless = nameof(RedisAvailable), SkipType = typeof(FrameworkCoreBehaviorRegressionTests))]
+    public async Task RedisDistributedCache_CanWriteAndReadWhenRedisIsAvailable()
+    {
+        var redis = Environment.GetEnvironmentVariable("ConnectionStrings__TestRedis")!;
+
+        var services = new ServiceCollection();
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redis;
+            options.InstanceName = "framework-regression:";
+        });
+
+        await using var provider = services.BuildServiceProvider();
+
+        var cache = provider.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>();
+        var key = $"framework-regression-{Guid.NewGuid():N}";
+
+        await cache.SetStringAsync(key, "redis-ok");
+        var value = await cache.GetStringAsync(key);
+
+        Assert.Equal("redis-ok", value);
+    }
+
     [Fact]
     public void Paging_NormalizesInvalidValuesAndCalculatesTotalPages()
     {
@@ -93,6 +120,23 @@ public sealed class FrameworkCoreBehaviorRegressionTests
         Assert.True(await uow.CommitAsync());
 
         Assert.Equal(1, await db.Entities.CountAsync());
+    }
+
+    [Fact]
+    public async Task UnitOfWork_RollbackWithoutExplicitTransaction_ClearsPendingChanges()
+    {
+        var options = new DbContextOptionsBuilder<CoreBehaviorDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var db = new CoreBehaviorDbContext(options);
+        var uow = new UnitOfWork(db, new CoreBehaviorWorkContext());
+
+        Assert.True(await uow.RegisterNew(new CoreBehaviorEntity { Name = "rolled-back" }));
+        await uow.RollbackAsync();
+
+        Assert.Empty(db.ChangeTracker.Entries());
+        Assert.False(await db.Entities.AnyAsync());
     }
 
     [Fact]
