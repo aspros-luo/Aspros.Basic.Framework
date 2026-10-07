@@ -52,3 +52,12 @@ docker compose --profile test run --rm framework-test
 ```
 
 This is not a production deployment configuration and does not create GitHub Actions. It is the reproducible environment for MySQL / Redis / RabbitMQ / Nacos / gRPC / CAP regression.
+
+
+## Packaged Core consumer
+
+Run the external-package simulation without GitHub Actions:
+
+    docker compose --profile core-package-consumer run --rm framework-core-package-consumer
+
+The command packs the framework projects, restores `samples/Framework.Core.Api` from the temporary local NuGet feed, builds it, starts the API and verifies `GET /health`.
