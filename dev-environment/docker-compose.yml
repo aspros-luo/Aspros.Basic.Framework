@@ -53,6 +53,14 @@ services:
     command: ["bash", "-lc", "dotnet restore Aspros.Base.Framework.sln && bash dev-environment/run-migration-regression.sh"]
     profiles: ["migration-test"]
 
+  framework-core-package-consumer:
+    build:
+      context: ..
+      dockerfile: dev-environment/Dockerfile
+    working_dir: /workspace
+    command: ["bash", "-lc", "bash dev-environment/run-core-package-consumer-regression.sh"]
+    profiles: ["core-package-consumer"]
+
   framework-full-regression:
     build:
       context: ..
