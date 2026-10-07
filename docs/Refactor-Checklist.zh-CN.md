@@ -41,7 +41,7 @@
 
 ### 仍需要真实环境完成
 
-- [ ] 在本地使用可用的 .NET 8 SDK 执行完整 solution build。
+- [ ] 在本地使用可用的 .NET 10 SDK 执行完整 solution build。
 - [ ] 启动 gRPC Provider / Consumer，执行 SmokeTests.http。
 - [ ] 在真实 Xr.User / Xr.Category 环境运行最小 API 回归。
 - [ ] 如果本地 build 暴露问题，再针对实际错误修正。
