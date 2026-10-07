@@ -44,7 +44,7 @@ The refactor is complete when the required engineering and compatibility gates b
 
 ### Real-environment gates still required
 
-- [ ] Run a full solution build with an available .NET 8 SDK.
+- [ ] Run a full solution build with an available .NET 10 SDK.
 - [ ] Start the gRPC Provider/Consumer and execute SmokeTests.http.
 - [ ] Run a minimal regression against the real Xr.User / Xr.Category services.
 - [ ] Fix only issues exposed by those real builds/tests.
