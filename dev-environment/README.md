@@ -16,7 +16,15 @@ Run the MySQL migration regression:
 docker compose --profile migration-test run --rm framework-migration-test
 ```
 
-Run the full provider regression with real MySQL, RabbitMQ and Nacos:
+Run the single-entry full regression with real MySQL, Redis, RabbitMQ and Nacos:
+
+```bash
+docker compose --profile infra --profile full-regression run --rm framework-full-regression
+```
+
+This performs restore, EF CLI verification, solution build, the complete xUnit regression suite, and the MySQL migration regression.
+
+For targeted provider regression, run with real MySQL, RabbitMQ and Nacos:
 
 ```bash
 docker compose --profile infra --profile provider-test run --rm framework-provider-test
