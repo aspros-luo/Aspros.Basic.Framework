@@ -1,5 +1,7 @@
 # Framework Regression Tests
 
+The preferred disposable acceptance entry point is `docker compose --profile infra --profile full-regression run --rm framework-full-regression`.
+
 This is the independent regression test project.
 
 The final matrix covers DI, AutoInject, UnitOfWork, Repository, EF mapping, migrations, gRPC, service discovery, permission, HTTP resilience, health, rate limiting, CAP, compatibility and serialization.
