@@ -3,6 +3,7 @@ using Aspros.Basic.Framework.IntegrationTests.Grpc;
 using DotNetCore.CAP;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
