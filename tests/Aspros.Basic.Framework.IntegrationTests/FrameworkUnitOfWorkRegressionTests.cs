@@ -81,6 +81,75 @@ public sealed class FrameworkUnitOfWorkRegressionTests
     }
 
     [Fact]
+    public async Task UnitOfWork_ExplicitTransactionCommitsChanges()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<SqliteRegressionDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var writer = new SqliteRegressionDbContext(options);
+        await writer.Database.EnsureCreatedAsync();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IWorkContext, TestWorkContext>();
+        services.AddScoped<IDbContext>(_ => writer);
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        await uow.BeginTransactionAsync();
+        await uow.RegisterNew(new SqliteRegressionRow { Name = "transaction-commit" });
+
+        Assert.True(await uow.CommitAsync());
+
+        await using var observer = new SqliteRegressionDbContext(options);
+        Assert.Equal(1, await observer.Rows.CountAsync(x => x.Name == "transaction-commit"));
+    }
+
+    [Fact]
+    public async Task DapperExecutor_UsesUnitOfWorkTransaction()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<SqliteRegressionDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var writer = new SqliteRegressionDbContext(options);
+        await writer.Database.EnsureCreatedAsync();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IWorkContext, TestWorkContext>();
+        services.AddScoped<IDbContext>(_ => writer);
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IDapperExecutor, DapperExecutor>();
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var dapper = scope.ServiceProvider.GetRequiredService<IDapperExecutor>();
+
+        await uow.BeginTransactionAsync();
+
+        await dapper.ExecuteAsync(
+            "INSERT INTO FrameworkRegressionRows (Name) VALUES (@Name)",
+            new { Name = "dapper-rolled-back" });
+
+        await uow.RollbackAsync();
+
+        await using var observer = new SqliteRegressionDbContext(options);
+        Assert.Equal(0, await observer.Rows.CountAsync(x => x.Name == "dapper-rolled-back"));
+    }
+
+    [Fact]
     public async Task UnitOfWork_ExplicitTransactionRollsBackDatabaseChanges()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
