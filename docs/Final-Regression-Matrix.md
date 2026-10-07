@@ -24,6 +24,7 @@ The command performs restore, dotnet ef verification, full solution build, the c
 | Migration | add / script / update / repeat update | BLOCKED runtime; disposable fixture wired |
 | Migration safety | destructive scaffold / RenameColumn / data preservation | BLOCKED runtime; fixture wired |
 | gRPC | real protobuf RPC using TestServer | BLOCKED runtime; test wired |
+| Packaged Core API consumer | local NuGet pack -> restore -> build -> startup -> /health | BLOCKED runtime; script wired |
 | Core Provider/Consumer | solution build + smoke assets | STATIC VERIFIED |
 | HTTP Resilience | transient GET retry / unsafe POST protection | BLOCKED runtime; test wired |
 | Polly Timeout | overdue operation rejection | BLOCKED runtime; test wired |
