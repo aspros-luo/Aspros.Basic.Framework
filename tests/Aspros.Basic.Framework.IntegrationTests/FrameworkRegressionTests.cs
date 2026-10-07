@@ -120,6 +120,10 @@ public sealed class FrameworkRegressionTests
             "auth-regression",
             new Uri("http://localhost"))
             .ConfigurePrimaryHttpMessageHandler(() => app.GetTestServer().CreateHandler())
+            .ConfigureChannel(options =>
+            {
+                options.UnsafeUseInsecureChannelCallCredentials = true;
+            })
             .ForwardAuthorizationHeader();
 
         await using var provider = services.BuildServiceProvider();
