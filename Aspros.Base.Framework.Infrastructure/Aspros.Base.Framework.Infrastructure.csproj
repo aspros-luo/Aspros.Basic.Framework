@@ -22,10 +22,10 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.12" />
     <PackageReference Include="MediatR" Version="12.4.1" />
     <PackageReference Include="BouncyCastle.NetCore" Version="2.2.1" />
-    <PackageReference Include="DotNetCore.CAP.RedisStreams" Version="8.3.2" />
-    <PackageReference Include="DotNetCore.CAP.RabbitMQ" Version="8.3.2" />
-    <PackageReference Include="DotNetCore.CAP.MySql" Version="8.3.2" />
-    <PackageReference Include="DotNetCore.CAP" Version="8.3.2" />
+    <PackageReference Include="DotNetCore.CAP.RedisStreams" Version="10.0.2" />
+    <PackageReference Include="DotNetCore.CAP.RabbitMQ" Version="10.0.2" />
+    <PackageReference Include="DotNetCore.CAP.MySql" Version="10.0.2" />
+    <PackageReference Include="DotNetCore.CAP" Version="10.0.2" />
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.4" />
     <PackageReference Include="Mapster" Version="7.4.0" />
     <PackageReference Include="AspectCore.Core" Version="2.4.0" />
