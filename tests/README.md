@@ -14,4 +14,10 @@ The provider profile also executes a real Redis distributed-cache round trip.
 
 Provider- and infrastructure-dependent scenarios must run inside the disposable Docker environment rather than being represented by mocks.
 
+The complete acceptance command is:
+
+```bash
+docker compose --profile infra --profile full-regression run --rm framework-full-regression
+```
+
 A module is PASS only after real build/test execution. Static inspection must never be reported as runtime PASS.
