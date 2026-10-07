@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Security.Claims;
 using Nacos.V2;
 using Xunit;
 
@@ -96,6 +97,49 @@ public sealed class FrameworkRegressionTests
             new HelloRequest { Name = "framework" });
 
         Assert.Equal("hello framework", response.Message);
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task FrameworkGrpcClient_ForwardsAuthenticatedBearerToken()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddFrameworkGrpc();
+
+        var app = builder.Build();
+        app.MapFrameworkGrpcService<RegressionGreeterService>();
+        await app.StartAsync();
+
+        var services = new ServiceCollection();
+        services.AddHttpContextAccessor();
+        services.AddFrameworkGrpcClient<RegressionGreeter.RegressionGreeterClient>(
+            "auth-regression",
+            new Uri("http://localhost"))
+            .ConfigurePrimaryHttpMessageHandler(() => app.GetTestServer().CreateHandler())
+            .ForwardAuthorizationHeader();
+
+        await using var provider = services.BuildServiceProvider();
+        var accessor = provider.GetRequiredService<IHttpContextAccessor>();
+        accessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(
+                new ClaimsIdentity(
+                    [new Claim(ClaimTypes.NameIdentifier, "1")],
+                    authenticationType: "Bearer"))
+        };
+        accessor.HttpContext.Request.Headers.Authorization = "Bearer regression-token";
+
+        var client = provider
+            .GetRequiredService<Grpc.Net.ClientFactory.GrpcClientFactory>()
+            .CreateClient<RegressionGreeter.RegressionGreeterClient>("auth-regression");
+
+        var response = await client.SayHelloAsync(
+            new HelloRequest { Name = "auth" });
+
+        Assert.Equal("hello auth bearer=regression-token", response.Message);
 
         await app.StopAsync();
         await app.DisposeAsync();
@@ -302,8 +346,19 @@ internal sealed class RegressionGreeterService : RegressionGreeter.RegressionGre
 {
     public override Task<HelloReply> SayHello(
         HelloRequest request,
-        Grpc.Core.ServerCallContext context) =>
-        Task.FromResult(new HelloReply { Message = $"hello {request.Name}" });
+        Grpc.Core.ServerCallContext context)
+    {
+        var bearer = context.RequestHeaders
+            .FirstOrDefault(metadata =>
+                string.Equals(metadata.Key, "authorization", StringComparison.OrdinalIgnoreCase))
+            ?.Value;
+
+        var message = string.IsNullOrWhiteSpace(bearer)
+            ? $"hello {request.Name}"
+            : $"hello {request.Name} bearer={bearer.Replace("Bearer ", "", StringComparison.OrdinalIgnoreCase)}";
+
+        return Task.FromResult(new HelloReply { Message = message });
+    }
 }
 
 internal sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options)
