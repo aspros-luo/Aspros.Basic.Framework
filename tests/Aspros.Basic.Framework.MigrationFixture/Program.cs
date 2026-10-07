@@ -23,10 +23,10 @@ if (args.Contains("--reset", StringComparer.OrdinalIgnoreCase))
     await db.Database.OpenConnectionAsync();
 
     await using var command = db.Database.GetDbConnection().CreateCommand();
-    command.CommandText = """
-        DROP TABLE IF EXISTS MigrationCustomers;
-        DROP TABLE IF EXISTS __FrameworkMigrationFixtureHistory;
-        """;
+    command.CommandText = "DROP TABLE IF EXISTS MigrationCustomers";
+    await command.ExecuteNonQueryAsync();
+
+    command.CommandText = "DROP TABLE IF EXISTS __FrameworkMigrationFixtureHistory";
     await command.ExecuteNonQueryAsync();
     return;
 }
