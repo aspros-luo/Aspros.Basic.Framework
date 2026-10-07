@@ -42,14 +42,8 @@ dotnet run --project "$FIXTURE" -- --seed-v1
 
 echo "== Switch fixture model to V2 =="
 cp "$FIXTURE/MigrationCustomer.v2.template" "$FIXTURE/MigrationCustomer.cs"
-python3 - <<'PY'
-from pathlib import Path
-
-path = Path("tests/Aspros.Basic.Framework.MigrationFixture/MigrationDbContext.cs")
-text = path.read_text()
-text = text.replace("entity.Property(x => x.Name)", "entity.Property(x => x.DisplayName)")
-path.write_text(text)
-PY
+sed -i 's/Property(x => x.Name)/Property(x => x.DisplayName)/' \
+  "$FIXTURE/MigrationDbContext.cs"
 
 echo "== Migration regression: add RenameName =="
 dotnet run --project Aspros.Basic.Framework.Tools -- db migration add RenameName \
@@ -63,40 +57,33 @@ test -n "$RENAME_FILE"
 if grep -q "DropColumn" "$RENAME_FILE"; then
   echo "== Replace destructive scaffold with reviewed RenameColumn migration =="
   MIGRATION_ID="$(basename "$RENAME_FILE" .cs)"
-  python3 - "$RENAME_FILE" "$MIGRATION_ID" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-migration_id = sys.argv[2]
-
-path.write_text(f"""using Microsoft.EntityFrameworkCore.Migrations;
+  cat > "$RENAME_FILE" <<EOF
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Aspros.Basic.Framework.MigrationFixture.Migrations;
 
-[Migration("{migration_id}")]
+[Migration("$MIGRATION_ID")]
 public partial class RenameName : Migration
-{{
+{
     protected override void Up(MigrationBuilder migrationBuilder)
-    {{
+    {
         migrationBuilder.RenameColumn(
             name: "Name",
             table: "MigrationCustomers",
             newName: "DisplayName");
-    }}
+    }
 
     protected override void Down(MigrationBuilder migrationBuilder)
-    {{
+    {
         migrationBuilder.RenameColumn(
             name: "DisplayName",
             table: "MigrationCustomers",
             newName: "Name");
-    }}
-}}
-""")
-PY
+    }
+}
+EOF
 else
   echo "== Provider emitted RenameColumn directly; retain generated migration =="
   grep -q "RenameColumn" "$RENAME_FILE"
