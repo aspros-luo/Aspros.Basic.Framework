@@ -32,10 +32,10 @@
 
 ## 一键完整验收
 
-NaN
-NaN
-NaN
-NaN
+```bash
+cd dev-environment
+docker compose --profile infra --profile full-regression run --rm framework-full-regression
+```
 
 该入口一次执行 IntegrationTests、MySQL/Redis/RabbitMQ/Nacos 回归，以及完整 Migration 回归。
 
