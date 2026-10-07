@@ -1,6 +1,6 @@
 # Framework Disposable Development / Test Environment
 
-Provides a reproducible disposable Docker environment with .NET 8 SDK, EF Core CLI 8.0.12 and MySQL 8.4, with optional Redis, RabbitMQ and Nacos infrastructure.
+Provides a reproducible disposable Docker environment with .NET 10 SDK, EF Core CLI 10.0.12 and MySQL 8.4, with optional Redis, RabbitMQ and Nacos infrastructure.
 
 Start:
 
