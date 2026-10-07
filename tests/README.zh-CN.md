@@ -17,12 +17,13 @@
 | EF Mapping | 1:N / N:N / Value Object / indexes |
 | Migration | add / script / update / rename / data preservation |
 | gRPC | server/client / bearer / call context / real TestServer call |
-| Service Discovery | Nacos adapter / endpoint |
+| Service Discovery | Nacos registration / healthy endpoint / secure metadata boundary |
 | Permission | 真实 HTTP 权限服务 / 403 / 503 |
 | HTTP Resilience | transient retry / unsafe POST protection / timeout / breaker / concurrency |
 | Health | 真实 liveness / readiness HTTP |
 | Rate Limit | 真实 HTTP 429 |
 | Redis | 真实 DistributedCache round-trip |
+| Redis | distributed cache round-trip |
 | CAP | local transaction + durable message boundary |
 | Compatibility | legacy ServiceLocator / permission APIs |
 | Serialization | response envelope / Newtonsoft compatibility |
