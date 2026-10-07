@@ -2,6 +2,7 @@ using Aspros.Base.Framework.Domain;
 using Aspros.Base.Framework.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.ComponentModel.DataAnnotations;
 using Xunit;
 
