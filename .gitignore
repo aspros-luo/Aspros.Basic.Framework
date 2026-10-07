@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Disposable Framework migration regression artifacts
+tests/Aspros.Basic.Framework.MigrationFixture/Migrations/
+tests/Aspros.Basic.Framework.MigrationFixture/.regression/
