@@ -32,6 +32,14 @@
 
 需要真实数据库、MQ、Redis、Nacos 或网络故障的场景，不通过 mock 冒充真实验证，统一使用 dev-environment。
 
+## 一键完整验收
+
+```bash
+docker compose --profile infra --profile full-regression run --rm framework-full-regression
+```
+
+该入口依次执行 IntegrationTests 和 MySQL Migration 回归。
+
 只有真实 build/test 和 Provider 验证完成后才能标记 PASS。没有运行时只能标记未验证。
 
 
