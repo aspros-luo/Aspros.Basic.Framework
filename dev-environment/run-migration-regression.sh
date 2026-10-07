@@ -6,8 +6,17 @@ set -euo pipefail
 FIXTURE="tests/Aspros.Basic.Framework.MigrationFixture"
 MIGRATIONS="$FIXTURE/Migrations"
 OUTPUT_DIR="$FIXTURE/.regression"
+SOURCE="$FIXTURE/MigrationCustomer.cs"
+CONTEXT="$FIXTURE/MigrationDbContext.cs"
 
-rm -rf "$MIGRATIONS" "$OUTPUT_DIR"
+cleanup() {
+  cp "$FIXTURE/MigrationCustomer.v1.template" "$SOURCE"
+  sed -i 's/Property(x => x.DisplayName)/Property(x => x.Name)/' "$CONTEXT"
+  rm -rf "$MIGRATIONS" "$OUTPUT_DIR"
+}
+trap cleanup EXIT
+
+cleanup
 mkdir -p "$OUTPUT_DIR"
 
 echo "== Reset migration fixture database =="
