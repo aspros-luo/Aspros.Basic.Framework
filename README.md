@@ -219,3 +219,17 @@ The optional CLI is packaged as `Aspros.Basic.Framework.Tools`:
     aspros db migration script --project ./Xr.Trade.Infrastructure --startup-project ./Xr.Trade.Api --context TradeDbContext --idempotent
 
 `update` requires explicit `--allow-update` and is intended for development/test databases. Production should normally use a reviewed SQL script or migration bundle. See `docs/Database-CodeFirst-Migration-Roadmap.md` and its Chinese counterpart.
+
+## Regression Acceptance
+
+The final regression matrix is documented in:
+
+- `docs/Regression-Acceptance-Matrix.md`
+- `docs/Regression-Acceptance-Matrix.zh-CN.md`
+
+The recommended one-command disposable acceptance run is:
+
+    cd dev-environment
+    docker compose --profile infra --profile full-regression run --rm framework-full-regression
+
+This validates the framework integration suite plus MySQL, Redis, RabbitMQ, Nacos and migration regression scenarios without enabling GitHub Actions.
