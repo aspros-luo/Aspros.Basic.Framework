@@ -224,8 +224,8 @@ The optional CLI is packaged as `Aspros.Basic.Framework.Tools`:
 
 The final regression matrix is documented in:
 
-- `docs/Regression-Acceptance-Matrix.md`
-- `docs/Regression-Acceptance-Matrix.zh-CN.md`
+- `docs/Final-Regression-Matrix.md`
+- `docs/Final-Regression-Matrix.zh-CN.md`
 
 The recommended one-command disposable acceptance run is:
 
