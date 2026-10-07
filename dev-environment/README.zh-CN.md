@@ -1,6 +1,6 @@
 # Framework 临时开发 / 测试环境
 
-提供可重复、可销毁的 Docker 验证环境：.NET 8 SDK、EF Core CLI 8.0.12、MySQL 8.4，并预置 Redis、RabbitMQ、Nacos 作为可选基础设施。
+提供可重复、可销毁的 Docker 验证环境：.NET 10 SDK、EF Core CLI 10.0.12、MySQL 8.4，并预置 Redis、RabbitMQ、Nacos 作为可选基础设施。
 
 ## 启动
 
