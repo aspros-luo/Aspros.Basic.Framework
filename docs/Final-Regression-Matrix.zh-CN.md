@@ -24,6 +24,7 @@ docker compose --profile infra --profile full-regression run --rm framework-full
 | Migration | add / script / update / repeat update | BLOCKED Runtime；Docker 夹具已接线 |
 | Migration Safety | destructive scaffold / RenameColumn / 数据保留 | BLOCKED Runtime；夹具已接线 |
 | gRPC | 真实 protobuf + TestServer RPC | BLOCKED Runtime；测试已接线 |
+| Packaged Core API consumer | local NuGet pack -> restore -> build -> startup -> /health | BLOCKED Runtime；脚本已接线 |
 | Core Provider/Consumer | Solution Build + Smoke 资产 | STATIC VERIFIED |
 | HTTP Resilience | transient GET retry / unsafe POST protection | BLOCKED Runtime；测试已接线 |
 | Polly Timeout | 超时拒绝 | BLOCKED Runtime；测试已接线 |
