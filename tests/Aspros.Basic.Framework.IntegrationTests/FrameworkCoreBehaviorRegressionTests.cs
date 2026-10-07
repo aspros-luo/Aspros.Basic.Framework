@@ -37,8 +37,8 @@ public sealed class FrameworkCoreBehaviorRegressionTests
         Assert.Equal("HelloWorld", "hello_world".ToPascalCase());
 
         Assert.Equal(
-            "active-status",
-            RegressionStatus.Active.ToUnderscoreCase());
+            "active_status",
+            RegressionStatus.ActiveStatus.ToString().ToUnderscoreCase());
 
         Assert.Equal("Enabled", RegressionStatus.Enabled.GetDisplayName());
         Assert.Equal("enabled:Active status", RegressionStatus.Enabled.GetFullName());
