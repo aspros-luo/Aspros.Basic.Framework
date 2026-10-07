@@ -95,6 +95,8 @@ The framework refactor is considered code-complete only after a real .NET 8 solu
 - Added Nacos and CAP provider-level regression coverage to the disposable environment.
 - Added Polly timeout/circuit-breaker/fallback regression tests and a Permission allow-path regression.
 - Added a disposable MySQL migration fixture covering add/script/update/repeat-update plus reviewed RenameColumn data-preservation flow.
+- Added a single-entry full-regression runner covering solution build, xUnit, Redis, MySQL, RabbitMQ, Nacos and migration validation.
+- Expanded regression coverage for UnitOfWork rollback, WorkContext claims, Paging, String/Enum helpers, ResultModel and DisposableAction.
 - Added a real Redis DistributedCache provider regression and isolated provider-only infrastructure variables from the lightweight test profile.
 - Kept GitHub Actions/workflows absent by design.
 - Bumped Infrastructure and Tools package versions to 1.1.6.
