@@ -32,10 +32,10 @@ Static completion is never reported as runtime PASS.
 
 ## One-command acceptance
 
-NaN
-NaN
-NaN
-NaN
+```bash
+cd dev-environment
+docker compose --profile infra --profile full-regression run --rm framework-full-regression
+```
 
 The full profile runs the integration tests, MySQL/Redis/RabbitMQ/Nacos regressions, gRPC/Permission/Resilience/Health/RateLimit tests, and the complete MySQL migration regression.
 
