@@ -206,6 +206,16 @@ See:
 - `docs/Microservice-Reliability.zh-CN.md`
 
 
+## Packaged Core Web API consumer
+
+The repository now includes `samples/Framework.Core.Api`, a standalone .NET 10 Web API that consumes `Aspros.Base.Framework.Infrastructure` version `2.0.0` through `PackageReference`, not `ProjectReference`.
+
+The disposable consumer regression first packs Abstractions, Domain and Infrastructure into a local NuGet feed, restores Core API from that feed, builds it, starts it on `http://127.0.0.1:7210`, and verifies `GET /health`.
+
+    bash dev-environment/run-core-package-consumer-regression.sh
+
+This is the closest repository-level simulation of a released Framework package being consumed by a new microservice.
+
 ## Database Code First / Migration
 
 Database schema generation follows the standard EF Core Code First path: Entity/Aggregate → explicit mapping → DbContext → Migration → SQL.
