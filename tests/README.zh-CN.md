@@ -12,7 +12,7 @@
 |---|---|
 | Abstractions | Domain 不依赖 Infrastructure |
 | DI / AutoInject | 注册、TryAdd、Assembly scanning |
-| UnitOfWork | Commit / Rollback / transaction ownership |
+| UnitOfWork | Commit / Rollback / transaction ownership / staged changes |
 | Repository | EF Repository / Dapper executor |
 | EF Mapping | 1:N / N:N / Value Object / indexes |
 | Migration | add / script / update / rename / data preservation |
@@ -26,6 +26,9 @@
 | CAP | local transaction + durable message boundary |
 | Compatibility | legacy ServiceLocator / permission APIs |
 | Serialization | response envelope / Newtonsoft compatibility |
+| Redis | real distributed-cache write/read |
+| Utilities | Paging / String / Enum / ResultModel / DisposableAction |
+| WorkContext | authenticated claims preference |
 
 需要真实数据库、MQ、Redis、Nacos 或网络故障的场景，不通过 mock 冒充真实验证，统一使用 dev-environment。
 
