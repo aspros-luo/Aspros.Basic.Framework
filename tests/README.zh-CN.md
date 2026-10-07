@@ -17,17 +17,15 @@
 | EF Mapping | 1:N / N:N / Value Object / indexes |
 | Migration | add / script / update / rename / data preservation |
 | gRPC | server/client / bearer / call context / real TestServer call |
-| Service Discovery | Nacos registration / healthy endpoint / secure metadata boundary |
+| Service Discovery | Nacos registration / healthy endpoint resolution |
 | Permission | 真实 HTTP 权限服务 / 403 / 503 |
 | HTTP Resilience | transient retry / unsafe POST protection / timeout / breaker / concurrency |
 | Health | 真实 liveness / readiness HTTP |
 | Rate Limit | 真实 HTTP 429 |
 | Redis | 真实 DistributedCache round-trip |
-| Redis | distributed cache round-trip |
 | CAP | local transaction + durable message boundary |
 | Compatibility | legacy ServiceLocator / permission APIs |
 | Serialization | response envelope / Newtonsoft compatibility |
-| Redis | real distributed-cache write/read |
 | Utilities | Paging / String / Enum / ResultModel / DisposableAction |
 | WorkContext | authenticated claims preference |
 
@@ -100,4 +98,4 @@ MySQL -> EF Core DbContext -> Framework UnitOfWork -> Commit
 
 ### Nacos 当前边界
 
-Framework 当前公开的 `IServiceDiscovery` 是查询抽象，Nacos 实现负责 `SelectOneHealthyInstance`；目前没有把“应用注册/注销”作为 Framework 公共 API 暴露。因此回归测试不会伪造一个注册 API。下一阶段会针对现有 Nacos 配置和真实注册中心做 provider-level 验证，并分别记录查询与注册能力。
+Framework 当前公开的 `IServiceDiscovery` 是查询抽象，Nacos 实现负责健康实例查询；Framework 没有把 Nacos SDK 的注册/注销接口泄漏到业务抽象。Provider 回归直接使用 Nacos SDK 创建临时测试实例，再通过 Framework `IServiceDiscovery` 查询，最后注销实例。
