@@ -9,6 +9,33 @@ namespace Aspros.Basic.Framework.IntegrationTests;
 public sealed class FrameworkUnitOfWorkRegressionTests
 {
     [Fact]
+    public async Task UnitOfWork_CommitWithoutChangesIsSuccessful()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<SqliteRegressionDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var writer = new SqliteRegressionDbContext(options);
+        await writer.Database.EnsureCreatedAsync();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IWorkContext, TestWorkContext>();
+        services.AddScoped<IDbContext>(_ => writer);
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        Assert.True(await uow.CommitAsync());
+        Assert.True(await uow.CommitAsync(CancellationToken.None));
+    }
+
+    [Fact]
     public async Task UnitOfWork_StagesChangesUntilCommit()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
