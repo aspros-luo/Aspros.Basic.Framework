@@ -113,7 +113,7 @@ public static class IServiceCollectionExtension
 
     private static bool IsMediatRRegistrationComponent(Type interfaceType)
     {
-        if (!interfaceType.Namespace?.StartsWith("MediatR", StringComparison.Ordinal) ?? true)
+        if (!(interfaceType.Namespace?.StartsWith("MediatR", StringComparison.Ordinal) ?? false))
         {
             return false;
         }
