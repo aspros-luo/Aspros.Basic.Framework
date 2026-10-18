@@ -1,3 +1,51 @@
+## 2026-10-18 — Dependency injection discovery audit
+
+### MediatR registration
+- Changed auto-injection discovery to identify assemblies containing MediatR handlers, pipeline behaviors, exception handlers/actions, and processors directly. Previously it inferred assemblies from request types, which could miss handlers located in a separate assembly that defines no request type.
+- Kept explicit assembly scanning and the backward-compatible parameterless entry point unchanged.
+
+## 2026-10-18 — UnitOfWork commit semantics audit
+
+### Persistence correctness
+- Made `CommitAsync` return `true` after a successful `SaveChangesAsync` even when no tracked rows changed. A no-op commit is successful; the previous non-transactional path incorrectly returned `false` while the explicit-transaction path returned `true` for the same no-op.
+- Added a SQLite regression test covering no-op commits with and without the cancellation-token overload.
+- Clarified the public `IUnitOfWork.CommitAsync` contract. Runtime execution is still pending in the cloud build environment.
+
+## 2026-10-18 — .NET 10 completion audit
+
+### Test compatibility
+- Updated the integration test project to xUnit v3 because its conditional-infrastructure tests use `FactAttribute.SkipUnless` and `SkipType`, which are xUnit v3 APIs.
+- Fixed the migration fixture's design-time DbContext factory to use Oracle MySQL provider's `UseMySQL` API instead of the removed Pomelo `UseMySql` / `ServerVersion.AutoDetect` configuration.
+- Aligned the test platform and Visual Studio adapter package versions with the xUnit v3 package line.
+- Added `dotnet ef --version` to the full-regression Docker Compose command so the executable acceptance path matches the regression matrix.
+
+### Documentation and branch policy
+- Added English and Chinese .NET 10 upgrade plans and linked them from README.
+- Clarified that source migration is complete on the upgrade branch, while runtime build/test, gRPC, migration, and packaged-consumer acceptance remain pending.
+- Kept divergent DDD/business-driven branches separate; no GitHub Actions workflow was added or triggered.
+
+## 2026-10-07 — Packaged Core consumer simulation
+
+### Consumer verification
+- Added `samples/Framework.Core.Api` as a standalone .NET 10 Web API.
+- The Core API references `Aspros.Base.Framework.Infrastructure` 2.0.0 through NuGet `PackageReference`, not a project reference.
+- Added a disposable regression script that packs the three framework packages, restores the Core API from a local package feed, builds it, starts the service and verifies `/health`.
+- Added a dedicated Docker Compose profile: `core-package-consumer`.
+- Added bilingual consumer documentation.
+- Runtime execution remains pending until a machine with .NET 10 SDK / Docker runs the regression script.
+## 2026-10-07 — .NET 10 Upgrade
+
+### Platform
+- Moved all framework, sample, migration-fixture and integration-test projects from `net8.0` to `net10.0`.
+- Bumped framework package versions to 2.0.0 to mark the target-framework breaking change.
+- Updated the disposable development image to the .NET 10 SDK and `dotnet-ef 10.0.12`.
+- Aligned EF Core / ASP.NET Core package references with the .NET 10 servicing line (10.0.12).
+- Switched the migration fixture to Oracle's `MySql.EntityFrameworkCore 10.0.9` provider because the official Pomelo provider had not published a stable EF Core 10 release as of this upgrade.
+
+### Verification note
+- GitHub Actions were not triggered.
+- Static project/package consistency has been reviewed. Real .NET 10 build, gRPC smoke test and disposable infrastructure regression remain required before the upgrade can be called runtime-verified.
+
 # Changelog
 
 ## 2026-10-04 — Framework Refactor Checkpoint
@@ -76,7 +124,7 @@ The repository was statically reviewed through GitHub after critical changes. Lo
 - Reclassified typed HTTP migration, richer gRPC conventions, ServiceLocator removal, resilience modernization, NuGet/.NET 10 targeting, and broader tests as future evolution rather than blockers for this refactor.
 
 ### Completion gate
-The framework refactor is considered code-complete only after a real .NET 8 solution build, the Core gRPC Provider/Consumer smoke test, and a minimal regression against the real Xr.User/Xr.Category consumers succeed. Static GitHub review alone is not treated as runtime verification.
+The framework refactor is considered runtime-verified only after a real .NET 10 solution build, the Core gRPC Provider/Consumer smoke test, and a minimal regression against the real Xr.User/Xr.Category consumers succeed. Static GitHub review alone is not treated as runtime verification.
 
 ## 2026-10-06 - Reverse extraction: EF Core infrastructure
 

@@ -29,9 +29,8 @@ public sealed class MigrationDbContextFactory : IDesignTimeDbContextFactory<Migr
                 "ConnectionStrings__MigrationDatabase is required.");
 
         var options = new DbContextOptionsBuilder<MigrationDbContext>()
-            .UseMySql(
+            .UseMySQL(
                 connectionString,
-                ServerVersion.AutoDetect(connectionString),
                 mysql => mysql.MigrationsHistoryTable("__FrameworkMigrationFixtureHistory"))
             .Options;
 

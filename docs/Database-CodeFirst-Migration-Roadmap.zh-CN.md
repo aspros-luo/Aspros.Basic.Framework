@@ -78,7 +78,7 @@ Framework 的职责是统一工程体验，而不是复制 EF Core Migration 引
 - Nullable / Required；
 - Column Rename；
 - 类型、长度、精度修改；
-- MySQL / Pomelo SQL；
+- MySQL / Oracle MySQL EF Core 10 SQL；
 - Clean DB 创建；
 - Existing DB 升级；
 - 重复执行 Migration；
@@ -109,7 +109,7 @@ EF Core 可以生成结构迁移，但不能替业务判断“数据如何安全
 | CLI Foundation | 完成 |
 | Provider / Design-time 验证 | 已具备可执行夹具，Runtime 待执行 |
 | Migration 测试矩阵 | 已覆盖核心 add / script / update / rename 场景，Runtime 待执行 |
-| MySQL / Pomelo 测试 | 已具备 disposable Docker 回归，Runtime 待执行 |
+| MySQL / Oracle MySQL EF Core 10 测试 | 已具备 disposable Docker 回归，Runtime 待执行 |
 | Data-loss 测试 | 已加入 destructive scaffold 检查与 reviewed RenameColumn 数据保留回归，Runtime 待执行 |
 | Production SQL / Bundle 流程 | 仍待独立生产化流程建设 |
 | 中英文文档 | 进行中 |

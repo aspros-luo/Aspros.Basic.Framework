@@ -106,7 +106,11 @@ public sealed class UnitOfWork(
     {
         if (DbContextTransaction is null)
         {
-            return await _dbContext.SaveChangesAsync(cancellationToken) > 0;
+            // A successful commit is not the same as "at least one row changed".
+            // SaveChangesAsync returns zero for a valid no-op, which is still a
+            // successful unit-of-work completion.
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return true;
         }
 
         try

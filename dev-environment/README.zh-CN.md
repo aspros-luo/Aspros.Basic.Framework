@@ -1,6 +1,6 @@
 # Framework 临时开发 / 测试环境
 
-提供可重复、可销毁的 Docker 验证环境：.NET 8 SDK、EF Core CLI 8.0.12、MySQL 8.4，并预置 Redis、RabbitMQ、Nacos 作为可选基础设施。
+提供可重复、可销毁的 Docker 验证环境：.NET 10 SDK、EF Core CLI 10.0.12、MySQL 8.4，并预置 Redis、RabbitMQ、Nacos 作为可选基础设施。
 
 ## 启动
 
@@ -47,3 +47,12 @@ docker compose --profile infra --profile provider-test run --rm framework-provid
 ```
 
 Provider 测试会真实启动并连接 MySQL、RabbitMQ、Nacos。当前包含 Nacos 注册/发现回归，以及 CAP + RabbitMQ 消息发布/消费回归。
+
+
+## Framework Package + Core 消费者模拟
+
+无需 GitHub Actions，直接运行一次性 Docker 消费者回归：
+
+    docker compose --profile core-package-consumer run --rm framework-core-package-consumer
+
+该命令会先打包 Framework，然后让 `samples/Framework.Core.Api` 从临时本地 NuGet 源恢复、编译并启动，最后验证 `GET /health`。

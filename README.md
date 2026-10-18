@@ -1,6 +1,10 @@
 # Aspros Basic Framework
 
-面向 .NET 8 的轻量级业务基础框架，按 .NET 10 的工程思路持续演进。
+面向 .NET 10 的轻量级业务基础框架，保持“少而够用”的工程边界。
+
+升级决策、消费者迁移步骤和验收门槛：
+- [REFACTORING_PLAN.md](REFACTORING_PLAN.md)
+- [中文升级与重构计划](docs/REFACTORING_PLAN.zh-CN.md)
 
 ## 当前定位
 
@@ -114,7 +118,7 @@ Consumer 暴露 GET /core/ping，通过框架注册的 gRPC ClientFactory 调用
                              |
                              +-> durable MQ / CAP / MassTransit
 
-当前代码以 .NET 8 为基线，设计上避免绑定过多业务能力，为后续 .NET 10 升级保留空间。
+当前代码基线为 .NET 10；框架本身保持业务无关，EF Core 10 作为默认 ORM 基线，MySQL 迁移夹具使用 Oracle MySQL EF Core 10 Provider。
 
 ## 本地 Smoke Test
 
@@ -205,6 +209,16 @@ See:
 - `docs/Microservice-Reliability.md`
 - `docs/Microservice-Reliability.zh-CN.md`
 
+
+## Packaged Core Web API consumer
+
+The repository now includes `samples/Framework.Core.Api`, a standalone .NET 10 Web API that consumes `Aspros.Base.Framework.Infrastructure` version `2.0.0` through `PackageReference`, not `ProjectReference`.
+
+The disposable consumer regression first packs Abstractions, Domain and Infrastructure into a local NuGet feed, restores Core API from that feed, builds it, starts it on `http://127.0.0.1:7210`, and verifies `GET /health`.
+
+    bash dev-environment/run-core-package-consumer-regression.sh
+
+This is the closest repository-level simulation of a released Framework package being consumed by a new microservice.
 
 ## Database Code First / Migration
 

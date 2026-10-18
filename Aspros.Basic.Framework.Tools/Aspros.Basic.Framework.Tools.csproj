@@ -2,13 +2,13 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>aspros</ToolCommandName>
     <PackageId>Aspros.Basic.Framework.Tools</PackageId>
-    <Version>1.1.6</Version>
+    <Version>2.0.0</Version>
     <Description>CLI helpers for Aspros Basic Framework database migrations.</Description>
   </PropertyGroup>
 
