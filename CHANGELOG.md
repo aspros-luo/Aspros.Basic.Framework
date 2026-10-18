@@ -2,6 +2,7 @@
 
 ### Test compatibility
 - Updated the integration test project to xUnit v3 because its conditional-infrastructure tests use `FactAttribute.SkipUnless` and `SkipType`, which are xUnit v3 APIs.
+- Fixed the migration fixture's design-time DbContext factory to use Oracle MySQL provider's `UseMySQL` API instead of the removed Pomelo `UseMySql` / `ServerVersion.AutoDetect` configuration.
 - Aligned the test platform and Visual Studio adapter package versions with the xUnit v3 package line.
 - Added `dotnet ef --version` to the full-regression Docker Compose command so the executable acceptance path matches the regression matrix.
 
