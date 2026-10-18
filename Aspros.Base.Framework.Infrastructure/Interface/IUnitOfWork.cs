@@ -117,14 +117,18 @@ public interface IUnitOfWork : IScoped
 
     /// <summary>
     /// Persists staged changes and commits the explicit transaction, when one exists.
-/// 持久化当前暂存的修改；如果存在显式事务，则同时提交事务。
-/// </summary>
+    /// Returns true when the operation completes successfully, including when there are no changes.
+    /// 持久化当前暂存的修改；如果存在显式事务，则同时提交事务。
+    /// 只要操作成功就返回 true，即使当前没有待持久化的修改。
+    /// </summary>
     Task<bool> CommitAsync();
 
     /// <summary>
     /// Persists staged changes and commits the explicit transaction with cancellation support.
-/// 持久化当前暂存的修改，并支持 CancellationToken。
-/// </summary>
+    /// Returns true when the operation completes successfully, including when there are no changes.
+    /// 持久化当前暂存的修改，并支持 CancellationToken。
+    /// 只要操作成功就返回 true，即使当前没有待持久化的修改。
+    /// </summary>
     Task<bool> CommitAsync(CancellationToken cancellationToken);
 
     /// <summary>
