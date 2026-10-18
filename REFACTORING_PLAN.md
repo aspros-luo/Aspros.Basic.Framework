@@ -24,6 +24,10 @@ Do not merge the DDD-hardening, business-driven-refactor, or v10-refactor branch
 - gRPC helpers provide transport plumbing; business services own their protobuf contracts.
 - Optional infrastructure features remain opt-in and must not be silently enabled by the base registration method.
 
+## Test platform compatibility
+
+The integration test project uses xUnit v3 because its environment-conditional tests rely on `FactAttribute.SkipUnless` and `SkipType`. Keep the test framework and Visual Studio adapter on compatible v3 package lines; do not downgrade them to xUnit v2 without rewriting those tests.
+
 ## Consumer migration
 
 1. Install the .NET 10 SDK and update consumer projects from `net8.0` to `net10.0` when each consumer is ready to take the breaking package line.
