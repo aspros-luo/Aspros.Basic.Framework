@@ -1,3 +1,15 @@
+## 2026-10-18 — .NET 10 completion audit
+
+### Test compatibility
+- Updated the integration test project to xUnit v3 because its conditional-infrastructure tests use `FactAttribute.SkipUnless` and `SkipType`, which are xUnit v3 APIs.
+- Aligned the test platform and Visual Studio adapter package versions with the xUnit v3 package line.
+- Added `dotnet ef --version` to the full-regression Docker Compose command so the executable acceptance path matches the regression matrix.
+
+### Documentation and branch policy
+- Added English and Chinese .NET 10 upgrade plans and linked them from README.
+- Clarified that source migration is complete on the upgrade branch, while runtime build/test, gRPC, migration, and packaged-consumer acceptance remain pending.
+- Kept divergent DDD/business-driven branches separate; no GitHub Actions workflow was added or triggered.
+
 ## 2026-10-07 — Packaged Core consumer simulation
 
 ### Consumer verification
