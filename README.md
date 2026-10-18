@@ -2,6 +2,10 @@
 
 面向 .NET 10 的轻量级业务基础框架，保持“少而够用”的工程边界。
 
+升级决策、消费者迁移步骤和验收门槛：
+- [REFACTORING_PLAN.md](REFACTORING_PLAN.md)
+- [中文升级与重构计划](docs/REFACTORING_PLAN.zh-CN.md)
+
 ## 当前定位
 
 框架保持“少而够用”：
