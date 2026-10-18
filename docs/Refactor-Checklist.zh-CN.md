@@ -39,6 +39,14 @@
 - [x] 中文、英文 README / Usage / Migration / Checklist 与当前 API 方向一致。
 - [x] 不增加 GitHub Actions，不依赖 CI 作为本轮验收手段。
 
+### .NET 10 升级状态
+
+- [x] 在升级分支将 Framework、CLI、示例、集成测试和 Migration Fixture 项目切换为 `net10.0`。
+- [x] 将 Microsoft EF Core / ASP.NET Core 依赖对齐到 10.0.12，CAP 包对齐到 10.0.2。
+- [x] 新增独立 `net10.0` Core API，通过 NuGet `PackageReference` 消费 Framework 2.0.0。
+- [x] 增加 .NET 10 Docker 临时环境和明确的回归命令。
+- [ ] 在真实 .NET 10 Runtime 执行 build、集成测试、迁移、gRPC 与包消费者回归。
+
 ### 仍需要真实环境完成
 
 - [ ] 在本地使用可用的 .NET 10 SDK 执行完整 solution build。
@@ -52,7 +60,7 @@
 - [ ] 更完整的 gRPC error-code / metadata 标准化。
 - [ ] ServiceLocator 的最终移除。
 - [ ] Polly 与 .NET 新 Resilience API 的进一步统一。
-- [ ] NuGet 发布与 .NET 10 multi-target。
+- [ ] 仅在 .NET 10 Runtime 与消费者兼容验收通过后发布 NuGet 2.0.0。本次升级明确以 `net10.0` 为目标，不额外引入多目标框架矩阵。
 - [ ] 更完整的单元测试 / 集成测试矩阵。
 
 这些项目只有在实际业务需要时再做，不为了“框架看起来完整”而增加复杂度。
