@@ -93,19 +93,36 @@ public static class IServiceCollectionExtension
         IServiceCollection services,
         IReadOnlyCollection<Type> implementationTypes)
     {
-        var requestAssemblies = implementationTypes
-            .Where(type => typeof(IBaseRequest).IsAssignableFrom(type))
+        // Handler implementations may live in an assembly that defines no request
+        // types. Discover MediatR registration components themselves instead of
+        // inferring handler assemblies only from IRequest/IRequest<T> declarations.
+        var handlerAssemblies = implementationTypes
+            .Where(type => type.GetInterfaces().Any(IsMediatRRegistrationComponent))
             .Select(type => type.Assembly)
             .Distinct()
             .ToArray();
 
-        if (requestAssemblies.Length == 0)
+        if (handlerAssemblies.Length == 0)
         {
             return;
         }
 
         services.AddMediatR(configuration =>
-            configuration.RegisterServicesFromAssemblies(requestAssemblies));
+            configuration.RegisterServicesFromAssemblies(handlerAssemblies));
+    }
+
+    private static bool IsMediatRRegistrationComponent(Type interfaceType)
+    {
+        if (!interfaceType.Namespace?.StartsWith("MediatR", StringComparison.Ordinal) ?? true)
+        {
+            return false;
+        }
+
+        var name = interfaceType.Name;
+        return name.Contains("Handler", StringComparison.Ordinal) ||
+               name.Contains("Behavior", StringComparison.Ordinal) ||
+               name.Contains("Action", StringComparison.Ordinal) ||
+               name.Contains("Processor", StringComparison.Ordinal);
     }
 
     private static void RegisterEventHandlers(
