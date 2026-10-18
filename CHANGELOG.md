@@ -1,3 +1,10 @@
+## 2026-10-18 — UnitOfWork commit semantics audit
+
+### Persistence correctness
+- Made `CommitAsync` return `true` after a successful `SaveChangesAsync` even when no tracked rows changed. A no-op commit is successful; the previous non-transactional path incorrectly returned `false` while the explicit-transaction path returned `true` for the same no-op.
+- Added a SQLite regression test covering no-op commits with and without the cancellation-token overload.
+- Clarified the public `IUnitOfWork.CommitAsync` contract. Runtime execution is still pending in the cloud build environment.
+
 ## 2026-10-18 — .NET 10 completion audit
 
 ### Test compatibility
