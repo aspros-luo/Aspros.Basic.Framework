@@ -1,3 +1,9 @@
+## 2026-10-18 — Dependency injection discovery audit
+
+### MediatR registration
+- Changed auto-injection discovery to identify assemblies containing MediatR handlers, pipeline behaviors, exception handlers/actions, and processors directly. Previously it inferred assemblies from request types, which could miss handlers located in a separate assembly that defines no request type.
+- Kept explicit assembly scanning and the backward-compatible parameterless entry point unchanged.
+
 ## 2026-10-18 — UnitOfWork commit semantics audit
 
 ### Persistence correctness
