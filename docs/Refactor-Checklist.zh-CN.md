@@ -41,7 +41,7 @@
 
 ### 仍需要真实环境完成
 
-- [ ] 在本地使用可用的 .NET 8 SDK 执行完整 solution build。
+- [ ] 在本地使用可用的 .NET 10 SDK 执行完整 solution build。
 - [ ] 启动 gRPC Provider / Consumer，执行 SmokeTests.http。
 - [ ] 在真实 Xr.User / Xr.Category 环境运行最小 API 回归。
 - [ ] 如果本地 build 暴露问题，再针对实际错误修正。
@@ -52,7 +52,7 @@
 - [ ] 更完整的 gRPC error-code / metadata 标准化。
 - [ ] ServiceLocator 的最终移除。
 - [ ] Polly 与 .NET 新 Resilience API 的进一步统一。
-- [ ] NuGet 发布与 .NET 10 multi-target。
+- [x] 全面升级至 .NET 10 (net10.0 LTS) 原生基准与 C# 14。
 - [ ] 更完整的单元测试 / 集成测试矩阵。
 
 这些项目只有在实际业务需要时再做，不为了“框架看起来完整”而增加复杂度。

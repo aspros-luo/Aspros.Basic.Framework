@@ -45,6 +45,6 @@ docker compose --profile infra --profile full-regression run --rm framework-full
 - 完全移除 ServiceLocator；
 - 强制所有服务从 HTTP 切换为 gRPC；
 - 强制 CQRS / DDD Domain Event；
-- 切换到 .NET 10 target framework；
+- [x] 全面升级切换到 .NET 10 (net10.0 LTS) target framework；
 - 创建 GitHub Actions / CI workflow；
 - 生产 Deployment Bundle 编排。

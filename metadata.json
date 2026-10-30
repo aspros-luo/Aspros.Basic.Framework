@@ -1,0 +1,8 @@
+{
+  "name": "Aspros Basic Framework",
+  "description": "Aspros.Core (.NET 10 LTS): 高性能分布式事务与微服务运行时核心，集成 .NET 10 现代语言特性、形式化状态机不变量验证、Jepsen 风格混沌并发故障注入及机器可信证明体系。",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

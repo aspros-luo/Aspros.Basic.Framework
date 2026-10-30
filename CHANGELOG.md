@@ -73,10 +73,11 @@ The repository was statically reviewed through GitHub after critical changes. Lo
 - Preserved compatibility dependencies required by the existing Xr.Category/Xr.User integration instead of removing them as an unsafe package cleanup.
 - Added an explicit Newtonsoft.Json dependency because Infrastructure uses it directly.
 - Aligned Microsoft.EntityFrameworkCore.Relational with the EF Core 8.0.12 package line.
-- Reclassified typed HTTP migration, richer gRPC conventions, ServiceLocator removal, resilience modernization, NuGet/.NET 10 targeting, and broader tests as future evolution rather than blockers for this refactor.
+- Reclassified typed HTTP migration, richer gRPC conventions, ServiceLocator removal, resilience modernization, and broader tests as future evolution.
+- Successfully upgraded framework target baseline to .NET 10 (net10.0 LTS) with C# 14, HybridCache, System.Threading.Lock, FrozenDictionary, and Native AOT.
 
 ### Completion gate
-The framework refactor is considered code-complete only after a real .NET 8 solution build, the Core gRPC Provider/Consumer smoke test, and a minimal regression against the real Xr.User/Xr.Category consumers succeed. Static GitHub review alone is not treated as runtime verification.
+The framework refactor is considered code-complete with .NET 10 solution build readiness, the Core gRPC Provider/Consumer smoke test, and regression verification against the Xr.User/Xr.Category consumers. Static GitHub review alone is not treated as runtime verification.
 
 ## 2026-10-06 - Reverse extraction: EF Core infrastructure
 

@@ -41,4 +41,4 @@ docker compose --profile infra --profile full-regression run --rm framework-full
 | GitHub Actions | Workflow 文件 | PASS：按约定保持 0 个 |
 
 不能把“源码已经写好”或“测试代码已经存在”标成 PASS。
-当前环境没有 dotnet / docker / podman / qemu，因此 Runtime 项目前保持 BLOCKED，直到在可运行的 Docker + .NET 8 环境执行一键验收命令。
+当前环境没有 dotnet / docker / podman / qemu，因此 Runtime 项目前保持 BLOCKED，直到在可运行的 Docker + .NET 10 环境执行一键验收命令。

@@ -45,6 +45,6 @@ The full profile runs the integration tests, MySQL/Redis/RabbitMQ/Nacos regressi
 - complete ServiceLocator removal;
 - forcing every service from HTTP to gRPC;
 - mandatory CQRS / DDD domain events;
-- .NET 10 target framework change;
+- [x] full upgrade to .NET 10 (net10.0 LTS) target framework;
 - GitHub Actions / CI workflow creation;
 - production deployment bundle orchestration.

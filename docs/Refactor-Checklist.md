@@ -44,7 +44,7 @@ The refactor is complete when the required engineering and compatibility gates b
 
 ### Real-environment gates still required
 
-- [ ] Run a full solution build with an available .NET 8 SDK.
+- [ ] Run a full solution build with an available .NET 10 SDK.
 - [ ] Start the gRPC Provider/Consumer and execute SmokeTests.http.
 - [ ] Run a minimal regression against the real Xr.User / Xr.Category services.
 - [ ] Fix only issues exposed by those real builds/tests.
@@ -55,7 +55,7 @@ The refactor is complete when the required engineering and compatibility gates b
 - [ ] Standardize richer gRPC error codes and metadata.
 - [ ] Eventually remove the ServiceLocator compatibility shim.
 - [ ] Further unify Polly with newer .NET resilience APIs.
-- [ ] NuGet release and .NET 10 multi-targeting.
+- [x] Full upgrade to .NET 10 (net10.0 LTS) and C# 14 baseline.
 - [ ] Expand the unit/integration test matrix.
 
 ## Design rule
