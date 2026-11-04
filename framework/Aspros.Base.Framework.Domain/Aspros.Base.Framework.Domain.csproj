@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Aspros.Base.Framework.Domain</RootNamespace>
+    <AssemblyName>Aspros.Base.Framework.Domain</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Version>10.0.0</Version>
+    <Description>Aspros 微服务领域核心层：纯净 Entity、Aggregate Root、Repository 与 UoW 契约</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aspros.Base.Framework.Abstractions\Aspros.Base.Framework.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

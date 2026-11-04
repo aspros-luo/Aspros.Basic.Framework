@@ -31,6 +31,9 @@ import {
   Sparkles,
   Lock,
   Compass,
+  Flame,
+  Brain,
+  Bot,
 } from 'lucide-react';
 import type {
   OrderAggregate,
@@ -45,11 +48,15 @@ import { ChainTopologyGraph } from './components/ChainTopologyGraph';
 import { FrameworkAuditDashboard } from './components/FrameworkAuditDashboard';
 import { FormalVerificationDashboard } from './components/FormalVerificationDashboard';
 import { ClickHousePersonalizationDashboard } from './components/ClickHousePersonalizationDashboard';
+import { StressTestingDashboard } from './components/StressTestingDashboard';
+import { AiIntelligenceDashboard } from './components/AiIntelligenceDashboard';
+import { InfrastructureConnectorDashboard } from './components/InfrastructureConnectorDashboard';
+import { DotNetFrameworkSourceExplorer } from './components/DotNetFrameworkSourceExplorer';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
-    'clickhouse' | 'verification' | 'chain' | 'uow' | 'cap' | 'discovery' | 'permission' | 'resilience' | 'architecture' | 'audit'
-  >('clickhouse');
+    'dotnet-source' | 'infrastructure' | 'clickhouse' | 'ai' | 'verification' | 'stress' | 'chain' | 'uow' | 'cap' | 'discovery' | 'permission' | 'resilience' | 'architecture' | 'audit'
+  >('dotnet-source');
 
   // Multi-tenant selection
   const [currentTenant, setCurrentTenant] = useState<number | null>(null);
@@ -558,6 +565,34 @@ export default function App() {
         {/* Tab Navigation */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-1 overflow-x-auto scrollbar-none border-t border-slate-800/60 pt-1">
           <button
+            onClick={() => setActiveTab('dotnet-source')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition ${
+              activeTab === 'dotnet-source'
+                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10'
+                : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
+            }`}
+          >
+            <FileCode2 className="w-4 h-4 text-indigo-400" />
+            .NET 10 核心源码与工程脚手架
+            <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-mono font-bold">
+              C# 14 (.sln)
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('infrastructure')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition ${
+              activeTab === 'infrastructure'
+                ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10'
+                : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
+            }`}
+          >
+            <Server className="w-4 h-4 text-emerald-400" />
+            数据源与基础设施
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold">
+              Real DB/CK/RAG
+            </span>
+          </button>
+          <button
             onClick={() => setActiveTab('clickhouse')}
             className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition ${
               activeTab === 'clickhouse'
@@ -572,6 +607,20 @@ export default function App() {
             </span>
           </button>
           <button
+            onClick={() => setActiveTab('ai')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition ${
+              activeTab === 'ai'
+                ? 'border-purple-500 text-purple-400 bg-purple-500/10'
+                : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
+            }`}
+          >
+            <Brain className="w-4 h-4 text-purple-400" />
+            AI 智能体与 RAG 引擎
+            <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-mono font-bold">
+              Agent + RAG
+            </span>
+          </button>
+          <button
             onClick={() => setActiveTab('verification')}
             className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition ${
               activeTab === 'verification'
@@ -583,6 +632,20 @@ export default function App() {
             形式化不变量与混沌验证
             <span className="text-[10px] bg-indigo-500/25 text-indigo-300 px-1.5 py-0.5 rounded font-mono">
               Jepsen Lab
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('stress')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition ${
+              activeTab === 'stress'
+                ? 'border-rose-500 text-rose-400 bg-rose-500/10'
+                : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
+            }`}
+          >
+            <Flame className="w-4 h-4 text-rose-400" />
+            高并发与压力测试
+            <span className="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded font-mono font-bold">
+              Stress & QPS
             </span>
           </button>
           <button
@@ -782,11 +845,23 @@ export default function App() {
           </div>
         </div>
 
+        {/* TAB -3: .NET 10 (net10.0 LTS) C# 14 完整微服务基础框架工程与源码浏览器 (.sln + 6 Projects) */}
+        {activeTab === 'dotnet-source' && <DotNetFrameworkSourceExplorer />}
+
+        {/* TAB -2: 真实持久化存储基础设施控制台 (Real SQLite DB + Real ClickHouse Client + Real Dense Vector RAG) */}
+        {activeTab === 'infrastructure' && <InfrastructureConnectorDashboard />}
+
         {/* TAB -1: ClickHouse (CK) 实时数仓与千人千面自适应工作台 */}
         {activeTab === 'clickhouse' && <ClickHousePersonalizationDashboard />}
 
+        {/* TAB -0.5: 微服务 AI 智能体与 RAG 知识检索工作台 */}
+        {activeTab === 'ai' && <AiIntelligenceDashboard />}
+
         {/* TAB 0: 形式化不变量验证与混沌测试工作台 */}
         {activeTab === 'verification' && <FormalVerificationDashboard />}
+
+        {/* TAB 0.5: 高并发与压力测试控制台 (.NET 10 CLR Stress Lab) */}
+        {activeTab === 'stress' && <StressTestingDashboard />}
 
         {/* TAB 1: 微服务链路追踪与 gRPC */}
         {activeTab === 'chain' && (

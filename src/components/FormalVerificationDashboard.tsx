@@ -24,6 +24,7 @@ import {
   Info,
   Maximize2,
   Database,
+  Download,
 } from 'lucide-react';
 import type {
   DistributedProtocol,
@@ -680,7 +681,27 @@ export function FormalVerificationDashboard() {
                         MACHINE-VERIFIABLE PROOF RECEIPT (机器可验证证明回执)
                       </span>
                     </div>
-                    <span className="text-[10px] text-slate-500">{activeReceipt.timestamp}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const jsonBlob = new Blob([JSON.stringify(activeReceipt, null, 2)], {
+                            type: 'application/json',
+                          });
+                          const url = URL.createObjectURL(jsonBlob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `aspros_merkle_receipt_${activeReceipt.receiptId}.json`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-indigo-300 border border-indigo-500/30 text-[10px] transition"
+                        title="导出包含默克尔根、HSM 签名与违规证明的存证文件 (.json)"
+                      >
+                        <Download className="w-3 h-3" />
+                        导出存证 JSON
+                      </button>
+                      <span className="text-[10px] text-slate-500">{activeReceipt.timestamp}</span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">

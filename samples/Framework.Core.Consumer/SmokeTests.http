@@ -1,0 +1,13 @@
+### 1. Consumer 调用 Core Ping (透传租户 100 与 Bearer Token)
+GET http://localhost:7141/core/ping?message=hello_from_smoke_test
+Accept: application/json
+x-tenant-id: 100
+x-caller-zone: zone-east-1a
+Authorization: Bearer aspros-jwt-bearer-token-1001
+
+### 2. 模拟超时调用 (验证 Deadline 级联熔断)
+GET http://localhost:7141/core/ping?message=test_timeout
+Accept: application/json
+x-tenant-id: 200
+x-simulate-delay: 800
+Authorization: Bearer aspros-jwt-bearer-token-2001

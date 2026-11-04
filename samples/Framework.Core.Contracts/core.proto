@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+option csharp_namespace = "Framework.Core.Contracts";
+
+package framework.core;
+
+service CoreService {
+  rpc Ping (CorePingRequest) returns (CorePingResponse);
+  rpc QueryTradeStatus (TradeStatusRequest) returns (TradeStatusResponse);
+}
+
+message CorePingRequest {
+  string message = 1;
+  int64 tenant_id = 2;
+  string caller_zone = 3;
+}
+
+message CorePingResponse {
+  string echo_message = 1;
+  int64 tenant_id = 2;
+  string server_zone = 3;
+  int64 server_time_ms = 4;
+  string trace_id = 5;
+}
+
+message TradeStatusRequest {
+  string order_id = 1;
+  int64 tenant_id = 2;
+}
+
+message TradeStatusResponse {
+  string order_id = 1;
+  string status = 2;
+  double total_amount = 3;
+  bool is_idempotent_protected = 4;
+}

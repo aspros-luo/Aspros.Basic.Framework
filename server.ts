@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,6 +12,8 @@ const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
+
+import { databaseEngine } from './src/core/databaseEngine';
 
 // ==========================================
 // 1. Multi-Tenant Microservice Seed Data
@@ -595,9 +598,9 @@ app.post('/core/microservice-chain', (req, res) => {
 
 app.get('/api/framework/business/data', (req, res) => {
   const tenantId = req.query.tenantId ? Number(req.query.tenantId) : null;
-  const filteredOrders = tenantId ? orderDb.filter((o) => o.tenantId === tenantId) : orderDb;
-  const filteredInventories = tenantId ? inventoryDb.filter((i) => i.tenantId === tenantId) : inventoryDb;
-  const filteredPayments = tenantId ? paymentDb.filter((p) => p.tenantId === tenantId) : paymentDb;
+  const filteredOrders = databaseEngine.getOrders(tenantId);
+  const filteredInventories = databaseEngine.getInventories(tenantId);
+  const filteredPayments = databaseEngine.getPayments(tenantId);
 
   res.json({
     success: true,
@@ -702,7 +705,16 @@ app.post('/api/framework/uow/order-transaction', (req, res) => {
     });
   }
 
-  // 5. Atomic Commit (CommitAsync)
+  // 5. Atomic Commit (CommitAsync via real SQLite WAL Transaction)
+  try {
+    databaseEngine.commitUnitOfWork(newOrder, [stageInventory]);
+  } catch (err: any) {
+    return res.status(400).json({
+      success: false,
+      message: `【数据库持久化事务提交异常】${err.message}`,
+    });
+  }
+
   orderDb.unshift(newOrder);
   invItem.availableStock = newAvailableStock;
   invItem.lockedStock += orderQty;
@@ -845,43 +857,30 @@ GROUP BY tenant_id`,
 // ==========================================
 
 app.get('/api/framework/cap/messages', (_req, res) => {
-  res.json({ success: true, messages: capOutbox });
+  res.json({ success: true, messages: databaseEngine.getCapMessages() });
 });
 
 app.post('/api/framework/cap/retry', (req, res) => {
   const { id } = req.body;
-  const msg = capOutbox.find((m) => m.id === id);
-  if (!msg) {
-    return res.status(404).json({ success: false, message: '未找到发件箱消息' });
+  try {
+    databaseEngine.retryCapMessage(id);
+    res.json({
+      success: true,
+      message: `CAP 发件箱消息 [${id}] 重试成功，已原子更新数据库持久化状态并通过指数退避重新投递。`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: `重试失败: ${err.message}` });
   }
-
-  msg.retryCount += 1;
-  msg.status = 'Consumed';
-  msg.consumedTime = new Date().toISOString();
-
-  res.json({
-    success: true,
-    message: `CAP 消息 [${msg.id}] 重试成功，已投递至 RabbitMQ 并被订阅端消费。`,
-    messageItem: msg,
-  });
 });
 
 app.post('/api/framework/cap/publish', (req, res) => {
-  const { topic, group, payload } = req.body;
-  const newMsg: CapOutboxMessage = {
-    id: `cap-msg-${Date.now().toString().slice(-4)}`,
-    topic: topic || 'aspros.business.event',
-    group: group || 'default-group',
-    content: payload || { emitter: 'AsprosDashboard', timestamp: new Date().toISOString() },
-    status: 'Consumed',
-    retryCount: 0,
-    createdTime: new Date().toISOString(),
-    consumedTime: new Date().toISOString(),
-    transactionId: `tx-${Date.now().toString().slice(-6)}`,
-  };
-
-  capOutbox.unshift(newMsg);
-  res.json({ success: true, message: `CAP 发件箱发布成功: ${newMsg.topic}`, data: newMsg });
+  const { topic, payload, contractType = 'IIntegrationEvent' } = req.body;
+  try {
+    const newMsg = databaseEngine.publishCapMessage(topic || 'aspros.order.dispatched', payload, contractType);
+    res.json({ success: true, message: `CAP 发件箱发布成功并持久化落库: ${newMsg.topic}`, data: newMsg });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: `发布失败: ${err.message}` });
+  }
 });
 
 // ==========================================
@@ -1690,6 +1689,291 @@ app.post('/api/framework/ck/reset', (_req, res) => {
       success: true,
       message: 'ClickHouse 列存基线已重新生成 12,800+ 条高密度多维日志向量。',
       stats: clickhouseEngine.getColumnarStats(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// 12. High-Concurrency & Stress Testing Endpoints
+// ==========================================
+import { stressEngine } from './src/core/stressEngine';
+
+app.post('/api/framework/stress/run', async (req, res) => {
+  try {
+    const config = req.body;
+    const snapshot = await stressEngine.runStressTest(config);
+    res.json({ success: true, snapshot });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/framework/stress/history', (_req, res) => {
+  try {
+    res.json({
+      success: true,
+      history: stressEngine.getHistory(),
+      isRunning: stressEngine.isRunning(),
+      progress: stressEngine.getProgress(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/framework/stress/latest', (_req, res) => {
+  try {
+    res.json({
+      success: true,
+      snapshot: stressEngine.getLatest(),
+      isRunning: stressEngine.isRunning(),
+      progress: stressEngine.getProgress(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/framework/stress/reset', (_req, res) => {
+  try {
+    stressEngine.resetHistory();
+    res.json({ success: true, message: '压测历史已重置为基准 S+ 状态。' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/framework/stress/export-report', (req, res) => {
+  try {
+    const snapshot = req.body.snapshot || stressEngine.getLatest();
+    if (!snapshot) {
+      return res.status(404).json({ success: false, error: '暂无可用的压测数据记录' });
+    }
+    const markdown = stressEngine.generateMarkdownReport(snapshot);
+    res.json({ success: true, markdown });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// 13. AI, LLM, RAG & Autonomous Agent Endpoints
+// ==========================================
+import { aiEngine } from './src/core/aiEngine';
+
+// RAG Query
+app.post('/api/framework/ai/rag/query', async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!query) {
+      return res.status(400).json({ success: false, error: '缺少 query 查询参数' });
+    }
+    const result = await aiEngine.executeRagQuery(query);
+    res.json({ success: true, result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// List RAG Knowledge Corpus
+app.get('/api/framework/ai/rag/corpus', (_req, res) => {
+  try {
+    res.json({ success: true, corpus: aiEngine.getCorpus() });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Add Chunk to Knowledge Corpus
+app.post('/api/framework/ai/rag/chunk', (req, res) => {
+  try {
+    const { title, category, content, tags } = req.body;
+    if (!title || !content) {
+      return res.status(400).json({ success: false, error: '缺少标题或知识内容' });
+    }
+    const chunk = aiEngine.addCorpusChunk({
+      title,
+      category: category || 'Architecture',
+      content,
+      tags: tags || ['Custom'],
+    });
+    res.json({ success: true, chunk, corpus: aiEngine.getCorpus() });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// AI Diagnostic (Incident RCA / Natural-to-SQL / Arch Review)
+app.post('/api/framework/ai/diagnostic', async (req, res) => {
+  try {
+    const response = await aiEngine.executeAiDiagnostic(req.body);
+    res.json(response);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Run Autonomous Multi-Step Agent Workflow
+const handleAgentRun = async (req: any, res: any) => {
+  try {
+    const { workflowType = 'INCIDENT_TRIAGE' } = req.body;
+    const execution = await aiEngine.executeAutonomousAgent(workflowType);
+    res.json({ success: true, execution });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.post('/api/framework/ai/agent/run', handleAgentRun);
+app.post('/api/framework/ai/agent/execute', handleAgentRun);
+
+// Get Agent Execution Traces
+app.get('/api/framework/ai/agent/history', (_req, res) => {
+  try {
+    res.json({ success: true, history: aiEngine.getAgentHistory() });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// 14. Real Infrastructure Connection Endpoints (DB, CK, RAG)
+// ==========================================
+
+// Global infrastructure health & connectivity overview
+app.get('/api/framework/infrastructure/status', (_req, res) => {
+  try {
+    const dbStats = databaseEngine.getDatabaseStats();
+    const ckStats = clickhouseEngine.getClickHouseStatus();
+    const aiStats = aiEngine.getAiEngineStatus();
+
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      database: dbStats,
+      clickhouse: ckStats,
+      aiEngine: aiStats,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Real SQLite Database stats
+app.get('/api/framework/db/stats', (_req, res) => {
+  try {
+    res.json({ success: true, stats: databaseEngine.getDatabaseStats() });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ClickHouse dual-track status
+app.get('/api/framework/ck/status', (_req, res) => {
+  try {
+    res.json({ success: true, status: clickhouseEngine.getClickHouseStatus() });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Configure Remote ClickHouse Connection
+app.post('/api/framework/ck/configure-remote', async (req, res) => {
+  try {
+    const result = await clickhouseEngine.configureRemoteClickHouse(req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// AI & RAG Engine status
+app.get('/api/framework/ai/status', (_req, res) => {
+  try {
+    res.json({ success: true, status: aiEngine.getAiEngineStatus() });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// C# .NET 10 Framework Source Code Explorer APIs
+app.get('/api/framework/source/tree', (_req, res) => {
+  try {
+    const rootDir = process.cwd();
+    const scanDirs = ['framework', 'samples', 'docs'];
+    const files: Array<{
+      path: string;
+      project: string;
+      fileName: string;
+      extension: string;
+      size: number;
+    }> = [];
+
+    // Include root solution
+    const slnPath = path.join(rootDir, 'Aspros.Base.Framework.sln');
+    if (fs.existsSync(slnPath)) {
+      files.push({
+        path: 'Aspros.Base.Framework.sln',
+        project: 'Solution',
+        fileName: 'Aspros.Base.Framework.sln',
+        extension: 'sln',
+        size: fs.statSync(slnPath).size,
+      });
+    }
+
+    function walk(dir: string, category: string) {
+      if (!fs.existsSync(dir)) return;
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        const rel = path.relative(rootDir, full);
+        if (entry.isDirectory()) {
+          walk(full, category);
+        } else if (entry.isFile()) {
+          const ext = path.extname(entry.name).replace('.', '').toLowerCase();
+          files.push({
+            path: rel,
+            project: category,
+            fileName: entry.name,
+            extension: ext,
+            size: fs.statSync(full).size,
+          });
+        }
+      }
+    }
+
+    for (const d of scanDirs) {
+      walk(path.join(rootDir, d), d);
+    }
+
+    res.json({ success: true, files, totalFiles: files.length });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/framework/source/file', (req, res) => {
+  try {
+    const relPath = String(req.query.path || '').trim();
+    if (!relPath || relPath.includes('..')) {
+      return res.status(400).json({ success: false, error: '非法文件路径' });
+    }
+
+    const fullPath = path.resolve(process.cwd(), relPath);
+    if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+      return res.status(404).json({ success: false, error: '源文件不存在' });
+    }
+
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    const ext = path.extname(relPath).replace('.', '').toLowerCase();
+
+    res.json({
+      success: true,
+      path: relPath,
+      extension: ext,
+      sizeBytes: Buffer.byteLength(content, 'utf-8'),
+      content,
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

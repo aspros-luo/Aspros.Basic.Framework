@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Aspros.Base.Framework.Infrastructure</RootNamespace>
+    <AssemblyName>Aspros.Base.Framework.Infrastructure</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Version>10.0.0</Version>
+    <Description>Aspros 微服务基础设施层：EF Core、Dapper、gRPC、HybridCache、CAP、Nacos 与弹性治理 (.NET 10 / C# 14)</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aspros.Base.Framework.Domain\Aspros.Base.Framework.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0-preview.1.25081.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0-preview.1.25081.1" />
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.67.0" />
+    <PackageReference Include="Grpc.Net.ClientFactory" Version="2.67.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.2.0-preview.1.25110.1" />
+    <PackageReference Include="Polly" Version="8.5.2" />
+    <PackageReference Include="DotNetCore.CAP" Version="8.3.2" />
+  </ItemGroup>
+
+</Project>

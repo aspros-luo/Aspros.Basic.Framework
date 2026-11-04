@@ -324,3 +324,166 @@ export interface DotNet10RuntimeSpec {
   }>;
 }
 
+// ==========================================
+// High-Concurrency & Stress Testing Types (.NET 10 CLR)
+// ==========================================
+
+export type StressScenarioType =
+  | 'HIGH_FREQUENCY_TRADING'
+  | 'GRPC_CASCADING_MESH'
+  | 'CLICKHOUSE_COLUMNAR_BURST'
+  | 'MULTI_TENANT_NOISY_NEIGHBOR'
+  | 'CHAOTIC_CONCURRENCY_MIX';
+
+export interface StressTestConfig {
+  scenario: StressScenarioType;
+  concurrency: number; // 10 - 500 workers
+  totalRequests: number; // 100 - 5000 requests
+  rampUpMode: 'instant' | 'linear' | 'spike';
+  injectJitter: boolean;
+  jitterMaxMs: number;
+  injectDropRate: number; // 0 - 20%
+  tenantContention: boolean;
+  targetModule?: string;
+}
+
+export interface StressLatencyHistogram {
+  lt1ms: number;
+  ms1to5: number;
+  ms5to10: number;
+  ms10to25: number;
+  ms25to50: number;
+  ms50to100: number;
+  gt100ms: number;
+}
+
+export interface StressStabilityAssertion {
+  id: string;
+  name: string;
+  passed: boolean;
+  formula: string;
+  details: string;
+  evidence: string;
+}
+
+export interface ClrRuntimeMetrics {
+  activeThreads: number;
+  availableThreads: number;
+  lockContentionCount: number;
+  lockWaitTimeAvgUs: number;
+  gcGen0Collections: number;
+  gcGen1Collections: number;
+  gcGen2Collections: number;
+  allocatedMemoryMb: number;
+  zeroAllocationRate: number; // e.g. 98.4%
+}
+
+export interface TimeSeriesStressPoint {
+  timeSec: number;
+  currentTps: number;
+  currentP99: number;
+  activeWorkers: number;
+  errorRate: number;
+}
+
+export interface StressMetricSnapshot {
+  testId: string;
+  timestamp: string;
+  scenario: StressScenarioType;
+  concurrency: number;
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  idempotentIntercepts: number;
+  durationMs: number;
+  tps: number;
+  peakTps: number;
+  latency: {
+    minMs: number;
+    meanMs: number;
+    p50Ms: number;
+    p90Ms: number;
+    p99Ms: number;
+    p999Ms: number;
+    maxMs: number;
+  };
+  histogram: StressLatencyHistogram;
+  clrMetrics: ClrRuntimeMetrics;
+  stabilityAssertions: StressStabilityAssertion[];
+  stabilityScore: number;
+  grade: 'S+' | 'A' | 'B' | 'C' | 'FAIL';
+  timeSeriesSamples: TimeSeriesStressPoint[];
+}
+
+// ==========================================
+// AI, LLM, RAG & Autonomous Agent Types
+// ==========================================
+
+export interface RagKnowledgeChunk {
+  id: string;
+  title: string;
+  category: 'Architecture' | 'Runtime' | 'Distributed' | 'FaultTolerance' | 'Database';
+  content: string;
+  tags: string[];
+  relevanceScore?: number;
+  wordCount?: number;
+}
+
+export interface RagRetrievalResult {
+  query: string;
+  topChunks: RagKnowledgeChunk[];
+  augmentedPrompt: string;
+  llmAnswer: string;
+  retrievalTimeMs: number;
+  generationTimeMs: number;
+  sourceModel: string;
+}
+
+export interface AgentToolCall {
+  toolName: string;
+  args: Record<string, any>;
+  result: Record<string, any>;
+  executionTimeMs: number;
+}
+
+export interface AgentWorkflowStep {
+  stepNumber: number;
+  phase: 'THINK' | 'ACT' | 'OBSERVE' | 'REFLECT';
+  thought: string;
+  toolCall?: AgentToolCall;
+  reflection?: string;
+  timestamp: string;
+}
+
+export interface AgentWorkflowExecution {
+  workflowId: string;
+  workflowName: string;
+  goal: string;
+  status: 'RUNNING' | 'COMPLETED' | 'FAILED';
+  steps: AgentWorkflowStep[];
+  finalSynthesis: string;
+  totalDurationMs: number;
+  toolsUsed: string[];
+  modelUsed: string;
+}
+
+export interface AiDiagnosticRequest {
+  taskType: 'RCA_INCIDENT' | 'NATURAL_TO_SQL' | 'ARCHITECTURE_REVIEW' | 'CUSTOM';
+  inputContext: string;
+  useRag: boolean;
+  temperature?: number;
+}
+
+export interface AiDiagnosticResponse {
+  success: boolean;
+  taskType: string;
+  response: string;
+  model: string;
+  tokenCount?: { input: number; output: number };
+  latencyMs: number;
+  ragUsed: boolean;
+  retrievedChunks?: RagKnowledgeChunk[];
+}
+
+
+
