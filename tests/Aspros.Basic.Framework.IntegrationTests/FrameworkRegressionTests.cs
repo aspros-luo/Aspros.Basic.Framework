@@ -24,6 +24,8 @@ public sealed class FrameworkRegressionTests
     {
         var services = new ServiceCollection();
         services.AddAsprosFramework();
+        services.AddAsprosDbContext<CoreBehaviorDbContext>(options =>
+            options.UseInMemoryDatabase(Guid.NewGuid().ToString()));
         using var provider = services.BuildServiceProvider();
 
         Assert.NotNull(provider.GetService<IWorkContext>());
@@ -157,7 +159,7 @@ public sealed class FrameworkRegressionTests
         !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase")) &&
         !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TestRabbitMq__Host"));
 
-    [Fact(SkipUnless = nameof(CapAvailable), SkipType = typeof(FrameworkRegressionTests))]
+    [Fact(Skip = "MySQL and RabbitMQ are not configured for this test run.", SkipUnless = nameof(CapAvailable), SkipType = typeof(FrameworkRegressionTests))]
     public async Task Cap_RabbitMq_CanPublishAndConsumeWithEfStorage()
     {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase")!;
@@ -204,7 +206,7 @@ public sealed class FrameworkRegressionTests
     public static bool NacosAvailable =>
         !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TestNacos__Address"));
 
-    [Fact(SkipUnless = nameof(NacosAvailable), SkipType = typeof(FrameworkRegressionTests))]
+    [Fact(Skip = "Nacos is not configured for this test run.", SkipUnless = nameof(NacosAvailable), SkipType = typeof(FrameworkRegressionTests))]
     public async Task Nacos_ServiceDiscovery_CanRegisterAndResolveHealthyInstance()
     {
         var address = Environment.GetEnvironmentVariable("TestNacos__Address")!;
@@ -260,7 +262,7 @@ public sealed class FrameworkRegressionTests
         !string.IsNullOrWhiteSpace(
             Environment.GetEnvironmentVariable("ConnectionStrings__TestRedis"));
 
-    [Fact(SkipUnless = nameof(RedisAvailable), SkipType = typeof(FrameworkRegressionTests))]
+    [Fact(Skip = "Redis is not configured for this test run.", SkipUnless = nameof(RedisAvailable), SkipType = typeof(FrameworkRegressionTests))]
     public async Task Redis_DistributedCache_CanRoundTrip_WhenRedisIsAvailable()
     {
         var redisConnection =
@@ -295,7 +297,7 @@ public sealed class FrameworkRegressionTests
     public static bool MySqlAvailable =>
         !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase"));
 
-    [Fact(SkipUnless = nameof(MySqlAvailable), SkipType = typeof(FrameworkRegressionTests))]
+    [Fact(Skip = "MySQL is not configured for this test run.", SkipUnless = nameof(MySqlAvailable), SkipType = typeof(FrameworkRegressionTests))]
     public async Task MySql_Uow_And_Dapper_UseTheSameConnection_WhenDatabaseIsAvailable()
     {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase")!;
@@ -330,6 +332,7 @@ public sealed class FrameworkRegressionTests
     public void AddFrameworkCap_RegistersCapPublisher()
     {
         var services = new ServiceCollection();
+        services.AddLogging();
         services.AddDbContext<TestDbContext>(options => options.UseInMemoryDatabase("framework-cap-test"));
         services.AddFrameworkCap<TestDbContext>();
 
