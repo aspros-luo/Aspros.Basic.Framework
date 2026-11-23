@@ -196,6 +196,47 @@ The endpoint creates two rows in one UnitOfWork transaction and commits them, th
 
 Both cases are verified through a fresh dependency-injection scope and DbContext. A successful response reports two committed rows and zero rows remaining from the rolled-back transaction. The endpoint is not mapped outside the Development environment and is intended only for local framework validation, not as a production business API.
 
+## RabbitMQ / CAP validation
+
+The API uses `AddFrameworkCap<CategoryDbContext>()`: CAP stores its local published/received message records in the Category MySQL database and uses RabbitMQ as the transport. CAP's MySQL provider initializes its own `cap`-prefixed infrastructure tables at startup; it does not create or migrate the Category business schema.
+
+Before running the validation, create the separate business receipt table manually:
+
+```bash
+docker compose -f dev-environment/docker-compose.yml exec -T mysql \
+  sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" aspros_category' \
+  < services/Xr.Category/database/002_create_cap_validation_receipt.sql
+```
+
+The Development-only validation endpoints exercise four reliability properties:
+
+1. **Transactional outbox commit**: a Category row and a CAP message are written in one CAP-aware EF Core transaction.
+2. **Transactional rollback**: a second Category row and its pending CAP message are written, then the same transaction is rolled back. Neither should become visible to the consumer.
+3. **Retry**: the consumer intentionally fails the first delivery of one event. CAP should redeliver it; the receipt should be written after the retry succeeds.
+4. **Idempotency**: two separate CAP messages carry the same business `EventId`. The consumer uses a MySQL primary key plus `INSERT IGNORE`, so both deliveries should create only one business receipt.
+
+Start the API in Development mode (RabbitMQ must be running):
+
+```bash
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project services/Xr.Category/src/Xr.Category.Api/Xr.Category.Api.csproj -- --urls http://localhost:7242
+```
+
+Start a validation run and retain the returned `runId`:
+
+```bash
+curl -i -X POST http://localhost:7242/_dev/validation/cap
+```
+
+Poll the result using that `runId`:
+
+```bash
+curl --fail http://localhost:7242/_dev/validation/cap/<runId>
+```
+
+The final response should report one committed Category row, zero rolled-back Category rows, at least two deliveries for the retry event with one receipt, at least two deliveries for the duplicate event with one receipt, and zero deliveries/receipts for the rolled-back message.
+
+The attempt counter is intentionally in memory because it is diagnostic evidence for this local test only. The business deduplication record is stored in MySQL so the idempotency key and business effect share the database's atomicity boundary. CAP delivery is at-least-once; consumers must remain idempotent. Do not interpret this local validation as an exactly-once delivery guarantee.
+
 ## Framework reference mode
 
 由于服务目前与 Framework 位于同一仓库，项目通过 `ProjectReference` 引用 Framework 源码，便于 RC 阶段同步开发和调试。待 Framework 包发布并确定服务版本策略后，再切换为 NuGet `PackageReference`。
