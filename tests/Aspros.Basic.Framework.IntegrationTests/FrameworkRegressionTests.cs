@@ -61,6 +61,7 @@ public sealed class FrameworkRegressionTests
     public void AddFrameworkHealthChecks_RegistersFrameworkSelfCheck()
     {
         var services = new ServiceCollection();
+        services.AddLogging();
         services.AddFrameworkHealthChecks();
 
         using var provider = services.BuildServiceProvider();
