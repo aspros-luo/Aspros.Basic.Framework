@@ -8,7 +8,7 @@ namespace Aspros.Base.Framework.Infrastructure;
 
 /// <summary>
 /// Default EF Core based Unit of Work implementation.
-Coordinates tracked changes and an optional explicit transaction.
+/// Coordinates tracked changes and an optional explicit transaction.
 /// 默认的 EF Core Unit of Work 实现。
 /// 负责协调 ChangeTracker 中的修改，以及按需开启的显式事务。
 /// </summary>
