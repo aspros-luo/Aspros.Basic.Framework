@@ -1,6 +1,6 @@
 # Aspros Basic Framework
 
-> **Release candidate:** `2.0.0-rc.1-rc.1` targeting `.NET 10`. This is not a stable release until the Docker regression and independent NuGet consumer checks pass.
+> **Release candidate:** `2.0.0-rc.1` targeting `.NET 10`. This is not a stable release until the Docker regression and independent NuGet consumer checks pass.
 
 面向 .NET 10 的轻量级业务基础框架，保持“少而够用”的工程边界。
 
@@ -270,6 +270,6 @@ The recommended one-command disposable acceptance run is:
 
 This validates the framework integration suite plus MySQL, Redis, RabbitMQ, Nacos and migration regression scenarios without enabling GitHub Actions.
 
-## 2.0.0 Migration note
+## 2.0.0-rc.1 Migration note
 
 `BasicEntity.Status` now uses `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus` instead of the root-namespace `Status` enum. This avoids collisions with business-owned status models; update explicit enum references when moving to this package line.

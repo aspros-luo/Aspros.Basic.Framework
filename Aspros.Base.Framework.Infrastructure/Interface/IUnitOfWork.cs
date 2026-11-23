@@ -87,14 +87,16 @@ public interface IUnitOfWork : IScoped
 
     /// <summary>
     /// Marks an entity as modified without immediately committing it.
-/// 标记实体为已修改，但不会立即提交数据库。
+    /// Tracked entities keep property-level change tracking; detached entities are treated as complete replacements.
+    /// 标记实体为已修改但不立即提交；已跟踪实体保留属性级变更，游离实体按完整对象更新。
 /// </summary>
     Task<bool> RegisterDirty<TEntity>(TEntity entity)
         where TEntity : class;
 
     /// <summary>
     /// Marks multiple entities as modified without immediately committing them.
-/// 批量标记实体为已修改，但不会立即提交数据库。
+    /// Tracked entities keep property-level change tracking; detached entities are treated as complete replacements.
+    /// 批量标记实体为已修改但不立即提交；已跟踪实体保留属性级变更，游离实体按完整对象更新。
 /// </summary>
     Task<bool> RegisterRangeDirty<TEntity>(IEnumerable<TEntity> entities)
         where TEntity : class;
@@ -134,8 +136,9 @@ public interface IUnitOfWork : IScoped
     Task<bool> CommitAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// Rolls back the explicit transaction asynchronously.
-/// 异步回滚显式事务。
+    /// Rolls back a transaction created by this UnitOfWork asynchronously.
+    /// An externally owned transaction must be rolled back by its owner.
+    /// 异步回滚由当前 UnitOfWork 创建的事务；外部事务必须由其所有者回滚。
 ///
 /// <para>
 /// The framework also clears EF Core tracked changes after rollback,
@@ -147,8 +150,9 @@ public interface IUnitOfWork : IScoped
     Task RollbackAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Rolls back the explicit transaction synchronously.
-/// 同步回滚显式事务。
+    /// Rolls back a transaction created by this UnitOfWork synchronously.
+    /// An externally owned transaction must be rolled back by its owner.
+    /// 同步回滚由当前 UnitOfWork 创建的事务；外部事务必须由其所有者回滚。
 /// </summary>
     void Rollback();
 }

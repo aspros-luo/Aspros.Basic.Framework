@@ -41,8 +41,9 @@ public sealed class UnitOfWork(
     /// 开启或复用一个显式事务。
     ///
     /// <para>
-    /// Passing an existing transaction means this Unit of Work does not own its lifetime.
-    /// 传入已有事务表示该事务的生命周期由外部调用方负责。
+    /// A supplied transaction must already be active on this same DbContext.
+    /// This UnitOfWork never commits, rolls back or disposes a caller-owned transaction.
+    /// 传入的事务必须已在同一个 DbContext 上开启；UnitOfWork 不会提交、回滚或释放外部事务。
     /// </para>
     /// </summary>
     public IDbContextTransaction BeginTransaction(
@@ -335,6 +336,12 @@ public sealed class UnitOfWork(
             return;
         }
 
+        if (!_ownsTransaction)
+        {
+            throw new InvalidOperationException(
+                "This UnitOfWork does not own the active transaction. Roll it back through its owner.");
+        }
+
         try
         {
             await DbContextTransaction.RollbackAsync(cancellationToken);
@@ -342,14 +349,7 @@ public sealed class UnitOfWork(
         finally
         {
             _dbContext.ClearTrackedChanges();
-
-            if (_ownsTransaction)
-            {
-                await DbContextTransaction.DisposeAsync();
-            }
-
-            DbContextTransaction = null;
-            _ownsTransaction = false;
+            await DisposeTransactionAsync();
         }
     }
 
@@ -366,6 +366,12 @@ public sealed class UnitOfWork(
             return;
         }
 
+        if (!_ownsTransaction)
+        {
+            throw new InvalidOperationException(
+                "This UnitOfWork does not own the active transaction. Roll it back through its owner.");
+        }
+
         try
         {
             DbContextTransaction.Rollback();
@@ -374,7 +380,7 @@ public sealed class UnitOfWork(
         {
             _dbContext.ClearTrackedChanges();
 
-            if (_ownsTransaction)
+            if (DbContextTransaction is not null)
             {
                 DbContextTransaction.Dispose();
             }
@@ -383,6 +389,7 @@ public sealed class UnitOfWork(
             _ownsTransaction = false;
         }
     }
+
 
     /// <summary>
     /// Keeps EF Core's property-level change tracking for entities loaded by this DbContext.
@@ -467,4 +474,5 @@ public sealed class UnitOfWork(
         await DbContextTransaction.DisposeAsync();
         DbContextTransaction = null;
         _ownsTransaction = false;
-    }}
+    }
+}

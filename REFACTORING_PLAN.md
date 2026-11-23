@@ -12,7 +12,7 @@ Do not merge the DDD-hardening, business-driven-refactor, or v10-refactor branch
 - Framework packages use version `2.0.0-rc.1`; the target-framework change is a breaking package line.
 - Microsoft EF Core / ASP.NET Core packages are aligned to `10.0.15`.
 - CAP packages are aligned to `10.0.2`.
-- The MySQL migration fixture uses Oracle `MySql.EntityFrameworkCore 10.0.9`.
+- The MySQL migration fixture uses Oracle `MySql.EntityFrameworkCore 10.0.12`.
 - No GitHub Actions workflows are to be added or triggered as part of this work.
 
 ## Architecture boundaries to preserve
@@ -57,7 +57,7 @@ The full-regression command also packs the three `2.0.0-rc.1` packages and verif
 
 The branch is a release candidate, not a published stable release. The public `BasicEntity.Status` enum was moved to `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`; consumers referencing the old root-namespace enum must update that type reference.
 
-Source and project-file inspection is not a runtime PASS. A gate is PASS only after its command has actually executed and succeeded. Until a .NET 10 SDK/Docker runtime is available, builds, integration tests, migrations, gRPC smoke tests, and external-consumer startup remain BLOCKED.
+Source and project-file inspection is not a runtime PASS. A gate is PASS only after its command has actually executed and succeeded. This session cannot access your local Docker runtime, so builds, integration tests, migrations, gRPC smoke tests, and external-consumer startup remain BLOCKED until you run the acceptance command.
 
 ## Out of scope for this upgrade
 

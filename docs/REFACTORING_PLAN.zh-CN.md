@@ -12,7 +12,7 @@
 - Framework NuGet 包统一为 `2.0.0-rc.1`；目标框架升级属于破坏性包版本变更。
 - Microsoft EF Core / ASP.NET Core 包对齐到 `10.0.15`。
 - CAP 包对齐到 `10.0.2`。
-- MySQL Migration Fixture 使用 Oracle `MySql.EntityFrameworkCore 10.0.9`。
+- MySQL Migration Fixture 使用 Oracle `MySql.EntityFrameworkCore 10.0.12`。
 - 不新增、不触发 GitHub Actions workflow。
 
 ## 必须保留的架构边界
@@ -57,7 +57,7 @@ docker compose --profile infra --profile full-regression run --rm framework-full
 
 当前分支是发布候选，不是已经发布的稳定版本。公共类型 `BasicEntity.Status` 的枚举已从根命名空间迁移到 `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`；引用旧根命名空间枚举的消费者需要调整类型引用。
 
-静态检查不等于 Runtime PASS。只有真实执行命令并成功后，验收项才可以标记为 PASS。当前执行环境没有 .NET SDK 或 Docker，因此 solution build、集成测试、数据库迁移、gRPC smoke test 和独立包消费者启动均尚未获得运行时通过结果。
+静态检查不等于 Runtime PASS。只有真实执行命令并成功后，验收项才可以标记为 PASS。本次会话未能访问你的本地 Docker Runtime，因此 solution build、集成测试、数据库迁移、gRPC smoke test 和独立包消费者启动均尚未获得运行时通过结果。
 
 ## 本次升级不包含
 
