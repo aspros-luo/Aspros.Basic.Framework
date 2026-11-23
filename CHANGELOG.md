@@ -1,3 +1,8 @@
+## 2026-11-23 — gRPC test namespace qualification
+
+- Qualified the test service's `ServerCallContext` reference as `global::Grpc.Core.ServerCallContext`. The test namespace itself contains a `Grpc` child namespace, so the unqualified namespace path was resolved relatively as `Aspros.Basic.Framework.IntegrationTests.Grpc.Core` rather than the root `Grpc.Core` namespace.
+- This is a C# namespace resolution collision, not a missing gRPC package or missing generated protobuf type.
+- The source correction is committed; Docker compilation and xUnit execution remain unverified pending the next run.
 ## 2026-11-23 — Integration test compile alignment
 
 ### Compile fixes
