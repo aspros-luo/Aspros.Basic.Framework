@@ -4,7 +4,7 @@ using Xr.Category.Domain;
 
 namespace Xr.Category.Infrastructure;
 
-public sealed class CategoryRepository(CategoryDbContext dbContext)
+public sealed class CategoryRepository(IDbContext dbContext)
     : BaseRepository<Category>(dbContext), ICategoryRepository, IScoped
 {
     public Task<Category?> FindActiveByIdAsync(
