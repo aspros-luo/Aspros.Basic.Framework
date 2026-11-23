@@ -45,4 +45,4 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 | GitHub Actions | Workflow 文件 | PASS：按约定保持 0 个 |
 
 不能把“源码已经写好”或“测试代码已经存在”标成 PASS。
-当前环境没有 dotnet / Docker，因此 Runtime 项目前保持 BLOCKED，直到在可运行的 Docker + .NET 10 环境执行一键验收命令。
+基础 Docker 执行目前只验证了 Restore / Build / EF CLI。测试运行器配置已经调整，仍需重新执行 Docker 回归；在实际测试完成之前，所有 xUnit 与 Provider / Runtime 项目继续保持 BLOCKED。
