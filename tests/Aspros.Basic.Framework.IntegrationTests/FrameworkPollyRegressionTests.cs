@@ -38,7 +38,7 @@ public sealed class FrameworkPollyRegressionTests
             Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         }
 
-        await Assert.ThrowsAsync<BrokenCircuitException>(
+        await Assert.ThrowsAsync<BrokenCircuitException<HttpResponseMessage>>(
             () => policy.ExecuteAsync(
                 () => Task.FromResult(
                     new HttpResponseMessage(HttpStatusCode.OK))));
