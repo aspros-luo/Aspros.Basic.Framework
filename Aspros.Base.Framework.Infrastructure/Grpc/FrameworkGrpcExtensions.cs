@@ -123,7 +123,7 @@ public static class FrameworkGrpcExtensions
 /// outlive the original request unnecessarily.
 /// 适用于 Service → Service 调用，避免下游请求无意义地超过上游请求生命周期。
 /// </para>
-///
+/// </summary>
 /// <param name="suppressMissingContextErrors">
 /// If true, do not throw when there is no active gRPC call context.
 /// 如果为 true，当当前代码并不处于 gRPC 调用上下文时，不因为缺少 context 而抛异常。
