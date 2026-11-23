@@ -3,11 +3,15 @@ using Xr.Category.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Register the DbContext before scanning its assembly.
+// AddAsprosDbContext maps IDbContext to the same scoped CategoryDbContext instance
+// used by repositories and the UnitOfWork.
+builder.Services.AddCategoryInfrastructure(builder.Configuration);
+
 builder.Services.AddAsprosFramework(
     typeof(Xr.Category.Application.AssemblyMarker).Assembly,
     typeof(Xr.Category.Infrastructure.AssemblyMarker).Assembly);
 
-builder.Services.AddCategoryInfrastructure(builder.Configuration);
 builder.Services.AddControllers();
 
 var app = builder.Build();
