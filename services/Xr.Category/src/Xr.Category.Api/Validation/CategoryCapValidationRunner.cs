@@ -3,7 +3,6 @@ using DotNetCore.CAP;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xr.Category.Api.Messaging;
-using Xr.Category.Domain;
 using Xr.Category.Infrastructure;
 using CategoryEntity = Xr.Category.Domain.Category;
 
@@ -120,7 +119,10 @@ public sealed class CategoryCapValidationRunner(
         var outboxRollbackPassed =
             rollbackAttempts == 0 && rollbackReceiptCount == 0;
 
-        var completed =
+        var completed = retryAttempts >= 2 && duplicateAttempts >= 2;
+
+        var passed =
+            completed &&
             businessCommitPassed &&
             businessRollbackPassed &&
             retryPassed &&
@@ -129,7 +131,7 @@ public sealed class CategoryCapValidationRunner(
 
         return new CategoryCapValidationStatusResponse(
             completed,
-            completed,
+            passed,
             run.RunId,
             committedBusinessRows,
             rolledBackBusinessRows,
