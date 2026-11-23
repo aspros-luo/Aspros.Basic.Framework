@@ -36,7 +36,7 @@ The latest user Docker run successfully compiled Infrastructure and IntegrationT
 | Rate Limit | real 429; supplied by the ASP.NET Core shared framework | BLOCKED runtime; test wired |
 | Domain BasicEntity | `Status` property typed as `ValueObjects.EntityStatus` | STATIC VERIFIED; compile fix committed, rerun pending |
 | UnitOfWork source syntax | XML documentation comments parsed as comments, not C# statements | STATIC VERIFIED; missing `///` fixed, rerun pending |
-| Test platform | xUnit v3 / MTP v2 / native .NET 10 dotnet test integration | STATIC VERIFIED; compile/run rerun required |
+| Test platform | xUnit v3 / MTP v2 / native .NET 10 dotnet test integration | PASS: runner executed all 44 tests; 33 passed and 11 test cases failed |
 | Dependency security | CAP MySQL MySqlConnector pinned to patched 2.6.2; ASP.NET Core Rate Limiting uses FrameworkReference | STATIC VERIFIED; restore/build passed |
 | Permission | allow / deny 403 / unavailable 503 | BLOCKED runtime; test wired |
 | Nacos | real registration + healthy discovery | BLOCKED runtime; provider test wired |
@@ -47,4 +47,4 @@ The latest user Docker run successfully compiled Infrastructure and IntegrationT
 | GitHub Actions | workflow files | PASS: none present by design |
 
 Static verification must never be reported as runtime PASS.
-The latest Docker attempt passed Infrastructure compilation but stopped in IntegrationTests because the rate-limiter test extension namespace was missing; the import is now corrected. Previous source syntax and XML documentation errors were also corrected in earlier commits. This is not a substitute for compilation; all xUnit and provider/runtime rows remain BLOCKED until Docker rerun completes.
+The latest Docker run compiled Infrastructure and IntegrationTests and successfully launched the xUnit runner (44 tests: 33 passed, 11 failed). The 11 test setup/assertion corrections described above are committed and await rerun. Compilation success and runner startup do not mean the regression suite has passed; all affected runtime/provider rows remain BLOCKED until a clean Docker rerun.
