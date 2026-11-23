@@ -38,7 +38,6 @@ docker compose --profile infra --profile full-regression run --rm framework-full
 | Redis | 真实 distributed-cache 写入/读取 | BLOCKED Runtime；测试已接线 |
 | Utilities | Paging / String / Enum / ResultModel / DisposableAction | BLOCKED Runtime；测试已接线 |
 | WorkContext | 认证 Claims 优先 | BLOCKED Runtime；测试已接线 |
-| Consumer Compatibility | Xr.User / Xr.Category / Xr.Identity / Xr.Mahjong | STATIC VERIFIED |
 | GitHub Actions | Workflow 文件 | PASS：按约定保持 0 个 |
 
 不能把“源码已经写好”或“测试代码已经存在”标成 PASS。

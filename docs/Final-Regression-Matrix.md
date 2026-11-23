@@ -38,7 +38,6 @@ The command performs restore, dotnet-ef verification, full solution build, the c
 | Redis | real distributed-cache write/read | BLOCKED runtime; test wired |
 | Utilities | Paging / String / Enum / ResultModel / DisposableAction | BLOCKED runtime; test wired |
 | WorkContext | authenticated claims preference | BLOCKED runtime; test wired |
-| Consumer compatibility | Xr.User / Xr.Category / Xr.Identity / Xr.Mahjong | STATIC VERIFIED |
 | GitHub Actions | workflow files | PASS: none present by design |
 
 Static verification must never be reported as runtime PASS.

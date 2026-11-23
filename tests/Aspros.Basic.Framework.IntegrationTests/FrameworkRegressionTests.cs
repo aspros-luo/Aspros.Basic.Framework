@@ -162,7 +162,7 @@ public sealed class FrameworkRegressionTests
 
         var services = new ServiceCollection();
         services.AddDbContext<MySqlTestDbContext>(options =>
-            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+            options.UseMySQL(connectionString));
 
         var received = new TaskCompletionSource<string>(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -300,7 +300,7 @@ public sealed class FrameworkRegressionTests
         var services = new ServiceCollection();
         services.AddScoped<IWorkContext, TestWorkContext>();
         services.AddAsprosDbContext<MySqlTestDbContext>(options =>
-            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+            options.UseMySQL(connectionString));
         services.AddScoped<IDbContext>(sp => sp.GetRequiredService<MySqlTestDbContext>());
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IDapperExecutor, DapperExecutor>();

@@ -9,7 +9,7 @@
 
 ### Dependency and verification hygiene
 - Updated .NET 10 / EF Core / ASP.NET package references to 10.0.15, gRPC packages to 2.85.0, HTTP resilience to 10.11.1, and the Oracle MySQL EF provider to 10.0.12.
-- Removed direct Infrastructure dependencies that had no implementation usage: SkyAPM, Mapster, AspectCore, MassTransit, MVC Newtonsoft integration, JwtBearer, and the Oracle MySQL EF provider. The migration fixture retains its own MySQL provider dependency.
+- Removed direct Infrastructure dependencies that had no implementation usage: SkyAPM, Mapster, AspectCore, MassTransit, MVC Newtonsoft integration, JwtBearer, and the Oracle MySQL EF provider. The Oracle MySQL EF provider remains outside Infrastructure and is referenced directly only by the disposable migration fixture and MySQL integration-test project that configure concrete MySQL DbContexts.
 - Made the full Docker regression delegate to one script and included the packed NuGet consumer check in the release gate.
 - Added the standard StackExchange Redis registration example without introducing another cache abstraction.
 
