@@ -142,7 +142,7 @@ Consumer 暴露 GET /core/ping，通过框架注册的 gRPC ClientFactory 调用
 
 当前代码基线为 .NET 10；框架本身保持业务无关，EF Core 10 作为默认 ORM 基线，MySQL 迁移夹具使用 Oracle MySQL EF Core 10 Provider。
 
-## 本地 Smoke Test
+## 本地 API Smoke Test
 
 先启动 Provider：
 
@@ -152,11 +152,11 @@ Consumer 暴露 GET /core/ping，通过框架注册的 gRPC ClientFactory 调用
 
     dotnet run --project samples/Framework.Core.Consumer
 
-然后访问：
+直接调用 Consumer HTTP API：
 
-    https://localhost:7141/core/ping?message=hello
+    curl "http://localhost:7141/core/ping?message=hello"
 
-也可以直接打开 samples/Framework.Core.Consumer/SmokeTests.http，在 Rider 或 Visual Studio 中执行请求。
+Provider 健康检查地址为 http://localhost:8080/health，gRPC 地址为 http://localhost:7041。可在 Rider 或 Visual Studio 中打开 samples/Framework.Core.Consumer/SmokeTests.http 执行示例请求。
 
 ## Service Discovery
 
@@ -247,8 +247,6 @@ The optional CLI is packaged as `Aspros.Basic.Framework.Tools` (the commands bel
     # After the release candidate is published to NuGet:
     dotnet tool install --global Aspros.Basic.Framework.Tools --version 2.0.0-rc.1 --prerelease
 
-    # Or install the package produced by the local regression script:
-    dotnet tool install --global Aspros.Basic.Framework.Tools --version 2.0.0-rc.1 --add-source ./dev-environment/.packages
     aspros db migration add InitialCreate --project ./Xr.Trade.Infrastructure --startup-project ./Xr.Trade.Api --context TradeDbContext
     aspros db migration script --project ./Xr.Trade.Infrastructure --startup-project ./Xr.Trade.Api --context TradeDbContext --idempotent
 
