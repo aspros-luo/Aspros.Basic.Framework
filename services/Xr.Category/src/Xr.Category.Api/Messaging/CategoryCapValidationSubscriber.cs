@@ -1,6 +1,5 @@
 using DotNetCore.CAP;
 using Microsoft.EntityFrameworkCore;
-using Xr.Category.Api.Messaging;
 using Xr.Category.Infrastructure;
 
 namespace Xr.Category.Api.Messaging;
