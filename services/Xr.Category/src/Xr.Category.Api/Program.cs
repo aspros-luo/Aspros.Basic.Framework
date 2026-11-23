@@ -1,7 +1,9 @@
 using Aspros.Base.Framework.Infrastructure;
+using DotNetCore.CAP;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using CategoryEntity = Xr.Category.Domain.Category;
+using Xr.Category.Api.Messaging;
+using Xr.Category.Api.Validation;
 using Xr.Category.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +26,33 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddAsprosFramework(
     typeof(Xr.Category.Application.AssemblyMarker).Assembly,
     typeof(Xr.Category.Infrastructure.AssemblyMarker).Assembly);
+
+var rabbitMqConfiguration = builder.Configuration.GetSection("RabbitMQ");
+var rabbitMqHost = rabbitMqConfiguration["HostName"]
+    ?? throw new InvalidOperationException("RabbitMQ:HostName must be configured.");
+var rabbitMqUser = rabbitMqConfiguration["UserName"]
+    ?? throw new InvalidOperationException("RabbitMQ:UserName must be configured.");
+var rabbitMqPassword = rabbitMqConfiguration["Password"]
+    ?? throw new InvalidOperationException("RabbitMQ:Password must be configured.");
+var rabbitMqVirtualHost = rabbitMqConfiguration["VirtualHost"] ?? "/";
+var rabbitMqPort = rabbitMqConfiguration.GetValue<int>("Port", 5672);
+
+builder.Services.AddSingleton<CategoryCapValidationState>();
+builder.Services.AddTransient<CategoryCapValidationSubscriber>();
+builder.Services.AddSingleton<CategoryCapValidationRunner>();
+
+builder.Services.AddFrameworkCap<CategoryDbContext>(options =>
+{
+    options.UseRabbitMQ(rabbitMq =>
+    {
+        rabbitMq.HostName = rabbitMqHost;
+        rabbitMq.Port = rabbitMqPort;
+        rabbitMq.UserName = rabbitMqUser;
+        rabbitMq.Password = rabbitMqPassword;
+        rabbitMq.VirtualHost = rabbitMqVirtualHost;
+        rabbitMq.PublishConfirms = true;
+    });
+});
 
 builder.Services.AddControllers();
 
@@ -168,6 +197,29 @@ if (app.Environment.IsDevelopment())
             statusCode: passed
                 ? StatusCodes.Status200OK
                 : StatusCodes.Status500InternalServerError);
+    });
+
+    app.MapPost("/_dev/validation/cap", async (
+        CategoryCapValidationRunner runner,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await runner.StartAsync(cancellationToken);
+
+        return Results.Accepted(
+            $"/_dev/validation/cap/{result.RunId}",
+            result);
+    });
+
+    app.MapGet("/_dev/validation/cap/{runId}", async (
+        string runId,
+        CategoryCapValidationRunner runner,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await runner.GetStatusAsync(
+            runId,
+            cancellationToken);
+
+        return result is null ? Results.NotFound() : Results.Ok(result);
     });
 }
 
