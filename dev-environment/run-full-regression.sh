@@ -30,7 +30,7 @@ echo "== Solution build =="
 dotnet build Aspros.Base.Framework.sln --no-restore
 
 echo "== Full xUnit regression =="
-dotnet test   tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj   --no-restore   --no-build
+dotnet test --project tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --no-restore --no-build
 
 echo "== MySQL migration regression =="
 bash dev-environment/run-migration-regression.sh
