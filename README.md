@@ -268,3 +268,9 @@ Framework xUnit and migration test sources remain in tests/, but their Docker ex
 ## 2.0.0-rc.1 Migration note
 
 `BasicEntity.Status` now uses `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus` instead of the root-namespace `Status` enum. This avoids collisions with business-owned status models; update explicit enum references when moving to this package line.
+
+## Business Services
+
+The `services/` directory contains deployable business services and is kept separate from `samples/` (framework examples). Each service owns its solution and runtime entry point.
+
+The first service scaffold is [Xr.Category](services/Xr.Category/README.md). It uses the four-layer structure and the current Framework source projects. The service has its own solution and is not added to the Framework solution.
