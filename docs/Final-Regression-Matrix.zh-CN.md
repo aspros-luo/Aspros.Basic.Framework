@@ -14,7 +14,12 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 一次执行 restore、dotnet-ef、Solution Build、全部 xUnit、MySQL Migration 回归，以及三个 NuGet 包的打包与独立 API 消费者验证；临时环境提供真实 MySQL / Redis / RabbitMQ / Nacos。
 
-最新 Docker 执行已成功编译 Infrastructure 和 IntegrationTests（Infrastructure 41 个警告、IntegrationTests 99 个警告），并真正运行了 44 个 xUnit 测试：33 通过、11 失败。编译阻塞已清除。11 个失败已定位并修正测试接线/断言：5 个条件跳过测试缺少 xUnit 要求的 Skip 消息；CAP 与 HealthChecks 的独立 ServiceCollection 测试未注册 Logging；AddAsprosFramework 的 UoW 测试未提供业务侧必须注册的 IDbContext；限流测试未显式配置 429（ASP.NET Core 默认拒绝码为 503）；Polly 断言未匹配泛型熔断异常；软删除测试错误地期待未提交的逻辑删除改变数据库查询结果。修正仅涉及测试代码，没有改变生产框架行为，现等待下一次 Docker 运行确认。Infrastructure 的 RSA 可空性、EF Core 过时 QueryFilter API、QueryString 可空性警告，以及 IntegrationTests 的 xUnit1051 警告仍待独立处理。
+最新一次 Docker 执行成功编译 Infrastructure 和 IntegrationTests（Infrastructure 41 个警告、IntegrationTests 98 个警告），并运行了全部 44 个 xUnit 测试：38 通过、4 跳过、2 失败。4 个跳过项是 Redis（2 项）、Nacos（1 项）和 RabbitMQ/CAP（1 项）；基础测试配置了 MySQL，因此 MySQL/UoW/Dapper 测试实际执行。两个失败均为测试夹具问题，而非已证实的生产代码缺陷：
+
+1. MySQL/UoW/Dapper 测试使用固定名称，Docker MySQL volume 会跨运行保留数据，导致重复执行时计数从 1 变成 2。已改为每次运行生成唯一 marker，并在断言后清理该行。
+2. CAP Publisher 注册测试使用 EF Core InMemory，但 CAP 的 EF 存储需要关系型 Provider 和连接字符串。已改为使用 MySQL EF Provider 配置测试 DbContext。
+
+以上修正已提交到 release 分支，尚未经过下一次 Docker 运行验证。当前警告数为 Infrastructure 41、IntegrationTests 98；RSA 空值安全、EF Core 过时 QueryFilter API、QueryString 可空性和 xUnit1051 警告仍应单独审查。
 
 | Area | 覆盖内容 | 当前状态 |
 |---|---|---|
