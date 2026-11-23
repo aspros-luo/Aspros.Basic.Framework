@@ -14,7 +14,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 The command performs restore, dotnet-ef verification, full solution build, the complete xUnit regression suite, MySQL migration regression, and the packed NuGet consumer regression. Disposable infrastructure contains MySQL, Redis, RabbitMQ and Nacos.
 
-The lightweight test profile has reached restore, solution build, EF CLI verification (10.0.15), and native MTP test startup. The latest attempt failed while compiling Infrastructure: one missing `///` prefix inside UnitOfWork XML documentation caused a cascade of ten C# syntax diagnostics. That source line and a separate unclosed gRPC XML summary have been corrected; no xUnit assertions have run successfully yet.
+The lightweight test profile has passed restore, solution build and EF CLI verification (10.0.15), and reached project compilation before native MTP test execution. The latest attempt failed while compiling Infrastructure: the legacy `PermissionMiddleware` lives in a consuming-project namespace and attempted to inherit from the sealed framework-native middleware. The project-coupled compatibility wrapper and its `UsePermissionValid` extension are now temporarily commented out. The framework-native permission middleware remains independent and sealed; no xUnit assertions have run successfully yet.
 
 | Area | Coverage | Current status |
 |---|---|---|
