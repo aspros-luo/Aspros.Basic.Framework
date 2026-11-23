@@ -14,7 +14,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 一次执行 restore、dotnet-ef、Solution Build、全部 xUnit、MySQL Migration 回归，以及三个 NuGet 包的打包与独立 API 消费者验证；临时环境提供真实 MySQL / Redis / RabbitMQ / Nacos。
 
-基础 test profile 已实际运行过一次：Solution Restore 和 Build 成功，dotnet-ef 输出 10.0.15；随后测试进程在发现测试之前退出，原因是尚未启用 .NET 10 原生 Microsoft Testing Platform Runner。这次没有执行任何 xUnit 断言。
+基础 test profile 已推进到 Restore、Solution Build、EF CLI（10.0.15）和原生 MTP 测试启动阶段。随后发现 `BasicEntity.cs` 存在编译错误，根因是发布候选重命名枚举时误改了属性声明；源码修复已提交，但目前仍没有成功执行 xUnit 断言。
 
 | Area | 覆盖内容 | 当前状态 |
 |---|---|---|
@@ -34,6 +34,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 | Polly Fallback | transient exception -> 503 | BLOCKED Runtime；测试已接线 |
 | Health | live / ready HTTP | BLOCKED Runtime；测试已接线 |
 | Rate Limit | 实际 HTTP 429；由 ASP.NET Core Shared Framework 提供 | BLOCKED Runtime；测试已接线 |
+| Domain BasicEntity | `Status` 属性使用 `ValueObjects.EntityStatus` 类型 | STATIC VERIFIED；编译修复已提交，等待重新执行 |
 | Test Platform | xUnit v3 / MTP v2 / .NET 10 原生 dotnet test 集成 | STATIC VERIFIED；等待重新执行 |
 | Dependency Security | CAP MySQL 的 MySqlConnector 固定到修复版 2.6.2；ASP.NET Core Rate Limiting 使用 FrameworkReference | STATIC VERIFIED；Restore / Build 已通过 |
 | Permission | allow / deny 403 / unavailable 503 | BLOCKED Runtime；测试已接线 |
@@ -45,4 +46,4 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 | GitHub Actions | Workflow 文件 | PASS：按约定保持 0 个 |
 
 不能把“源码已经写好”或“测试代码已经存在”标成 PASS。
-基础 Docker 执行目前只验证了 Restore / Build / EF CLI。测试运行器配置已经调整，仍需重新执行 Docker 回归；在实际测试完成之前，所有 xUnit 与 Provider / Runtime 项目继续保持 BLOCKED。
+最新 Docker 执行已推进到 Domain 编译阶段，随后被 `BasicEntity.Status` 的语法错误阻断；该声明已修复，但尚未完成回归。在实际测试完成之前，所有 xUnit 与 Provider / Runtime 项目继续保持 BLOCKED。
