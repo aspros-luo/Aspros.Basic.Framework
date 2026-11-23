@@ -10,9 +10,11 @@
 
 一键验收：
 cd dev-environment
-docker compose --profile infra --profile full-regression run --rm framework-full-regression
+docker compose --profile infra --profile full-regression run --build --rm framework-full-regression
 
 一次执行 restore、dotnet-ef、Solution Build、全部 xUnit、MySQL Migration 回归，以及三个 NuGet 包的打包与独立 API 消费者验证；临时环境提供真实 MySQL / Redis / RabbitMQ / Nacos。
+
+基础 test profile 已实际运行过一次：Solution Restore 和 Build 成功，dotnet-ef 输出 10.0.15；随后测试进程在发现测试之前退出，原因是尚未启用 .NET 10 原生 Microsoft Testing Platform Runner。这次没有执行任何 xUnit 断言。
 
 | Area | 覆盖内容 | 当前状态 |
 |---|---|---|
@@ -32,7 +34,8 @@ docker compose --profile infra --profile full-regression run --rm framework-full
 | Polly Fallback | transient exception -> 503 | BLOCKED Runtime；测试已接线 |
 | Health | live / ready HTTP | BLOCKED Runtime；测试已接线 |
 | Rate Limit | 实际 HTTP 429；由 ASP.NET Core Shared Framework 提供 | BLOCKED Runtime；测试已接线 |
-| Dependency Security | CAP MySQL 的 MySqlConnector 固定到修复版 2.6.2；ASP.NET Core Rate Limiting 使用 FrameworkReference | STATIC VERIFIED；等待 Restore |
+| Test Platform | xUnit v3 / MTP v2 / .NET 10 原生 dotnet test 集成 | STATIC VERIFIED；等待重新执行 |
+| Dependency Security | CAP MySQL 的 MySqlConnector 固定到修复版 2.6.2；ASP.NET Core Rate Limiting 使用 FrameworkReference | STATIC VERIFIED；Restore / Build 已通过 |
 | Permission | allow / deny 403 / unavailable 503 | BLOCKED Runtime；测试已接线 |
 | Nacos | 真实注册 + 健康实例发现 | BLOCKED Runtime；Provider 测试已接线 |
 | CAP | EF transaction + RabbitMQ 发布/消费 | BLOCKED Runtime；Provider 测试已接线 |
