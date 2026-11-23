@@ -11,6 +11,16 @@ var builder = WebApplication.CreateBuilder(args);
 // used by repositories and the UnitOfWork.
 builder.Services.AddCategoryInfrastructure(builder.Configuration);
 
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
+    ?? throw new InvalidOperationException(
+        "ConnectionStrings:Redis must be configured.");
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnectionString;
+    options.InstanceName = "xr-category:";
+});
+
 builder.Services.AddAsprosFramework(
     typeof(Xr.Category.Application.AssemblyMarker).Assembly,
     typeof(Xr.Category.Infrastructure.AssemblyMarker).Assembly);
