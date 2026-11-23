@@ -14,7 +14,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 一次执行 restore、dotnet-ef、Solution Build、全部 xUnit、MySQL Migration 回归，以及三个 NuGet 包的打包与独立 API 消费者验证；临时环境提供真实 MySQL / Redis / RabbitMQ / Nacos。
 
-最新 Docker 执行已成功编译 Infrastructure（41 个警告），IntegrationTests 先后暴露 16 个编译错误，随后剩余 1 个错误：测试文件遗漏 `Microsoft.AspNetCore.RateLimiting`，导致无法解析 `RateLimiterOptions.AddFixedWindowLimiter`。该方法属于 .NET 10 ASP.NET Core Rate Limiting API，项目 FrameworkReference 已存在，根因只是测试文件缺少 using；现已补齐。此前测试项目引用、Distributed Cache / Nacos 命名空间、`CreateClient`、`ChangeTracker.Clear()` 和 gRPC `global::` 限定也已修正。本轮所有修改仍待下一次 Docker 编译确认，xUnit 断言尚未成功执行。Infrastructure 的 RSA 可空性、EF Core 过时 QueryFilter API、QueryString 可空性警告仍待独立处理。
+最新 Docker 执行已成功编译 Infrastructure 和 IntegrationTests（Infrastructure 41 个警告、IntegrationTests 99 个警告），并真正运行了 44 个 xUnit 测试：33 通过、11 失败。编译阻塞已清除。11 个失败已定位并修正测试接线/断言：5 个条件跳过测试缺少 xUnit 要求的 Skip 消息；CAP 与 HealthChecks 的独立 ServiceCollection 测试未注册 Logging；AddAsprosFramework 的 UoW 测试未提供业务侧必须注册的 IDbContext；限流测试未显式配置 429（ASP.NET Core 默认拒绝码为 503）；Polly 断言未匹配泛型熔断异常；软删除测试错误地期待未提交的逻辑删除改变数据库查询结果。修正仅涉及测试代码，没有改变生产框架行为，现等待下一次 Docker 运行确认。Infrastructure 的 RSA 可空性、EF Core 过时 QueryFilter API、QueryString 可空性警告，以及 IntegrationTests 的 xUnit1051 警告仍待独立处理。
 
 | Area | 覆盖内容 | 当前状态 |
 |---|---|---|
@@ -47,4 +47,4 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 | GitHub Actions | Workflow 文件 | PASS：按约定保持 0 个 |
 
 不能把“源码已经写好”或“测试代码已经存在”标成 PASS。
-最新 Docker 执行已通过 Infrastructure 编译，但 IntegrationTests 因 `AddFixedWindowLimiter` 缺少 using 而失败；测试文件已补齐 `Microsoft.AspNetCore.RateLimiting`，仍待重新运行确认。前序 Domain、UnitOfWork 文档注释及 gRPC XML 文档问题已分别修复，但尚未取得完整编译和测试结果。所有 xUnit 与 Provider / Runtime 项目继续保持 BLOCKED。
+最新 Docker 执行已通过 Infrastructure 与 IntegrationTests 编译，xUnit 执行结果为 33/44 通过、11 失败。上述 11 个测试接线/断言问题已在测试代码中修正，仍待重新运行确认；不得将本轮编译成功等同于回归通过。所有 xUnit 与 Provider / Runtime 项目继续保持 BLOCKED，直到取得真实 PASS 结果。
