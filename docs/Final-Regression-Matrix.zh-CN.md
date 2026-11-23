@@ -36,7 +36,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 | Rate Limit | 实际 HTTP 429；由 ASP.NET Core Shared Framework 提供 | BLOCKED Runtime；测试已接线 |
 | Domain BasicEntity | `Status` 属性使用 `ValueObjects.EntityStatus` 类型 | STATIC VERIFIED；编译修复已提交，等待重新执行 |
 | UnitOfWork Source Syntax | XML 文档注释应被识别为注释，而不是 C# 语句 | STATIC VERIFIED；漏写 `///` 已修复，等待重新执行 |
-| Test Platform | xUnit v3 / MTP v2 / .NET 10 原生 dotnet test 集成 | STATIC VERIFIED；编译及运行仍待确认 |
+| Test Platform | xUnit v3 / MTP v2 / .NET 10 原生 dotnet test 集成 | PASS：运行器成功执行 44 项测试（33 通过、11 项测试失败，失败项单独跟踪） |
 | Dependency Security | CAP MySQL 的 MySqlConnector 固定到修复版 2.6.2；ASP.NET Core Rate Limiting 使用 FrameworkReference | STATIC VERIFIED；Restore / Build 已通过 |
 | Permission | allow / deny 403 / unavailable 503 | BLOCKED Runtime；测试已接线 |
 | Nacos | 真实注册 + 健康实例发现 | BLOCKED Runtime；Provider 测试已接线 |
