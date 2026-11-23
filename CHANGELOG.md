@@ -1,3 +1,10 @@
+## 2026-11-23 — .NET 10 restore and dependency security fix
+
+### Restore correctness
+- Replaced the non-existent `Microsoft.AspNetCore.RateLimiting 10.0.15` package reference with the `Microsoft.AspNetCore.App` framework reference. Rate limiting is supplied by the ASP.NET Core shared framework; do not add the retired 7.0 RC-only package or pin it to an older release.
+- Pinned the transitive `MySqlConnector` dependency brought by `DotNetCore.CAP.MySql 10.0.2` to patched version `2.6.2` (the minimum patched release for GHSA-473q-m89c-ghf8 is 2.6.1).
+- These changes correct dependency resolution and the known vulnerability warning; a successful restore/build still needs to be confirmed in the user's Docker environment.
+
 ## 2026-11-23 — Release candidate 2.0.0-rc.1 hardening
 
 ### Correctness and API clarity

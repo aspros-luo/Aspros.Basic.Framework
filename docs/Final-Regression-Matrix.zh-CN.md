@@ -31,7 +31,8 @@ docker compose --profile infra --profile full-regression run --rm framework-full
 | Polly Circuit Breaker | 连续故障后熔断 | BLOCKED Runtime；测试已接线 |
 | Polly Fallback | transient exception -> 503 | BLOCKED Runtime；测试已接线 |
 | Health | live / ready HTTP | BLOCKED Runtime；测试已接线 |
-| Rate Limit | 实际 HTTP 429 | BLOCKED Runtime；测试已接线 |
+| Rate Limit | 实际 HTTP 429；由 ASP.NET Core Shared Framework 提供 | BLOCKED Runtime；测试已接线 |
+| Dependency Security | CAP MySQL 的 MySqlConnector 固定到修复版 2.6.2；ASP.NET Core Rate Limiting 使用 FrameworkReference | STATIC VERIFIED；等待 Restore |
 | Permission | allow / deny 403 / unavailable 503 | BLOCKED Runtime；测试已接线 |
 | Nacos | 真实注册 + 健康实例发现 | BLOCKED Runtime；Provider 测试已接线 |
 | CAP | EF transaction + RabbitMQ 发布/消费 | BLOCKED Runtime；Provider 测试已接线 |

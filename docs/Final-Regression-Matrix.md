@@ -31,7 +31,8 @@ The command performs restore, dotnet-ef verification, full solution build, the c
 | Polly Circuit Breaker | open after transient failures | BLOCKED runtime; test wired |
 | Polly Fallback | transient exception -> 503 | BLOCKED runtime; test wired |
 | Health | live/readiness HTTP | BLOCKED runtime; test wired |
-| Rate Limit | real 429 | BLOCKED runtime; test wired |
+| Rate Limit | real 429; supplied by the ASP.NET Core shared framework | BLOCKED runtime; test wired |
+| Dependency security | CAP MySQL MySqlConnector pinned to patched 2.6.2; ASP.NET Core Rate Limiting uses FrameworkReference | STATIC VERIFIED; restore pending |
 | Permission | allow / deny 403 / unavailable 503 | BLOCKED runtime; test wired |
 | Nacos | real registration + healthy discovery | BLOCKED runtime; provider test wired |
 | CAP | EF transaction + RabbitMQ publish/consume | BLOCKED runtime; provider test wired |

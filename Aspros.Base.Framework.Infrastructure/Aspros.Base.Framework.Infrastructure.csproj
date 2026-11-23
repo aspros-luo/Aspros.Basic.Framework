@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Aspros.Base.Framework.Abstractions\Aspros.Base.Framework.Abstractions.csproj" />
     <ProjectReference Include="..\Aspros.Base.Framework.Domain\Aspros.Base.Framework.Domain.csproj" />
   </ItemGroup>
@@ -15,7 +19,6 @@
   <ItemGroup>
     <PackageReference Include="Flurl.Http" Version="4.0.2" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.1" />
-    <PackageReference Include="Microsoft.AspNetCore.RateLimiting" Version="10.0.15" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.15" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.15" />
     <PackageReference Include="MediatR" Version="12.4.1" />
@@ -23,6 +26,7 @@
     <PackageReference Include="DotNetCore.CAP.RedisStreams" Version="10.0.2" />
     <PackageReference Include="DotNetCore.CAP.RabbitMQ" Version="10.0.2" />
     <PackageReference Include="DotNetCore.CAP.MySql" Version="10.0.2" />
+    <PackageReference Include="MySqlConnector" Version="2.6.2" />
     <PackageReference Include="DotNetCore.CAP" Version="10.0.2" />
     <PackageReference Include="jose-jwt" Version="5.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
