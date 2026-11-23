@@ -33,7 +33,7 @@ Xr.Category/
 ```bash
 dotnet build services/Xr.Category/Xr.Category.sln
 
-dotnet run --project services/Xr.Category/src/Xr.Category.Api/Xr.Category.Api.csproj -- --urls http://localhost:7242
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project services/Xr.Category/src/Xr.Category.Api/Xr.Category.Api.csproj -- --urls http://localhost:7242
 ```
 
 检查 API 存活状态和数据库连接：
