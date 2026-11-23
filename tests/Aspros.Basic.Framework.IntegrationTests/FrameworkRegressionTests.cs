@@ -93,7 +93,7 @@ public sealed class FrameworkRegressionTests
 
         await using var provider = services.BuildServiceProvider();
         var client = provider
-            .GetRequiredService<global::Grpc.Net.ClientFactory.GrpcClientFactory>()
+            .GetRequiredService<global::global::Grpc.Net.ClientFactory.GrpcClientFactory>()
             .CreateClient<RegressionGreeter.RegressionGreeterClient>("regression");
 
         var response = await client.SayHelloAsync(
@@ -140,7 +140,7 @@ public sealed class FrameworkRegressionTests
         accessor.HttpContext.Request.Headers.Authorization = "Bearer regression-token";
 
         var client = provider
-            .GetRequiredService<Grpc.Net.ClientFactory.GrpcClientFactory>()
+            .GetRequiredService<global::Grpc.Net.ClientFactory.GrpcClientFactory>()
             .CreateClient<RegressionGreeter.RegressionGreeterClient>("auth-regression");
 
         var response = await client.SayHelloAsync(
