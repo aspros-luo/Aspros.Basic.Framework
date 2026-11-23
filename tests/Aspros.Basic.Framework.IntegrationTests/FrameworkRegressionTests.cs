@@ -93,7 +93,7 @@ public sealed class FrameworkRegressionTests
 
         await using var provider = services.BuildServiceProvider();
         var client = provider
-            .GetRequiredService<global::global::Grpc.Net.ClientFactory.GrpcClientFactory>()
+            .GetRequiredService<global::Grpc.Net.ClientFactory.GrpcClientFactory>()
             .CreateClient<RegressionGreeter.RegressionGreeterClient>("regression");
 
         var response = await client.SayHelloAsync(
