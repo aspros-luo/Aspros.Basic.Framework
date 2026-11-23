@@ -1,3 +1,15 @@
+## 2026-11-23 — Integration test API and reference alignment
+
+### Compile fixes
+- Added the ASP.NET Core shared-framework reference to the integration-test project so native HTTP result and rate-limiter APIs are available at compile time.
+- Imported the distributed-cache extension namespace for `IDistributedCache` string helpers and the Nacos dependency-injection namespace for `AddNacosV2Naming`.
+- Replaced the nonexistent `IHttpClientFactory.GetClient` calls with `CreateClient`.
+- Qualified gRPC client-factory references with `global::` to avoid the test assembly's `Grpc` child namespace shadowing the root `Grpc` namespace.
+- Replaced test-only calls to the nonexistent `ClearTrackedChanges` helper with EF Core's `ChangeTracker.Clear()`.
+
+### Verification state
+- The latest Docker run compiled Infrastructure but reported 16 IntegrationTests compile errors. The failures were test-project API/reference mismatches, not 16 independent production defects. The corrections above are committed on the release candidate branch; they have not yet been confirmed by a subsequent Docker build. No xUnit assertions have run successfully yet.
+
 ## 2026-11-23 — gRPC test namespace qualification
 
 - Qualified the test service's `ServerCallContext` reference as `global::Grpc.Core.ServerCallContext`. The test namespace itself contains a `Grpc` child namespace, so the unqualified namespace path was resolved relatively as `Aspros.Basic.Framework.IntegrationTests.Grpc.Core` rather than the root `Grpc.Core` namespace.
