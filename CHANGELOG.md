@@ -1,3 +1,10 @@
+## 2026-11-23 — Temporarily disable project-coupled permission compatibility wrapper
+
+### Scope correction
+- Disabled the legacy `Aspros.SaaS.System.Infrastructure.PermissionMiddleware` and its `UsePermissionValid` extension in the Infrastructure/Middleware compatibility file.
+- The wrapper depended on a consuming-project namespace and attempted to inherit from the framework-native `FrameworkPermissionMiddleware`, which is intentionally sealed. This was an invalid compatibility design, not a reason to unseal the framework middleware.
+- The framework-native permission middleware and its opt-in extension remain separate; this change only disables the project-coupled legacy wrapper. Permission runtime tests remain pending and must be interpreted against the framework-native path.
+
 ## 2026-11-23 — UnitOfWork documentation syntax and XML comment audit
 
 ### Compile fix
