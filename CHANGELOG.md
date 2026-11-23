@@ -1,3 +1,14 @@
+## 2026-11-23 — Rate limiter registration namespace correction
+
+### Compile fix
+- Imported `Microsoft.AspNetCore.Builder` in `FrameworkRateLimitingExtensions.cs`, where ASP.NET Core 10 defines the `IServiceCollection.AddRateLimiter` extension.
+- Kept the `Microsoft.AspNetCore.App` framework reference; no obsolete standalone RateLimiting package was reintroduced.
+- The failure was a missing namespace import, not a missing runtime dependency or a need to replace the native ASP.NET Core rate limiter.
+
+### Verification and warning follow-up
+- The user's Docker build reached Infrastructure compilation and failed at the unresolved `AddRateLimiter` extension. This source fix has been committed, but a successful build has not yet been observed.
+- The same build reported nullable warnings in the legacy RSA helper, a nullable gRPC options warning, the EF Core obsolete query-filter API warning, and a query-string nullability mismatch. These are not suppressed; they should be reviewed after the build blocker is cleared, with RSA behavior preserved and tested rather than silencing nullable analysis.
+
 ## 2026-11-23 — Temporarily disable project-coupled permission compatibility wrapper
 
 ### Scope correction
