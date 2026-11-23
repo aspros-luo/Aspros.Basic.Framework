@@ -1,3 +1,14 @@
+## 2026-11-23 — UnitOfWork documentation syntax and XML comment audit
+
+### Compile fix
+- Restored the missing `///` prefix on the English sentence inside `UnitOfWork.cs` XML documentation. The bare sentence was parsed as C# source and produced a cascade of ten syntax diagnostics from one root cause.
+- The malformed line was already present in the October 18, 2026 UnitOfWork history and had survived subsequent transaction changes; the current fix does not alter UnitOfWork runtime behavior.
+- Closed the `PropagateGrpcCallContext` XML `<summary>` block before its `<param>` documentation in `FrameworkGrpcExtensions.cs`.
+- Performed a static XML-summary structure scan across 60 C# files in Abstractions, Domain, Infrastructure, Tools and IntegrationTests. No second prose line that would be parsed as source code was found.
+
+### Verification state
+- The latest Docker run reached Infrastructure compilation and failed on the malformed `UnitOfWork.cs` documentation line. The source and related XML documentation have now been corrected.
+- No successful solution build or xUnit execution has yet been confirmed after these fixes. Runtime verification remains pending in Docker.
 ## 2026-11-23 — BasicEntity status declaration correction
 
 ### Domain compile fix
