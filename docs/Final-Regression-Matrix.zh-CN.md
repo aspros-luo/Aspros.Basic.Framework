@@ -14,7 +14,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 一次执行 restore、dotnet-ef、Solution Build、全部 xUnit、MySQL Migration 回归，以及三个 NuGet 包的打包与独立 API 消费者验证；临时环境提供真实 MySQL / Redis / RabbitMQ / Nacos。
 
-基础 test profile 已通过 Restore、Solution Build 和 EF CLI（10.0.15）。最新一次在 Infrastructure 编译时，发现 `FrameworkRateLimitingExtensions.cs` 缺少 `Microsoft.AspNetCore.Builder` 命名空间引用，导致 `IServiceCollection.AddRateLimiter` 扩展无法解析。已补齐引用；仍需重新执行 Docker 验证。此次构建还报告 RSA 空值处理、gRPC 配置参数、EF Core 过时 QueryFilter API 和 QueryString 可空性警告，尚未处理；不会用空值抑制符或关闭 nullable 检查掩盖问题。xUnit 断言尚未成功执行。
+最新一次 Docker 执行已在 29.9 秒内成功编译 Infrastructure，并正确解析 EF CLI 10.0.15；随后 IntegrationTests 在编译阶段失败，共 8 个错误。根因有两类：三个测试替身没有实现当前 `IWorkContext` 接口中的 `GetTenantId` 和 `Get<T>`；gRPC 回归 proto 被配置为仅生成 Client，但测试程序集同时承担服务端角色，因此缺少生成的 Server Base 类型。这些测试代码和生成配置问题已经修复，仍需重新执行 Docker 确认。xUnit 断言尚未成功执行。剩余警告包括 RSA 可空性、EF Core 过时 QueryFilter API、QueryString 可空性；gRPC nullable 参数警告已通过选择正确重载处理。
 
 | Area | 覆盖内容 | 当前状态 |
 |---|---|---|
@@ -36,7 +36,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 | Rate Limit | 实际 HTTP 429；由 ASP.NET Core Shared Framework 提供 | BLOCKED Runtime；测试已接线 |
 | Domain BasicEntity | `Status` 属性使用 `ValueObjects.EntityStatus` 类型 | STATIC VERIFIED；编译修复已提交，等待重新执行 |
 | UnitOfWork Source Syntax | XML 文档注释应被识别为注释，而不是 C# 语句 | STATIC VERIFIED；漏写 `///` 已修复，等待重新执行 |
-| Test Platform | xUnit v3 / MTP v2 / .NET 10 原生 dotnet test 集成 | STATIC VERIFIED；等待重新执行 |
+| Test Platform | xUnit v3 / MTP v2 / .NET 10 原生 dotnet test 集成 | STATIC VERIFIED；编译及运行仍待确认 |
 | Dependency Security | CAP MySQL 的 MySqlConnector 固定到修复版 2.6.2；ASP.NET Core Rate Limiting 使用 FrameworkReference | STATIC VERIFIED；Restore / Build 已通过 |
 | Permission | allow / deny 403 / unavailable 503 | BLOCKED Runtime；测试已接线 |
 | Nacos | 真实注册 + 健康实例发现 | BLOCKED Runtime；Provider 测试已接线 |
