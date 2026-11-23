@@ -10,6 +10,7 @@
 ### Verification state
 - The user's latest Docker run confirmed solution restore and build succeeded and dotnet-ef resolved to 10.0.15.
 - The test command then stopped before test discovery because the repository had not opted into the .NET 10 native MTP runner. No xUnit assertions have run yet; the regression suite remains unverified pending rerun with this configuration.
+
 ## 2026-11-23 — .NET 10 restore and dependency security fix
 
 ### Restore correctness
