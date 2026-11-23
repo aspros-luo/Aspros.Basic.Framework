@@ -14,7 +14,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 The command performs restore, dotnet-ef verification, full solution build, the complete xUnit regression suite, MySQL migration regression, and the packed NuGet consumer regression. Disposable infrastructure contains MySQL, Redis, RabbitMQ and Nacos.
 
-The lightweight test profile has passed restore, solution build and EF CLI verification (10.0.15). The latest Infrastructure compilation failed because `FrameworkRateLimitingExtensions.cs` lacked the `Microsoft.AspNetCore.Builder` namespace import required to resolve `IServiceCollection.AddRateLimiter`. The import is now present; Docker verification is pending. The same build reported nullable warnings in the legacy RSA helper, a gRPC options argument warning, an obsolete EF Core query-filter API warning, and a query-string nullability mismatch. These are not suppressed; no xUnit assertions have run successfully yet.
+The latest user Docker run completed Infrastructure compilation successfully in 29.9 seconds and resolved EF CLI 10.0.15, but IntegrationTests then failed to compile with eight errors. Three test doubles had not implemented the current `IWorkContext` members (`GetTenantId` and `Get<T>`), and the gRPC regression proto was generated as client-only even though the test assembly also hosts the service (missing generated server base type). These test-only mismatches have been corrected; a new Docker run is required to confirm. No xUnit assertions have run successfully yet. Remaining warnings include RSA nullable analysis, EF Core's obsolete query-filter API, and QueryString nullability; the nullable gRPC options warning has been addressed.
 
 | Area | Coverage | Current status |
 |---|---|---|
@@ -36,7 +36,7 @@ The lightweight test profile has passed restore, solution build and EF CLI verif
 | Rate Limit | real 429; supplied by the ASP.NET Core shared framework | BLOCKED runtime; test wired |
 | Domain BasicEntity | `Status` property typed as `ValueObjects.EntityStatus` | STATIC VERIFIED; compile fix committed, rerun pending |
 | UnitOfWork source syntax | XML documentation comments parsed as comments, not C# statements | STATIC VERIFIED; missing `///` fixed, rerun pending |
-| Test platform | xUnit v3 / MTP v2 / native .NET 10 dotnet test integration | STATIC VERIFIED; rerun required |
+| Test platform | xUnit v3 / MTP v2 / native .NET 10 dotnet test integration | STATIC VERIFIED; compile/run rerun required |
 | Dependency security | CAP MySQL MySqlConnector pinned to patched 2.6.2; ASP.NET Core Rate Limiting uses FrameworkReference | STATIC VERIFIED; restore/build passed |
 | Permission | allow / deny 403 / unavailable 503 | BLOCKED runtime; test wired |
 | Nacos | real registration + healthy discovery | BLOCKED runtime; provider test wired |
