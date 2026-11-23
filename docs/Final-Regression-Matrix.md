@@ -14,7 +14,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 The command performs restore, dotnet-ef verification, full solution build, the complete xUnit regression suite, MySQL migration regression, and the packed NuGet consumer regression. Disposable infrastructure contains MySQL, Redis, RabbitMQ and Nacos.
 
-The lightweight test profile has been executed once: solution restore and build succeeded, and dotnet-ef reported 10.0.15. The test process then stopped before test discovery because .NET 10's native Microsoft Testing Platform runner had not been enabled. No xUnit assertions ran in that attempt.
+The lightweight test profile has progressed through restore, solution build, EF CLI verification (10.0.15), and native MTP test startup. The next attempt exposed a compile error in `BasicEntity.cs` caused by the release-candidate enum rename; the source fix is committed, but no xUnit assertions have run successfully yet.
 
 | Area | Coverage | Current status |
 |---|---|---|
@@ -34,6 +34,7 @@ The lightweight test profile has been executed once: solution restore and build 
 | Polly Fallback | transient exception -> 503 | BLOCKED runtime; test wired |
 | Health | live/readiness HTTP | BLOCKED runtime; test wired |
 | Rate Limit | real 429; supplied by the ASP.NET Core shared framework | BLOCKED runtime; test wired |
+| Domain BasicEntity | `Status` property typed as `ValueObjects.EntityStatus` | STATIC VERIFIED; compile fix committed, rerun pending |
 | Test platform | xUnit v3 / MTP v2 / native .NET 10 dotnet test integration | STATIC VERIFIED; rerun required |
 | Dependency security | CAP MySQL MySqlConnector pinned to patched 2.6.2; ASP.NET Core Rate Limiting uses FrameworkReference | STATIC VERIFIED; restore/build passed |
 | Permission | allow / deny 403 / unavailable 503 | BLOCKED runtime; test wired |
@@ -45,4 +46,4 @@ The lightweight test profile has been executed once: solution restore and build 
 | GitHub Actions | workflow files | PASS: none present by design |
 
 Static verification must never be reported as runtime PASS.
-The basic Docker attempt verified restore/build and EF CLI only. The runner configuration is now aligned; all xUnit and provider/runtime rows remain BLOCKED until the Docker rerun actually completes them.
+The latest Docker attempt exposed and stopped at a Domain compile error before xUnit assertions ran. The malformed `BasicEntity.Status` declaration is now corrected; all xUnit and provider/runtime rows remain BLOCKED until the Docker rerun actually completes them.
