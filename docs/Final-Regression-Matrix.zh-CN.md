@@ -14,7 +14,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 一次执行 restore、dotnet-ef、Solution Build、全部 xUnit、MySQL Migration 回归，以及三个 NuGet 包的打包与独立 API 消费者验证；临时环境提供真实 MySQL / Redis / RabbitMQ / Nacos。
 
-基础 test profile 已推进到 Restore、Solution Build、EF CLI（10.0.15）和原生 MTP 测试启动阶段。最新一次在编译 Infrastructure 时失败：`UnitOfWork.cs` 的 XML 文档注释漏写一个 `///`，导致同一处错误连续产生 10 条 C# 语法诊断。该行以及另一处 gRPC XML summary 未闭合问题均已修正；目前仍没有成功执行 xUnit 断言。
+基础 test profile 已通过 Restore、Solution Build 和 EF CLI（10.0.15），并进入原生 MTP 测试执行前的项目编译阶段。最新一次在编译 Infrastructure 时失败：旧版 `PermissionMiddleware` 位于消费项目命名空间，并尝试继承已封闭的 Framework 原生中间件。现已暂时注释禁用该项目耦合的兼容包装器及 `UsePermissionValid` 扩展；Framework 原生权限中间件保持独立，不因该问题解除 sealed。xUnit 断言尚未成功执行。
 
 | Area | 覆盖内容 | 当前状态 |
 |---|---|---|
