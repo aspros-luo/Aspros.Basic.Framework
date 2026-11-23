@@ -367,3 +367,17 @@ tests/Aspros.Basic.Framework.MigrationFixture/.regression/
 
 # Disposable NuGet package-consumer regression output
 dev-environment/.packages/
+
+# Local database files and SQLite sidecars (never commit production/runtime data)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Local secrets and private keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
