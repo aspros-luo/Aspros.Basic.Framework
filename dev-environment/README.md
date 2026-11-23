@@ -1,63 +1,65 @@
-# Framework Disposable Development / Test Environment
+# Docker Development Environment
 
-Provides a reproducible disposable Docker environment with .NET 10 SDK, EF Core CLI 10.0.12 and MySQL 8.4, with optional Redis, RabbitMQ and Nacos infrastructure.
+This Compose stack starts the local infrastructure and the sample HTTP/gRPC APIs. It is an API-runtime environment, not a Framework test runner.
 
-Start:
+## Start the complete environment
 
-```bash
-cd dev-environment
-docker compose up -d mysql
-docker compose --profile test run --rm framework-test
-```
-
-Run the MySQL migration regression:
+From the repository root:
 
 ```bash
-docker compose --profile migration-test run --rm framework-migration-test
+docker compose -f dev-environment/docker-compose.yml --profile infra --profile api up -d --build
 ```
 
-Run the single-entry full regression with real MySQL, Redis, RabbitMQ and Nacos:
+Check container state:
 
 ```bash
-docker compose --profile infra --profile full-regression run --rm framework-full-regression
+docker compose -f dev-environment/docker-compose.yml --profile infra --profile api ps
 ```
 
-This performs restore, EF CLI verification, solution build, the complete xUnit regression suite, and the MySQL migration regression.
+## Call the APIs
 
-For targeted provider regression, run with real MySQL, RabbitMQ and Nacos:
+The Consumer exposes HTTP/1.1 on port 7141. It calls the Provider over gRPC/HTTP2 inside the Compose network.
 
 ```bash
-docker compose --profile infra --profile provider-test run --rm framework-provider-test
+curl --fail http://localhost:7141/health
+curl --fail "http://localhost:7141/core/ping?message=hello-from-api"
+curl --fail http://localhost:17041/health
 ```
 
-Enter the test container:
+Expected behavior:
+- Consumer health returns `status: ok`.
+- `/core/ping` returns a `pong: hello-from-api` message from the Provider.
+- Provider health returns `status: ok`.
+
+The Provider's gRPC endpoint is exposed on `localhost:7041`; its HTTP health endpoint is exposed on `localhost:17041`.
+
+## Infrastructure endpoints
+
+| Service | Host endpoint | Development credentials |
+|---|---|---|
+| MySQL 8.4 | `localhost:13306` | database `aspros_framework_test`, user `framework`, password `framework_password` |
+| Redis 7 | `localhost:16379` | no password |
+| RabbitMQ | `localhost:5672` | user `framework`, password `framework_password` |
+| RabbitMQ Management | `http://localhost:15672` | user `framework`, password `framework_password` |
+| Nacos 2.5.1 | `http://localhost:18848/nacos` | authentication disabled for local development |
+
+These infrastructure containers are started independently from the sample APIs. The current sample HTTP API exercises the HTTP-to-gRPC Provider/Consumer path; MySQL, Redis, RabbitMQ and Nacos are available for subsequent API-level scenarios but are not claimed as API-verified by the current smoke calls.
+
+## Logs and shutdown
 
 ```bash
-docker compose run --rm framework-test bash
-dotnet build Aspros.Base.Framework.sln
-dotnet ef --version
+docker compose -f dev-environment/docker-compose.yml --profile infra --profile api logs -f
+docker compose -f dev-environment/docker-compose.yml --profile infra --profile api down
 ```
 
-Destroy the environment and database:
+The named data volumes are retained after `down`. To also delete the local databases and broker data:
 
 ```bash
-docker compose down -v
+docker compose -f dev-environment/docker-compose.yml --profile infra --profile api down -v
 ```
 
-For the full regression environment, start the optional infrastructure profile:
+## Verification boundary
 
-```bash
-docker compose --profile infra up -d redis rabbitmq nacos
-docker compose --profile test run --rm framework-test
-```
+The old `framework-test`, provider-test, migration-test and full-regression Compose runners are no longer part of this environment. The Framework xUnit and migration test source remains in the repository, but is intentionally outside the current acceptance path.
 
-This is not a production deployment configuration and does not create GitHub Actions. It is the reproducible environment for MySQL / Redis / RabbitMQ / Nacos / gRPC / CAP regression.
-
-
-## Packaged Core consumer
-
-Run the external-package simulation without GitHub Actions:
-
-    docker compose --profile core-package-consumer run --rm framework-core-package-consumer
-
-The command packs the framework projects, restores `samples/Framework.Core.Api` from the temporary local NuGet feed, builds it, starts the API and verifies `GET /health`.
+Building the API images compiles the two sample applications and their referenced Framework projects as required for deployment. It does not execute the Framework integration-test project.
