@@ -5,7 +5,7 @@
 状态定义：
 - PASS：真实 Runtime 已执行并通过。
 - FAIL：真实 Runtime 已执行但失败。
-- BLOCKED：当前环境缺少必要 Runtime / 基础设施。
+- BLOCKED：必要 Runtime / 基础设施不可用，或测试运行器未能启动。
 - STATIC VERIFIED：源码、依赖和测试接线已检查，但没有真实 Runtime 结果。
 
 一键验收：
