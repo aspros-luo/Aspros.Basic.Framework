@@ -2,6 +2,7 @@ using Aspros.Base.Framework.Infrastructure;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,11 +37,11 @@ public sealed class FrameworkHttpRegressionTests
         await using var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        using var getResponse = await factory.GetClient("get").GetAsync("http://framework.test/recover");
+        using var getResponse = await factory.CreateClient("get").GetAsync("http://framework.test/recover");
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
         Assert.Equal(2, getHandler.CallCount);
 
-        using var postResponse = await factory.GetClient("post").PostAsync(
+        using var postResponse = await factory.CreateClient("post").PostAsync(
             "http://framework.test/write",
             new StringContent("payload"));
 
