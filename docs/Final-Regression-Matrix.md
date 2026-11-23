@@ -14,7 +14,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 The command performs restore, dotnet-ef verification, full solution build, the complete xUnit regression suite, MySQL migration regression, and the packed NuGet consumer regression. Disposable infrastructure contains MySQL, Redis, RabbitMQ and Nacos.
 
-The lightweight test profile has passed restore, solution build and EF CLI verification (10.0.15), and reached project compilation before native MTP test execution. The latest attempt failed while compiling Infrastructure: the legacy `PermissionMiddleware` lives in a consuming-project namespace and attempted to inherit from the sealed framework-native middleware. The project-coupled compatibility wrapper and its `UsePermissionValid` extension are now temporarily commented out. The framework-native permission middleware remains independent and sealed; no xUnit assertions have run successfully yet.
+The lightweight test profile has passed restore, solution build and EF CLI verification (10.0.15). The latest Infrastructure compilation failed because `FrameworkRateLimitingExtensions.cs` lacked the `Microsoft.AspNetCore.Builder` namespace import required to resolve `IServiceCollection.AddRateLimiter`. The import is now present; Docker verification is pending. The same build reported nullable warnings in the legacy RSA helper, a gRPC options argument warning, an obsolete EF Core query-filter API warning, and a query-string nullability mismatch. These are not suppressed; no xUnit assertions have run successfully yet.
 
 | Area | Coverage | Current status |
 |---|---|---|
@@ -47,4 +47,4 @@ The lightweight test profile has passed restore, solution build and EF CLI verif
 | GitHub Actions | workflow files | PASS: none present by design |
 
 Static verification must never be reported as runtime PASS.
-The latest Docker attempt stopped at Infrastructure compilation because of a missing XML comment prefix in UnitOfWork.cs. The offending line and a separate incomplete gRPC XML summary are now corrected, and the same comment-structure pattern was statically scanned across 60 C# files. This is not a substitute for compilation; all xUnit and provider/runtime rows remain BLOCKED until Docker rerun completes.
+The latest Docker attempt stopped at Infrastructure compilation because the rate-limiter registration extension namespace was missing; the import is now corrected. Previous source syntax and XML documentation errors were also corrected in earlier commits. This is not a substitute for compilation; all xUnit and provider/runtime rows remain BLOCKED until Docker rerun completes.
