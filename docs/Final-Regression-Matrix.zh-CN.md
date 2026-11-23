@@ -14,7 +14,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 一次执行 restore、dotnet-ef、Solution Build、全部 xUnit、MySQL Migration 回归，以及三个 NuGet 包的打包与独立 API 消费者验证；临时环境提供真实 MySQL / Redis / RabbitMQ / Nacos。
 
-最新一次 Docker 执行已成功编译 Infrastructure（41 个警告），随后 IntegrationTests 在编译阶段失败，共 16 个错误。此前的 `IWorkContext` 测试替身、gRPC proto 生成模式和 `Grpc.Core` 命名空间冲突已修复；本轮错误集中在测试代码与依赖 API 的对齐：测试项目缺少 ASP.NET Core Shared Framework 引用，缺少 Distributed Cache / Nacos 扩展命名空间，误用了不存在的 `IHttpClientFactory.GetClient` 和测试 DbContext 的 `ClearTrackedChanges`，并再次遇到 `Grpc.Net` 相对命名空间解析。现已补齐 FrameworkReference 和 using，改为 `CreateClient`、`ChangeTracker.Clear()`，并对 gRPC ClientFactory 使用 `global::` 限定。上述修改尚未经过下一次 Docker 编译确认，xUnit 断言仍未成功执行。Infrastructure 的 RSA 可空性、EF Core 过时 QueryFilter API、QueryString 可空性警告仍待独立处理。
+最新 Docker 执行已成功编译 Infrastructure（41 个警告），IntegrationTests 先后暴露 16 个编译错误，随后剩余 1 个错误：测试文件遗漏 `Microsoft.AspNetCore.RateLimiting`，导致无法解析 `RateLimiterOptions.AddFixedWindowLimiter`。该方法属于 .NET 10 ASP.NET Core Rate Limiting API，项目 FrameworkReference 已存在，根因只是测试文件缺少 using；现已补齐。此前测试项目引用、Distributed Cache / Nacos 命名空间、`CreateClient`、`ChangeTracker.Clear()` 和 gRPC `global::` 限定也已修正。本轮所有修改仍待下一次 Docker 编译确认，xUnit 断言尚未成功执行。Infrastructure 的 RSA 可空性、EF Core 过时 QueryFilter API、QueryString 可空性警告仍待独立处理。
 
 | Area | 覆盖内容 | 当前状态 |
 |---|---|---|
@@ -47,4 +47,4 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 | GitHub Actions | Workflow 文件 | PASS：按约定保持 0 个 |
 
 不能把“源码已经写好”或“测试代码已经存在”标成 PASS。
-最新 Docker 执行因限流注册扩展缺少命名空间引用而在 Infrastructure 编译阶段失败；该引用已补齐，仍待重新运行确认。前序 Domain、UnitOfWork 文档注释及 gRPC XML 文档问题已分别修复，但尚未取得完整编译和测试结果。所有 xUnit 与 Provider / Runtime 项目继续保持 BLOCKED。
+最新 Docker 执行已通过 Infrastructure 编译，但 IntegrationTests 因 `AddFixedWindowLimiter` 缺少 using 而失败；测试文件已补齐 `Microsoft.AspNetCore.RateLimiting`，仍待重新运行确认。前序 Domain、UnitOfWork 文档注释及 gRPC XML 文档问题已分别修复，但尚未取得完整编译和测试结果。所有 xUnit 与 Provider / Runtime 项目继续保持 BLOCKED。
