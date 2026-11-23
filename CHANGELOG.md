@@ -1,3 +1,9 @@
+## 2026-11-23 — BasicEntity status declaration correction
+
+### Domain compile fix
+- Corrected the `BasicEntity` property declaration to `EntityStatus Status`; the release-candidate enum namespace refactor had accidentally produced the invalid declaration `Status EntityStatus Status`.
+- Preserved the existing public property name `Status` and the enum's new `ValueObjects.EntityStatus` type. The existing `DomainStatusRegressionTests` already asserts the intended API (`entity.Status`).
+- This compile error was present in the release-candidate preparation commit and is now fixed on the release branch. Runtime build and test execution still require a Docker rerun.
 ## 2026-11-23 — .NET 10 native test-runner alignment
 
 ### Test execution
