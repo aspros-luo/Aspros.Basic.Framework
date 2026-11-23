@@ -27,6 +27,6 @@
     <ProjectReference Include="..\..\Aspros.Base.Framework.Infrastructure\Aspros.Base.Framework.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Protobuf Include="Grpc/regression.proto" GrpcServices="Client" />
+    <Protobuf Include="Grpc/regression.proto" GrpcServices="Both" />
   </ItemGroup>
 </Project>
