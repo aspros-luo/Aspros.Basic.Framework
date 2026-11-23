@@ -248,9 +248,13 @@ Database schema generation follows the standard EF Core Code First path: Entity/
 
 数据库生成遵循标准 EF Core Code First：Entity/Aggregate → 显式 Mapping → DbContext → Migration → SQL。
 
-The optional CLI is packaged as `Aspros.Basic.Framework.Tools`:
+The optional CLI is packaged as `Aspros.Basic.Framework.Tools` (the commands below assume the `2.0.0-rc.1` tool package has been published or packed locally):
 
-    dotnet tool install --global Aspros.Basic.Framework.Tools
+    # After the release candidate is published to NuGet:
+    dotnet tool install --global Aspros.Basic.Framework.Tools --version 2.0.0-rc.1 --prerelease
+
+    # Or install the package produced by the local regression script:
+    dotnet tool install --global Aspros.Basic.Framework.Tools --version 2.0.0-rc.1 --add-source ./dev-environment/.packages
     aspros db migration add InitialCreate --project ./Xr.Trade.Infrastructure --startup-project ./Xr.Trade.Api --context TradeDbContext
     aspros db migration script --project ./Xr.Trade.Infrastructure --startup-project ./Xr.Trade.Api --context TradeDbContext --idempotent
 

@@ -213,6 +213,42 @@ public sealed class FrameworkUnitOfWorkRegressionTests
     }
 
     [Fact]
+    public async Task UnitOfWork_SynchronousRollback_DoesNotRollbackExternallyOwnedTransaction()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<SqliteRegressionDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var writer = new SqliteRegressionDbContext(options);
+        await writer.Database.EnsureCreatedAsync();
+        await using var externalTransaction = await writer.Database.BeginTransactionAsync();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IWorkContext, TestWorkContext>();
+        services.AddScoped<IDbContext>(_ => writer);
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        uow.BeginTransaction(externalTransaction);
+        await uow.RegisterNew(new SqliteRegressionRow { Name = "external-sync-rollback" });
+
+        Assert.Throws<InvalidOperationException>(() => uow.Rollback());
+        Assert.Same(externalTransaction, uow.DbContextTransaction);
+
+        await externalTransaction.RollbackAsync();
+        writer.ClearTrackedChanges();
+
+        await using var observer = new SqliteRegressionDbContext(options);
+        Assert.Equal(0, await observer.Rows.CountAsync());
+    }
+
+    [Fact]
     public async Task UnitOfWork_RegisterDirty_PreservesTrackedPropertyChanges()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

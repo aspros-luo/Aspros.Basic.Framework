@@ -44,8 +44,9 @@ public interface IUnitOfWork : IScoped
 
     /// <summary>
     /// Starts an explicit transaction. Transactions remain opt-in.
-/// 显式开启事务。事务仍然采用“按需开启”的策略。
-/// </summary>
+    /// A supplied transaction must already be active on the same DbContext and remains externally owned.
+    /// 显式开启事务；传入的事务必须属于同一个 DbContext，且仍由外部调用方管理生命周期。
+    /// </summary>
     IDbContextTransaction BeginTransaction(
         IDbContextTransaction? dbContextTransaction = null);
 

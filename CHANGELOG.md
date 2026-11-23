@@ -3,7 +3,7 @@
 ### Correctness and API clarity
 - Fixed UnitOfWork transaction ownership: a caller-owned transaction must already be active on the same DbContext; CommitAsync only flushes changes into it, and UnitOfWork refuses to roll it back or dispose it.
 - Preserved EF Core property-level change tracking for entities loaded by the current DbContext; detached objects remain explicit full-entity updates.
-- Added SQLite regression tests for external-transaction commit/rollback ownership and tracked-entity update behavior.
+- Added SQLite regression tests for asynchronous and synchronous external-transaction rollback ownership, external-transaction commit ownership and tracked-entity update behavior.
 - Moved the framework enum from the root Domain namespace to `ValueObjects.EntityStatus` to avoid collisions with business-owned `Status` types.
 - Fixed migration CLI handling of the `--no-build` flag, removed duplicate EF options, and reject command-specific unknown options.
 
