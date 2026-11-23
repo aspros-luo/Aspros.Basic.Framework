@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <AssemblyName>Xr.Category.Api</AssemblyName>
+    <RootNamespace>Xr.Category.Api</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Xr.Category.Application/Xr.Category.Application.csproj" />
+    <ProjectReference Include="../Xr.Category.Infrastructure/Xr.Category.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
