@@ -14,7 +14,12 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 The command performs restore, dotnet-ef verification, full solution build, the complete xUnit regression suite, MySQL migration regression, and the packed NuGet consumer regression. Disposable infrastructure contains MySQL, Redis, RabbitMQ and Nacos.
 
-The latest user Docker run successfully compiled Infrastructure and IntegrationTests (41 Infrastructure warnings and 99 IntegrationTests warnings) and executed all 44 xUnit tests: 33 passed and 11 failed. The 11 failures were traced to test setup/assertion issues: five conditional-skip facts lacked the required xUnit skip message; isolated CAP and HealthChecks service providers did not register logging; the AddAsprosFramework UnitOfWork test did not register the business-owned IDbContext; the rate-limit test did not explicitly configure HTTP 429 (ASP.NET Core defaults to 503); the Polly assertion expected the non-generic circuit-breaker exception; and the soft-delete test incorrectly expected an uncommitted logical delete to change persisted query results. These test-only corrections are committed without changing production framework behavior. A new Docker run is required to verify them. Infrastructure warnings for RSA nullability, EF Core's obsolete query-filter API, and QueryString nullability, plus xUnit1051 warnings in IntegrationTests, remain for separate focused review.
+The latest Docker run compiled Infrastructure and IntegrationTests (41 Infrastructure warnings and 98 IntegrationTests warnings) and executed all 44 xUnit tests: 38 passed, 4 were skipped, and 2 failed. The four skips are the two Redis tests, the Nacos test, and the RabbitMQ/CAP provider test. MySQL is configured in the base test profile, so the MySQL/UoW/Dapper test did execute. Both failures were test-harness issues, not established production-code defects:
+
+1. The MySQL/UoW/Dapper test used a fixed row name while the Docker MySQL volume persists between runs. A previous run therefore left a matching row and made the count become 2. The test now uses a unique per-run marker and deletes that row after verification.
+2. The CAP publisher registration test used EF Core InMemory, but CAP's EF storage requires a relational provider and relational connection string. The test DbContext now uses the MySQL EF provider.
+
+These test-only corrections are committed to the release branch and still require another Docker run. Current warnings are 41 in Infrastructure and 98 in IntegrationTests; RSA nullability, EF Core's obsolete query-filter API, QueryString nullability, and xUnit1051 warnings remain separate review work.
 
 | Area | Coverage | Current status |
 |---|---|---|
