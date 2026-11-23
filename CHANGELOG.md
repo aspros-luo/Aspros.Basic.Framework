@@ -1,3 +1,12 @@
+## 2026-11-23 — Docker environment switched to API runtime validation
+
+- Replaced the Docker Compose framework-test, provider-test, migration-test and full-regression runners with two explicit profiles: `infra` for MySQL / Redis / RabbitMQ / Nacos, and `api` for the Core Provider and Consumer services.
+- Added a multi-stage API Dockerfile. The API images publish the sample applications for runtime use; they do not execute the Framework xUnit or migration-test projects.
+- Split the Provider's HTTP health endpoint and h2c gRPC endpoint, and moved the Consumer sample to plain HTTP so the container workflow does not depend on local development HTTPS certificates.
+- Added persistent development volumes, service ports, local credentials, API health checks and direct HTTP smoke requests for Consumer -> Provider.
+- Kept Framework test source under `tests/`, but paused its Docker execution path and updated the active documentation. The previous 38/44 result with 4 skipped and 2 failed remains historical and unverified after the later test-only corrections.
+- Runtime status: configuration and source changes are committed; Docker Compose startup and API calls still require execution on the user's Docker host. No container or API PASS is claimed by this commit.
+
 ## 2026-11-23 — MySQL / CAP regression harness follow-up
 
 - The next Docker run compiled both projects and executed 44 tests: 38 passed, 4 were skipped, and 2 failed. The four skips are expected for Redis, Nacos and RabbitMQ-dependent cases; MySQL is configured in the base test profile and its regression therefore runs.
