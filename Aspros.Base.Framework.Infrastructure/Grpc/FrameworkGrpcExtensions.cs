@@ -29,7 +29,15 @@ public static class FrameworkGrpcExtensions
         Action<GrpcServiceOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
-        services.AddGrpc(configure);
+        if (configure is null)
+        {
+            services.AddGrpc();
+        }
+        else
+        {
+            services.AddGrpc(configure);
+        }
+
         return services;
     }
 
