@@ -1,3 +1,9 @@
+## 2026-11-23 — Rate limiter test namespace fix
+
+- Imported `Microsoft.AspNetCore.RateLimiting` in `FrameworkRegressionTests.cs` so the test can resolve `RateLimiterOptions.AddFixedWindowLimiter`.
+- The .NET 10 API is present in the ASP.NET Core shared framework; this was a missing test-file namespace import, not a package or framework-reference issue.
+- Source fix committed; Docker rebuild and xUnit execution are still pending.
+
 ## 2026-11-23 — Integration test API and reference alignment
 
 ### Compile fixes
