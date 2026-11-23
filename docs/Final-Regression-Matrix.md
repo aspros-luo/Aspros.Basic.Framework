@@ -1,55 +1,34 @@
-# Final Regression Matrix — 2.0.0-rc.1
+# Framework Regression Matrix — Paused
 
-Acceptance matrix for release candidate Framework 2.0.0-rc.1 on .NET 10.
+This document is retained as a historical record. The Framework xUnit and migration regression execution path is intentionally paused and is no longer the active Docker deployment or release-acceptance workflow.
 
-Status semantics:
-- PASS: executed in a real runtime and passed.
-- FAIL: executed in a real runtime and failed.
-- BLOCKED: required runtime/infrastructure was unavailable.
-- STATIC VERIFIED: source, dependency and test wiring reviewed without runtime execution.
+## Active workflow
 
-Single-entry acceptance:
-cd dev-environment
-docker compose --profile infra --profile full-regression run --build --rm framework-full-regression
+Deploy the local infrastructure and sample APIs:
 
-The command performs restore, dotnet-ef verification, full solution build, the complete xUnit regression suite, MySQL migration regression, and the packed NuGet consumer regression. Disposable infrastructure contains MySQL, Redis, RabbitMQ and Nacos.
+```bash
+docker compose -f dev-environment/docker-compose.yml --profile infra --profile api up -d --build
+```
 
-The latest Docker run compiled Infrastructure and IntegrationTests (41 Infrastructure warnings and 98 IntegrationTests warnings) and executed all 44 xUnit tests: 38 passed, 4 were skipped, and 2 failed. The four skips are the two Redis tests, the Nacos test, and the RabbitMQ/CAP provider test. MySQL is configured in the base test profile, so the MySQL/UoW/Dapper test did execute. Both failures were test-harness issues, not established production-code defects:
+Call the HTTP API and its downstream gRPC provider:
 
-1. The MySQL/UoW/Dapper test used a fixed row name while the Docker MySQL volume persists between runs. A previous run therefore left a matching row and made the count become 2. The test now uses a unique per-run marker and deletes that row after verification.
-2. The CAP publisher registration test used EF Core InMemory, but CAP's EF storage requires a relational provider and relational connection string. The test DbContext now uses the MySQL EF provider.
+```bash
+curl http://localhost:7141/health
+curl "http://localhost:7141/core/ping?message=hello"
+curl http://localhost:17041/health
+```
 
-These test-only corrections are committed to the release branch and still require another Docker run. Current warnings are 41 in Infrastructure and 98 in IntegrationTests; RSA nullability, EF Core's obsolete query-filter API, QueryString nullability, and xUnit1051 warnings remain separate review work.
+See dev-environment/README.md and dev-environment/README.zh-CN.md for endpoints, credentials and lifecycle commands.
 
-| Area | Coverage | Current status |
-|---|---|---|
-| Abstractions | Domain boundary / type forwarding | STATIC VERIFIED |
-| DI / AutoInject | registration / TryAdd / assembly scanning | STATIC VERIFIED |
-| UnitOfWork | stage / commit / rollback / audit / external transaction ownership | BLOCKED runtime; tests wired |
-| EF + Dapper | same database path | BLOCKED runtime; test wired |
-| MySQL | EF Core 10 + Oracle MySQL provider | BLOCKED runtime; test wired |
-| Migration | add / script / update / repeat update | BLOCKED runtime; disposable fixture wired |
-| Migration safety | destructive scaffold / RenameColumn / data preservation | BLOCKED runtime; fixture wired |
-| gRPC | real protobuf RPC using TestServer | BLOCKED runtime; test wired |
-| Packaged Core API consumer | local NuGet pack -> restore -> build -> startup -> /health | BLOCKED runtime; included in the full-regression script |
-| Core Provider/Consumer | solution build + smoke assets | STATIC VERIFIED |
-| HTTP Resilience | transient GET retry / unsafe POST protection | BLOCKED runtime; test wired |
-| Polly Timeout | overdue operation rejection | BLOCKED runtime; test wired |
-| Polly Circuit Breaker | open after transient failures | BLOCKED runtime; test wired |
-| Polly Fallback | transient exception -> 503 | BLOCKED runtime; test wired |
-| Health | live/readiness HTTP | BLOCKED runtime; test wired |
-| Rate Limit | real 429; supplied by the ASP.NET Core shared framework | BLOCKED runtime; test wired |
-| Domain BasicEntity | `Status` property typed as `ValueObjects.EntityStatus` | STATIC VERIFIED; compile fix committed, rerun pending |
-| UnitOfWork source syntax | XML documentation comments parsed as comments, not C# statements | STATIC VERIFIED; missing `///` fixed, rerun pending |
-| Test platform | xUnit v3 / MTP v2 / native .NET 10 dotnet test integration | PASS: runner executed all 44 tests; 33 passed and 11 test cases failed |
-| Dependency security | CAP MySQL MySqlConnector pinned to patched 2.6.2; ASP.NET Core Rate Limiting uses FrameworkReference | STATIC VERIFIED; restore/build passed |
-| Permission | allow / deny 403 / unavailable 503 | BLOCKED runtime; test wired |
-| Nacos | real registration + healthy discovery | BLOCKED runtime; provider test wired |
-| CAP | EF transaction + RabbitMQ publish/consume | BLOCKED runtime; provider test wired |
-| Redis | real distributed-cache write/read | BLOCKED runtime; test wired |
-| Utilities | Paging / String / Enum / ResultModel / DisposableAction | BLOCKED runtime; test wired |
-| WorkContext | authenticated claims preference | BLOCKED runtime; test wired |
-| GitHub Actions | workflow files | PASS: none present by design |
+## Historical Framework test result
 
-Static verification must never be reported as runtime PASS.
-The latest Docker run compiled Infrastructure and IntegrationTests and successfully launched the xUnit runner (44 tests: 33 passed, 11 failed). The 11 test setup/assertion corrections described above are committed and await rerun. Compilation success and runner startup do not mean the regression suite has passed; all affected runtime/provider rows remain BLOCKED until a clean Docker rerun.
+The last reported xUnit execution ran 44 cases: 38 passed, 4 skipped and 2 failed. Two test-harness corrections were committed afterward, but no subsequent run confirmed them. This historical result is not a PASS and is not a reason to block the current Docker environment deployment.
+
+The test source remains under tests/ for possible future reactivation. Do not start the old framework-test, provider-test, migration-test or full-regression Compose runners; those services have been removed from the active Compose configuration.
+
+## Verification boundaries
+
+- Docker container health confirms that a container process is running and its configured health endpoint responds.
+- API smoke calls confirm only the behavior actually exercised by those calls. The current sample covers Consumer HTTP -> Provider gRPC.
+- Starting MySQL, Redis, RabbitMQ and Nacos does not by itself verify Framework integrations with those services.
+- Building the API images compiles the API projects and their project references, but does not execute the Framework test project.
