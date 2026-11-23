@@ -1,15 +1,7 @@
 # Framework.Core.Api
 
-This is a real external-consumer simulation for Aspros Basic Framework 2.0.0 / .NET 10.
+This is a standalone external-consumer sample for the Aspros Basic Framework .NET 10 package line.
 
-The API does not reference the Framework projects directly. It references `Aspros.Base.Framework.Infrastructure` version `2.0.0`.
+The API consumes `Aspros.Base.Framework.Infrastructure` through NuGet `PackageReference`, not `ProjectReference`. The previous disposable package-consumer regression script has been retired and is no longer part of the active Docker environment.
 
-The regression script first packs the Framework projects into a disposable local NuGet feed, restores this API from that feed, builds it, starts the service on `http://127.0.0.1:7210`, and verifies `GET /health`.
-
-Run:
-
-```bash
-bash dev-environment/run-core-package-consumer-regression.sh
-```
-
-This models the way a real business service consumes a released Framework package.
+This sample is retained for manual package-consumption reference. The active Docker API workflow uses `Framework.Core.Provider` and `Framework.Core.Consumer`; see `dev-environment/README.md`.
