@@ -242,7 +242,7 @@ public sealed class FrameworkUnitOfWorkRegressionTests
         Assert.Same(externalTransaction, uow.DbContextTransaction);
 
         await externalTransaction.RollbackAsync();
-        writer.ClearTrackedChanges();
+        writer.ChangeTracker.Clear();
 
         await using var observer = new SqliteRegressionDbContext(options);
         Assert.Equal(0, await observer.Rows.CountAsync());
