@@ -1,3 +1,11 @@
+## 2026-11-23 — MySQL / CAP regression harness follow-up
+
+- The next Docker run compiled both projects and executed 44 tests: 38 passed, 4 were skipped, and 2 failed. The four skips are expected for Redis, Nacos and RabbitMQ-dependent cases; MySQL is configured in the base test profile and its regression therefore runs.
+- Fixed the MySQL UoW/Dapper test to use a per-run unique marker and remove its own row after verification. This prevents the persistent Docker MySQL volume from making repeated runs fail because a previous run left a row with the same fixed name.
+- Fixed the CAP publisher registration test to use the relational MySQL EF provider. EF Core InMemory is not a valid provider for CAP's relational EF storage because it does not expose a relational connection string.
+- These are test-harness corrections only. They are committed but still require another Docker run; no production framework behavior was changed.
+- Current compiler warnings in the reported run: 41 in Infrastructure and 98 in IntegrationTests. They remain separate cleanup work and are not test failures.
+
 ## 2026-11-23 — Integration regression test runtime corrections
 
 - The first successful Docker build reached xUnit execution: 33 of 44 tests passed and 11 failed. The failures were reviewed as test-harness/setup and assertion issues rather than treated as 11 production defects.
