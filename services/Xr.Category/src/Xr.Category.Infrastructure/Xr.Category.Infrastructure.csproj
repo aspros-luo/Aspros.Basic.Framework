@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Xr.Category.Domain/Xr.Category.Domain.csproj" />
+    <ProjectReference Include="../Xr.Category.Application/Xr.Category.Application.csproj" />
     <ProjectReference Include="../../../../Aspros.Base.Framework.Infrastructure/Aspros.Base.Framework.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
