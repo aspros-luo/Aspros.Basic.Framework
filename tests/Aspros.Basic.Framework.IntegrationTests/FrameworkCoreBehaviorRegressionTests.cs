@@ -15,7 +15,7 @@ public sealed class FrameworkCoreBehaviorRegressionTests
         !string.IsNullOrWhiteSpace(
             Environment.GetEnvironmentVariable("ConnectionStrings__TestRedis"));
 
-    [Fact(SkipUnless = nameof(RedisAvailable), SkipType = typeof(FrameworkCoreBehaviorRegressionTests))]
+    [Fact(Skip = "Redis is not configured for this test run.", SkipUnless = nameof(RedisAvailable), SkipType = typeof(FrameworkCoreBehaviorRegressionTests))]
     public async Task RedisDistributedCache_CanWriteAndReadWhenRedisIsAvailable()
     {
         var redis = Environment.GetEnvironmentVariable("ConnectionStrings__TestRedis")!;
@@ -157,8 +157,11 @@ public sealed class FrameworkCoreBehaviorRegressionTests
 
         Assert.True(await uow.RegisterDeleted(entity, isDel: false));
         Assert.True(entity.Deleted);
-        Assert.Equal(1, await db.Entities.CountAsync());
-        Assert.Equal(0, await db.Entities.CountAsync(x => !x.Deleted));
+        Assert.Equal(EntityState.Modified, db.Entry(entity).State);
+
+        // Soft delete is staged in the current UnitOfWork. It must not be
+        // persisted until CommitAsync is called.
+        Assert.Equal(1, await db.Entities.CountAsync(x => !x.Deleted));
     }
 
     [Fact]
