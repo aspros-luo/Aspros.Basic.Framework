@@ -1,13 +1,13 @@
 using Aspros.Base.Framework.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Xr.Category.Domain;
+using CategoryEntity = Xr.Category.Domain.Category;
 
 namespace Xr.Category.Infrastructure;
 
-public sealed class CategoryMapping : EntityMappingConfiguration<Category>
+public sealed class CategoryMapping : EntityMappingConfiguration<CategoryEntity>
 {
-    public override void Map(EntityTypeBuilder<Category> builder)
+    public override void Map(EntityTypeBuilder<CategoryEntity> builder)
     {
         builder.ToTable("category");
         builder.HasKey(x => x.Id);
