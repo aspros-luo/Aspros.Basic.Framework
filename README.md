@@ -1,6 +1,6 @@
 # Aspros Basic Framework
 
-> **Release candidate:** `2.0.0-rc.1` targeting `.NET 10`. This is not a stable release until the Docker regression and independent NuGet consumer checks pass.
+> **Release candidate:** `2.0.0-rc.1` targeting `.NET 10`. The current validation path is Docker infrastructure deployment plus real Core Provider/Consumer API calls. Framework xUnit and migration regression execution is paused.
 
 面向 .NET 10 的轻量级业务基础框架，保持“少而够用”的工程边界。
 
@@ -232,15 +232,9 @@ See:
 - `docs/Microservice-Reliability.zh-CN.md`
 
 
-## Packaged Core Web API consumer
+## External Package Consumer Sample
 
-The repository now includes `samples/Framework.Core.Api`, a standalone .NET 10 Web API that consumes `Aspros.Base.Framework.Infrastructure` version `2.0.0-rc.1` through `PackageReference`, not `ProjectReference`.
-
-The disposable consumer regression first packs Abstractions, Domain and Infrastructure into a local NuGet feed, restores Core API from that feed, builds it, starts it on `http://127.0.0.1:7210`, and verifies `GET /health`.
-
-    bash dev-environment/run-core-package-consumer-regression.sh
-
-This is the closest repository-level simulation of a released Framework package being consumed by a new microservice.
+samples/Framework.Core.Api remains as a standalone .NET 10 API example that consumes the Infrastructure package through PackageReference. It is not part of the active Docker environment workflow. The current runnable Docker API path is the Core Provider/Consumer pair described above.
 
 ## Database Code First / Migration
 
@@ -260,19 +254,20 @@ The optional CLI is packaged as `Aspros.Basic.Framework.Tools` (the commands bel
 
 `update` requires explicit `--allow-update` and is intended for development/test databases. Production should normally use a reviewed SQL script or migration bundle. See `docs/Database-CodeFirst-Migration-Roadmap.md` and its Chinese counterpart.
 
-## Regression Acceptance
+## Docker API Environment
 
-The final regression matrix is documented in:
+The active Docker workflow starts MySQL, Redis, RabbitMQ and Nacos together with the Core Provider and Consumer APIs:
 
-- `docs/Final-Regression-Matrix.md`
-- `docs/Final-Regression-Matrix.zh-CN.md`
+    docker compose -f dev-environment/docker-compose.yml --profile infra --profile api up -d --build
 
-The recommended one-command disposable acceptance run is:
+Then call the HTTP APIs:
 
-    cd dev-environment
-    docker compose --profile infra --profile full-regression run --rm framework-full-regression
+    curl http://localhost:7141/health
+    curl "http://localhost:7141/core/ping?message=hello"
 
-This validates the framework integration suite plus MySQL, Redis, RabbitMQ, Nacos and migration regression scenarios without enabling GitHub Actions.
+The complete port map, credentials, logs and shutdown commands are maintained in dev-environment/README.zh-CN.md and dev-environment/README.md.
+
+Framework xUnit and migration test sources remain in tests/, but their Docker execution is intentionally paused and is not a current release or environment-startup gate.
 
 ## 2.0.0-rc.1 Migration note
 
