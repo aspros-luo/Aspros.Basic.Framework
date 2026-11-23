@@ -37,6 +37,37 @@ internal static class AsprosTool
             return 2;
         }
 
+        var allowedValues = command switch
+        {
+            "add" => new[] { "project", "startup-project", "context", "output-dir", "configuration", "framework" },
+            "script" => new[] { "project", "startup-project", "context", "configuration", "framework", "from", "to", "output" },
+            "update" => new[] { "project", "startup-project", "context", "configuration", "framework", "connection" },
+            _ => Array.Empty<string>()
+        };
+        var allowedFlags = command switch
+        {
+            "add" => new[] { "no-build" },
+            "script" => new[] { "no-build", "idempotent" },
+            "update" => new[] { "no-build", "allow-update" },
+            _ => Array.Empty<string>()
+        };
+        var allowedValueSet = new HashSet<string>(allowedValues, StringComparer.OrdinalIgnoreCase);
+        var allowedFlagSet = new HashSet<string>(allowedFlags, StringComparer.OrdinalIgnoreCase);
+        var unknownOption = options.Values.Keys.FirstOrDefault(name => !allowedValueSet.Contains(name))
+            ?? options.Flags.FirstOrDefault(name => !allowedFlagSet.Contains(name));
+        if (unknownOption is not null)
+        {
+            Console.Error.WriteLine($"Unknown option '--{unknownOption}' for migration {command}.");
+            return 2;
+        }
+
+        if ((command == "script" && options.Positionals.Count > 0) ||
+            (command == "update" && options.Positionals.Count > 1))
+        {
+            Console.Error.WriteLine($"Unexpected positional argument for migration {command}.");
+            return 2;
+        }
+
         if (command == "update" && !options.Flags.Contains("allow-update"))
         {
             Console.Error.WriteLine("Database update is intentionally protected. Add --allow-update only for development/test databases.");
@@ -61,28 +92,35 @@ internal static class AsprosTool
         AddOption(result, options, "project");
         AddOption(result, options, "startup-project");
         AddOption(result, options, "context");
-        AddOption(result, options, "output-dir");
-        AddOption(result, options, "configuration");
-        AddOption(result, options, "framework");
-        AddOption(result, options, "no-build");
 
-        if (command == "script")
+        if (command == "add")
         {
+            AddOption(result, options, "output-dir");
+            AddOption(result, options, "configuration");
+            AddOption(result, options, "framework");
+            AddOption(result, options, "no-build");
+        }
+        else if (command == "script")
+        {
+            AddOption(result, options, "configuration");
+            AddOption(result, options, "framework");
+            AddOption(result, options, "no-build");
             AddOption(result, options, "from");
             AddOption(result, options, "to");
             AddOption(result, options, "output");
+
             if (options.Flags.Contains("idempotent"))
             {
                 result.Add("--idempotent");
             }
         }
-
-        if (command == "update")
+        else if (command == "update")
         {
-            AddOption(result, options, "connection");
             AddOption(result, options, "configuration");
             AddOption(result, options, "framework");
             AddOption(result, options, "no-build");
+            AddOption(result, options, "connection");
+
             if (options.Positionals.Count > 0)
             {
                 result.Add(options.Positionals[0]);
@@ -98,6 +136,10 @@ internal static class AsprosTool
         {
             args.Add($"--{name}");
             args.Add(value);
+        }
+        else if (options.Flags.Contains(name))
+        {
+            args.Add($"--{name}");
         }
     }
 
@@ -117,7 +159,7 @@ internal static class AsprosTool
             }
 
             var name = arg[2..];
-            if (name is "idempotent" or "allow-update")
+            if (name is "idempotent" or "allow-update" or "no-build")
             {
                 flags.Add(name);
                 continue;

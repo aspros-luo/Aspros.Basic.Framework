@@ -57,13 +57,22 @@ public sealed class UnitOfWork(
         {
             DbContextTransaction = Database.BeginTransaction();
             _ownsTransaction = true;
-        }
-        else
-        {
-            DbContextTransaction = dbContextTransaction;
-            _ownsTransaction = false;
+            return DbContextTransaction;
         }
 
+        var currentTransaction = Database.CurrentTransaction;
+        if (currentTransaction is null ||
+            !ReferenceEquals(
+                currentTransaction.GetDbTransaction(),
+                dbContextTransaction.GetDbTransaction()))
+        {
+            throw new ArgumentException(
+                "The supplied transaction must already be active on this UnitOfWork DbContext.",
+                nameof(dbContextTransaction));
+        }
+
+        DbContextTransaction = dbContextTransaction;
+        _ownsTransaction = false;
         return DbContextTransaction;
     }
 
@@ -92,8 +101,9 @@ public sealed class UnitOfWork(
     public Task<bool> CommitAsync() => CommitAsync(CancellationToken.None);
 
     /// <summary>
-    /// Saves EF Core changes and commits the current explicit transaction when present.
-    /// 持久化 EF Core 修改；存在显式事务时，同时提交当前事务。
+    /// Saves EF Core changes and commits only a transaction created by this UnitOfWork.
+    /// For a caller-owned transaction, this only flushes changes and leaves the transaction open.
+    /// 持久化 EF Core 修改；仅提交由当前 UnitOfWork 创建的事务，外部事务只写入但保持开启。
     ///
     /// <para>
     /// Without an explicit transaction, EF Core SaveChanges already provides the
@@ -104,7 +114,8 @@ public sealed class UnitOfWork(
     /// </summary>
     public async Task<bool> CommitAsync(CancellationToken cancellationToken)
     {
-        if (DbContextTransaction is null)
+        var transaction = DbContextTransaction;
+        if (transaction is null)
         {
             // A successful commit is not the same as "at least one row changed".
             // SaveChangesAsync returns zero for a valid no-op, which is still a
@@ -115,27 +126,43 @@ public sealed class UnitOfWork(
 
         try
         {
+            // SaveChanges flushes pending changes into the active transaction.
+            // Only a transaction created by this UnitOfWork may be committed here.
             await _dbContext.SaveChangesAsync(cancellationToken);
-            await DbContextTransaction.CommitAsync(cancellationToken);
+
+            if (_ownsTransaction)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+
             return true;
         }
         catch
         {
-            try
+            if (_ownsTransaction)
             {
-                await DbContextTransaction.RollbackAsync(CancellationToken.None);
-            }
-            catch
-            {
-                // Preserve the original persistence exception.
+                try
+                {
+                    await transaction.RollbackAsync(CancellationToken.None);
+                }
+                catch
+                {
+                    // Preserve the original persistence exception.
+                }
+
+                _dbContext.ClearTrackedChanges();
             }
 
-            _dbContext.ClearTrackedChanges();
+            // An externally owned transaction belongs to its caller. The caller
+            // decides whether to roll it back after a failed SaveChanges.
             throw;
         }
         finally
         {
-            await DisposeTransactionAsync();
+            if (_ownsTransaction)
+            {
+                await DisposeTransactionAsync();
+            }
         }
     }
 
@@ -206,7 +233,7 @@ public sealed class UnitOfWork(
             await _workContext.GetUserId(),
             DateTime.UtcNow);
 
-        _dbContext.Set<TEntity>().Update(entity);
+        AttachAsModifiedIfDetached(entity);
         return true;
     }
 
@@ -226,7 +253,11 @@ public sealed class UnitOfWork(
             ApplyModifyAudit(entity, userId, now);
         }
 
-        _dbContext.Set<TEntity>().UpdateRange(materialized);
+        foreach (var entity in materialized)
+        {
+            AttachAsModifiedIfDetached(entity);
+        }
+
         return true;
     }
 
@@ -253,7 +284,7 @@ public sealed class UnitOfWork(
         ApplyModifyAudit(entity, userId, now);
         ApplySoftDelete(entity);
 
-        _dbContext.Set<TEntity>().Update(entity);
+        AttachAsModifiedIfDetached(entity);
         return true;
     }
 
@@ -282,13 +313,18 @@ public sealed class UnitOfWork(
             ApplySoftDelete(entity);
         }
 
-        _dbContext.Set<TEntity>().UpdateRange(materialized);
+        foreach (var entity in materialized)
+        {
+            AttachAsModifiedIfDetached(entity);
+        }
+
         return true;
     }
 
     /// <summary>
-    /// Rolls back the current transaction and clears tracked entity state.
-    /// 回滚当前事务，并清理 EF Core 已跟踪的实体状态。
+    /// Rolls back a transaction created by this UnitOfWork and clears tracked entity state.
+    /// Caller-owned transactions must be rolled back by their owner.
+    /// 回滚由当前 UnitOfWork 创建的事务；外部事务必须由其所有者回滚。
     /// </summary>
     public async Task RollbackAsync(
         CancellationToken cancellationToken = default)
@@ -318,8 +354,9 @@ public sealed class UnitOfWork(
     }
 
     /// <summary>
-    /// Synchronously rolls back the current transaction and clears tracked entity state.
-    /// 同步回滚当前事务，并清理 EF Core 已跟踪的实体状态。
+    /// Synchronously rolls back a transaction created by this UnitOfWork.
+    /// Caller-owned transactions must be rolled back by their owner.
+    /// 同步回滚由当前 UnitOfWork 创建的事务；外部事务必须由其所有者回滚。
     /// </summary>
     public void Rollback()
     {
@@ -344,6 +381,20 @@ public sealed class UnitOfWork(
 
             DbContextTransaction = null;
             _ownsTransaction = false;
+        }
+    }
+
+    /// <summary>
+    /// Keeps EF Core's property-level change tracking for entities loaded by this DbContext.
+    /// Detached entities are treated as complete replacements and marked modified.
+    /// 对当前 DbContext 已跟踪实体保留属性级变更；游离实体按完整对象更新处理。
+    /// </summary>
+    private void AttachAsModifiedIfDetached<TEntity>(TEntity entity)
+        where TEntity : class
+    {
+        if (_dbContext.Entry(entity).State == EntityState.Detached)
+        {
+            _dbContext.Set<TEntity>().Update(entity);
         }
     }
 
@@ -408,17 +459,12 @@ public sealed class UnitOfWork(
 
     private async Task DisposeTransactionAsync()
     {
-        if (DbContextTransaction is null)
+        if (DbContextTransaction is null || !_ownsTransaction)
         {
             return;
         }
 
-        if (_ownsTransaction)
-        {
-            await DbContextTransaction.DisposeAsync();
-        }
-
+        await DbContextTransaction.DisposeAsync();
         DbContextTransaction = null;
         _ownsTransaction = false;
-    }
-}
+    }}

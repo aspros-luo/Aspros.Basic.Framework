@@ -140,6 +140,121 @@ public sealed class FrameworkUnitOfWorkRegressionTests
     }
 
     [Fact]
+    public async Task UnitOfWork_DoesNotCommitExternallyOwnedTransaction()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<SqliteRegressionDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var writer = new SqliteRegressionDbContext(options);
+        await writer.Database.EnsureCreatedAsync();
+        await using var externalTransaction = await writer.Database.BeginTransactionAsync();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IWorkContext, TestWorkContext>();
+        services.AddScoped<IDbContext>(_ => writer);
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        uow.BeginTransaction(externalTransaction);
+        await uow.RegisterNew(new SqliteRegressionRow { Name = "external-transaction" });
+
+        Assert.True(await uow.CommitAsync());
+        Assert.Same(externalTransaction, uow.DbContextTransaction);
+
+        // The outer owner still controls the transaction and can roll it back.
+        await externalTransaction.RollbackAsync();
+
+        await using var observer = new SqliteRegressionDbContext(options);
+        Assert.Equal(0, await observer.Rows.CountAsync());
+    }
+
+    [Fact]
+    public async Task UnitOfWork_DoesNotRollbackExternallyOwnedTransaction()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<SqliteRegressionDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var writer = new SqliteRegressionDbContext(options);
+        await writer.Database.EnsureCreatedAsync();
+        await using var externalTransaction = await writer.Database.BeginTransactionAsync();
+
+        var services = new ServiceCollection();
+        services.AddScoped<IWorkContext, TestWorkContext>();
+        services.AddScoped<IDbContext>(_ => writer);
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        uow.BeginTransaction(externalTransaction);
+        await uow.RegisterNew(new SqliteRegressionRow { Name = "external-rollback" });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => uow.RollbackAsync());
+
+        Assert.Same(externalTransaction, uow.DbContextTransaction);
+        await externalTransaction.RollbackAsync();
+        writer.ClearTrackedChanges();
+
+        await using var observer = new SqliteRegressionDbContext(options);
+        Assert.Equal(0, await observer.Rows.CountAsync());
+    }
+
+    [Fact]
+    public async Task UnitOfWork_RegisterDirty_PreservesTrackedPropertyChanges()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<SqliteRegressionDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var writer = new SqliteRegressionDbContext(options);
+        await writer.Database.EnsureCreatedAsync();
+        writer.Rows.Add(new SqliteRegressionRow { Name = "before" });
+        await writer.SaveChangesAsync();
+
+        var row = await writer.Rows.SingleAsync();
+        row.Name = "after";
+
+        var services = new ServiceCollection();
+        services.AddScoped<IWorkContext, TestWorkContext>();
+        services.AddScoped<IDbContext>(_ => writer);
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        await uow.RegisterDirty(row);
+        writer.ChangeTracker.DetectChanges();
+
+        var modifiedProperties = writer.Entry(row).Properties
+            .Where(property => property.IsModified)
+            .Select(property => property.Metadata.Name)
+            .ToArray();
+
+        Assert.Equal(new[] { "Name" }, modifiedProperties);
+        Assert.True(await uow.CommitAsync());
+
+        await using var observer = new SqliteRegressionDbContext(options);
+        Assert.Equal("after", await observer.Rows.Select(x => x.Name).SingleAsync());
+    }
+
+    [Fact]
     public async Task DapperExecutor_UsesUnitOfWorkTransaction()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

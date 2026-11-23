@@ -1,6 +1,6 @@
-# Final Regression Matrix
+# Final Regression Matrix — 2.0.0-rc.1
 
-Acceptance matrix for Framework 2.0.0 on .NET 10.
+Acceptance matrix for release candidate Framework 2.0.0-rc.1 on .NET 10.
 
 Status semantics:
 - PASS: executed in a real runtime and passed.
@@ -12,19 +12,19 @@ Single-entry acceptance:
 cd dev-environment
 docker compose --profile infra --profile full-regression run --rm framework-full-regression
 
-The command performs restore, dotnet ef verification, full solution build, the complete xUnit regression suite, and MySQL migration regression. Disposable infrastructure contains MySQL, Redis, RabbitMQ and Nacos.
+The command performs restore, dotnet-ef verification, full solution build, the complete xUnit regression suite, MySQL migration regression, and the packed NuGet consumer regression. Disposable infrastructure contains MySQL, Redis, RabbitMQ and Nacos.
 
 | Area | Coverage | Current status |
 |---|---|---|
 | Abstractions | Domain boundary / type forwarding | STATIC VERIFIED |
 | DI / AutoInject | registration / TryAdd / assembly scanning | STATIC VERIFIED |
-| UnitOfWork | stage / commit / rollback / audit | BLOCKED runtime; test wired |
+| UnitOfWork | stage / commit / rollback / audit / external transaction ownership | BLOCKED runtime; tests wired |
 | EF + Dapper | same database path | BLOCKED runtime; test wired |
 | MySQL | EF Core 10 + Oracle MySQL provider | BLOCKED runtime; test wired |
 | Migration | add / script / update / repeat update | BLOCKED runtime; disposable fixture wired |
 | Migration safety | destructive scaffold / RenameColumn / data preservation | BLOCKED runtime; fixture wired |
 | gRPC | real protobuf RPC using TestServer | BLOCKED runtime; test wired |
-| Packaged Core API consumer | local NuGet pack -> restore -> build -> startup -> /health | BLOCKED runtime; script wired |
+| Packaged Core API consumer | local NuGet pack -> restore -> build -> startup -> /health | BLOCKED runtime; included in the full-regression script |
 | Core Provider/Consumer | solution build + smoke assets | STATIC VERIFIED |
 | HTTP Resilience | transient GET retry / unsafe POST protection | BLOCKED runtime; test wired |
 | Polly Timeout | overdue operation rejection | BLOCKED runtime; test wired |
@@ -42,4 +42,4 @@ The command performs restore, dotnet ef verification, full solution build, the c
 | GitHub Actions | workflow files | PASS: none present by design |
 
 Static verification must never be reported as runtime PASS.
-Current execution environment has no dotnet or Docker, so runtime rows remain BLOCKED until the disposable .NET 10 disposable environment is actually executed.
+This candidate has not yet been executed in a real runtime from this session. Runtime rows remain BLOCKED until the prepared disposable .NET 10 Docker environment has actually completed the command successfully.

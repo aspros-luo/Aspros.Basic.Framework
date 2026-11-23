@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspros.Base.Framework.Infrastructure" Version="2.0.0" />
+    <PackageReference Include="Aspros.Base.Framework.Infrastructure" Version="2.0.0-rc.1" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,21 @@
+## 2026-11-23 — Release candidate 2.0.0-rc.1 hardening
+
+### Correctness and API clarity
+- Fixed UnitOfWork transaction ownership: a caller-owned transaction must already be active on the same DbContext; CommitAsync only flushes changes into it, and UnitOfWork refuses to roll it back or dispose it.
+- Preserved EF Core property-level change tracking for entities loaded by the current DbContext; detached objects remain explicit full-entity updates.
+- Added SQLite regression tests for external-transaction commit/rollback ownership and tracked-entity update behavior.
+- Moved the framework enum from the root Domain namespace to `ValueObjects.EntityStatus` to avoid collisions with business-owned `Status` types.
+- Fixed migration CLI handling of the `--no-build` flag, removed duplicate EF options, and reject command-specific unknown options.
+
+### Dependency and verification hygiene
+- Updated .NET 10 / EF Core / ASP.NET package references to 10.0.15, gRPC packages to 2.85.0, HTTP resilience to 10.11.1, and the Oracle MySQL EF provider to 10.0.12.
+- Removed direct Infrastructure dependencies that had no implementation usage: SkyAPM, Mapster, AspectCore, MassTransit, MVC Newtonsoft integration, JwtBearer, and the Oracle MySQL EF provider. The migration fixture retains its own MySQL provider dependency.
+- Made the full Docker regression delegate to one script and included the packed NuGet consumer check in the release gate.
+- Added the standard StackExchange Redis registration example without introducing another cache abstraction.
+
+### Release status
+- Package version is `2.0.0-rc.1`. Runtime build, integration, migration, gRPC, and external NuGet consumer acceptance remain BLOCKED until run in the prepared Docker environment. This candidate is not yet a stable NuGet release.
+
 ## 2026-10-18 — Dependency injection discovery audit
 
 ### MediatR registration

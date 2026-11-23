@@ -1,5 +1,7 @@
 # Aspros Basic Framework
 
+> **Release candidate:** `2.0.0-rc.1-rc.1` targeting `.NET 10`. This is not a stable release until the Docker regression and independent NuGet consumer checks pass.
+
 面向 .NET 10 的轻量级业务基础框架，保持“少而够用”的工程边界。
 
 升级决策、消费者迁移步骤和验收门槛：
@@ -79,6 +81,9 @@ EF Core 仍是默认路径；复杂 SQL 可以直接注入 IDapperExecutor。
 
 框架不再在 RegisterNew/RegisterDirty/RegisterDeleted 内部偷偷 SaveChanges，也不再主动关闭或 Dispose EF Core 管理的 DbConnection。
 
+使用外部事务时，事务必须已经属于同一个 DbContext。UnitOfWork 的 `CommitAsync` 只把变更写入该事务，不会替外部调用方提交或释放它；外部事务的回滚也必须由其所有者执行。
+已由 Repository 查询得到并处于跟踪状态的实体，`RegisterDirty` 会保留 EF Core 的属性级变更，不会强制把整行所有字段标记为修改。传入游离实体时则按完整对象更新处理，不应使用只含部分字段的 DTO 直接调用。
+
 ## 事件
 
 IEvent / IEventHandler 是可选的进程内事件机制。
@@ -86,6 +91,23 @@ IEvent / IEventHandler 是可选的进程内事件机制。
     await eventBus.PublishAsync(new SomethingChangedEvent(...));
 
 它不承担 MQ 的可靠投递、重试和持久化职责。需要跨服务最终一致性时，应使用当前业务环境中的 MQ / CAP / MassTransit 能力。
+
+## Redis Cache
+
+框架不另外包装 `IDistributedCache`。业务服务直接使用 .NET 提供的 Redis Provider：
+
+```csharp
+var redisConnection = builder.Configuration.GetConnectionString("Redis")
+    ?? throw new InvalidOperationException("Redis connection string is required.");
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnection;
+    options.InstanceName = "my-service:";
+});
+```
+
+业务服务注入 `IDistributedCache` 后即可使用 `GetStringAsync` / `SetStringAsync`。缓存 Key、TTL 和一致性策略仍由业务服务决定；`AddAsprosFramework` 不会隐式连接 Redis。
 
 ## 自动注入
 
@@ -212,7 +234,7 @@ See:
 
 ## Packaged Core Web API consumer
 
-The repository now includes `samples/Framework.Core.Api`, a standalone .NET 10 Web API that consumes `Aspros.Base.Framework.Infrastructure` version `2.0.0` through `PackageReference`, not `ProjectReference`.
+The repository now includes `samples/Framework.Core.Api`, a standalone .NET 10 Web API that consumes `Aspros.Base.Framework.Infrastructure` version `2.0.0-rc.1` through `PackageReference`, not `ProjectReference`.
 
 The disposable consumer regression first packs Abstractions, Domain and Infrastructure into a local NuGet feed, restores Core API from that feed, builds it, starts it on `http://127.0.0.1:7210`, and verifies `GET /health`.
 
@@ -247,3 +269,7 @@ The recommended one-command disposable acceptance run is:
     docker compose --profile infra --profile full-regression run --rm framework-full-regression
 
 This validates the framework integration suite plus MySQL, Redis, RabbitMQ, Nacos and migration regression scenarios without enabling GitHub Actions.
+
+## 2.0.0 Migration note
+
+`BasicEntity.Status` now uses `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus` instead of the root-namespace `Status` enum. This avoids collisions with business-owned status models; update explicit enum references when moving to this package line.

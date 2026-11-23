@@ -34,6 +34,7 @@ dotnet run --project Aspros.Basic.Framework.Tools -- db migration script \
   --startup-project "$FIXTURE" \
   --context MigrationDbContext \
   --idempotent \
+  --no-build \
   --output "$OUTPUT_DIR/initial.sql"
 
 test -s "$OUTPUT_DIR/initial.sql"

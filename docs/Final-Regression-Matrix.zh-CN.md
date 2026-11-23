@@ -1,6 +1,6 @@
-# Framework 2.0.0（.NET 10）最终回归验收矩阵
+# Framework 2.0.0-rc.1（.NET 10）最终回归验收矩阵
 
-这是 Framework 2.0.0 / .NET 10 的最终验收入口和状态定义。
+这是 Framework 2.0.0-rc.1 / .NET 10 发布候选的验收入口和状态定义。
 
 状态定义：
 - PASS：真实 Runtime 已执行并通过。
@@ -12,19 +12,19 @@
 cd dev-environment
 docker compose --profile infra --profile full-regression run --rm framework-full-regression
 
-一次执行 restore、dotnet ef、Solution Build、全部 xUnit 和 MySQL Migration 回归；临时环境提供真实 MySQL / Redis / RabbitMQ / Nacos。
+一次执行 restore、dotnet-ef、Solution Build、全部 xUnit、MySQL Migration 回归，以及三个 NuGet 包的打包与独立 API 消费者验证；临时环境提供真实 MySQL / Redis / RabbitMQ / Nacos。
 
 | Area | 覆盖内容 | 当前状态 |
 |---|---|---|
 | Abstractions | Domain 边界 / Type Forwarding | STATIC VERIFIED |
 | DI / AutoInject | 注册 / TryAdd / Assembly Scan | STATIC VERIFIED |
-| UnitOfWork | stage / commit / rollback / audit | BLOCKED Runtime；测试已接线 |
+| UnitOfWork | stage / commit / rollback / audit / 外部事务所有权 | BLOCKED Runtime；测试已接线 |
 | EF + Dapper | 同数据库链路 | BLOCKED Runtime；测试已接线 |
 | MySQL | EF Core 10 + Oracle MySQL Provider | BLOCKED Runtime；测试已接线 |
 | Migration | add / script / update / repeat update | BLOCKED Runtime；Docker 夹具已接线 |
 | Migration Safety | destructive scaffold / RenameColumn / 数据保留 | BLOCKED Runtime；夹具已接线 |
 | gRPC | 真实 protobuf + TestServer RPC | BLOCKED Runtime；测试已接线 |
-| Packaged Core API consumer | local NuGet pack -> restore -> build -> startup -> /health | BLOCKED Runtime；脚本已接线 |
+| Packaged Core API consumer | local NuGet pack -> restore -> build -> startup -> /health | BLOCKED Runtime；已纳入 full-regression 脚本 |
 | Core Provider/Consumer | Solution Build + Smoke 资产 | STATIC VERIFIED |
 | HTTP Resilience | transient GET retry / unsafe POST protection | BLOCKED Runtime；测试已接线 |
 | Polly Timeout | 超时拒绝 | BLOCKED Runtime；测试已接线 |

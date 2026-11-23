@@ -19,9 +19,9 @@ dotnet pack "$ROOT_DIR/Aspros.Base.Framework.Domain/Aspros.Base.Framework.Domain
 dotnet pack "$ROOT_DIR/Aspros.Base.Framework.Infrastructure/Aspros.Base.Framework.Infrastructure.csproj" -c Release --no-restore -o "$PACKAGE_DIR"
 
 for package in \
-  "Aspros.Base.Framework.Abstractions.2.0.0.nupkg" \
-  "Aspros.Base.Framework.Domain.2.0.0.nupkg" \
-  "Aspros.Base.Framework.Infrastructure.2.0.0.nupkg"; do
+  "Aspros.Base.Framework.Abstractions.2.0.0-rc.1.nupkg" \
+  "Aspros.Base.Framework.Domain.2.0.0-rc.1.nupkg" \
+  "Aspros.Base.Framework.Infrastructure.2.0.0-rc.1.nupkg"; do
   if [[ ! -s "$PACKAGE_DIR/$package" ]]; then
     echo "Expected NuGet package was not produced: $package" >&2
     exit 1

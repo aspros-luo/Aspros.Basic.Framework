@@ -116,17 +116,19 @@ public interface IUnitOfWork : IScoped
         where TEntity : class;
 
     /// <summary>
-    /// Persists staged changes and commits the explicit transaction, when one exists.
+    /// Persists staged changes and commits only a transaction created by this UnitOfWork.
+    /// For a caller-owned transaction this only flushes changes; the owner must commit it.
     /// Returns true when the operation completes successfully, including when there are no changes.
-    /// 持久化当前暂存的修改；如果存在显式事务，则同时提交事务。
+    /// 持久化当前暂存的修改；只提交当前 UnitOfWork 创建的事务，外部事务由其所有者提交。
     /// 只要操作成功就返回 true，即使当前没有待持久化的修改。
     /// </summary>
     Task<bool> CommitAsync();
 
     /// <summary>
-    /// Persists staged changes and commits the explicit transaction with cancellation support.
+    /// Persists staged changes and commits only a transaction created by this UnitOfWork.
+    /// For a caller-owned transaction this only flushes changes; the owner must commit it.
     /// Returns true when the operation completes successfully, including when there are no changes.
-    /// 持久化当前暂存的修改，并支持 CancellationToken。
+    /// 持久化当前暂存的修改，并支持 CancellationToken；外部事务由其所有者提交。
     /// 只要操作成功就返回 true，即使当前没有待持久化的修改。
     /// </summary>
     Task<bool> CommitAsync(CancellationToken cancellationToken);

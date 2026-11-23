@@ -35,4 +35,7 @@ dotnet test   tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framewo
 echo "== MySQL migration regression =="
 bash dev-environment/run-migration-regression.sh
 
+echo "== Packaged NuGet consumer regression =="
+bash dev-environment/run-core-package-consumer-regression.sh
+
 echo "== Full Framework regression passed =="
