@@ -14,7 +14,7 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 
 一次执行 restore、dotnet-ef、Solution Build、全部 xUnit、MySQL Migration 回归，以及三个 NuGet 包的打包与独立 API 消费者验证；临时环境提供真实 MySQL / Redis / RabbitMQ / Nacos。
 
-基础 test profile 已通过 Restore、Solution Build 和 EF CLI（10.0.15），并进入原生 MTP 测试执行前的项目编译阶段。最新一次在编译 Infrastructure 时失败：旧版 `PermissionMiddleware` 位于消费项目命名空间，并尝试继承已封闭的 Framework 原生中间件。现已暂时注释禁用该项目耦合的兼容包装器及 `UsePermissionValid` 扩展；Framework 原生权限中间件保持独立，不因该问题解除 sealed。xUnit 断言尚未成功执行。
+基础 test profile 已通过 Restore、Solution Build 和 EF CLI（10.0.15）。最新一次在 Infrastructure 编译时，发现 `FrameworkRateLimitingExtensions.cs` 缺少 `Microsoft.AspNetCore.Builder` 命名空间引用，导致 `IServiceCollection.AddRateLimiter` 扩展无法解析。已补齐引用；仍需重新执行 Docker 验证。此次构建还报告 RSA 空值处理、gRPC 配置参数、EF Core 过时 QueryFilter API 和 QueryString 可空性警告，尚未处理；不会用空值抑制符或关闭 nullable 检查掩盖问题。xUnit 断言尚未成功执行。
 
 | Area | 覆盖内容 | 当前状态 |
 |---|---|---|
@@ -47,4 +47,4 @@ docker compose --profile infra --profile full-regression run --build --rm framew
 | GitHub Actions | Workflow 文件 | PASS：按约定保持 0 个 |
 
 不能把“源码已经写好”或“测试代码已经存在”标成 PASS。
-最新 Docker 执行在 Infrastructure 编译阶段被 `UnitOfWork.cs` 漏写 `///` 的语法错误阻断；同一位置引发了 10 条连锁诊断，根因只有一个。该问题和另一处 gRPC XML summary 未闭合问题已修复，并对 60 个 C# 文件完成同类注释结构静态扫描。但静态扫描不等于编译通过；在重新执行并成功之前，所有 xUnit 与 Provider / Runtime 项目继续保持 BLOCKED。
+最新 Docker 执行因限流注册扩展缺少命名空间引用而在 Infrastructure 编译阶段失败；该引用已补齐，仍待重新运行确认。前序 Domain、UnitOfWork 文档注释及 gRPC XML 文档问题已分别修复，但尚未取得完整编译和测试结果。所有 xUnit 与 Provider / Runtime 项目继续保持 BLOCKED。
