@@ -1,3 +1,14 @@
+## 2026-11-23 — Integration test compile alignment
+
+### Compile fixes
+- Updated the three `IWorkContext` test doubles to implement the current interface contract (`GetUserId`, `GetTenantId`, and `Get<T>`). The production interface and `WorkContext` implementation were already aligned; the stale code was isolated to regression-test fakes.
+- Changed the regression proto generation from `GrpcServices="Client"` to `GrpcServices="Both"` because the same test assembly hosts a gRPC server implementation and creates typed clients. Client-only generation correctly omitted the server base class required by `RegressionGreeterService`.
+- Updated `AddFrameworkGrpc` to call the parameterless `AddGrpc()` overload when no options callback is supplied, avoiding forwarding a nullable delegate to a non-nullable API.
+
+### Verification state
+- The latest user Docker run confirms Infrastructure builds successfully in 29.9 seconds. IntegrationTests then failed at compile time with eight errors: six missing interface members across three test doubles, and two diagnostics caused by client-only protobuf generation.
+- The above source fixes are committed. They have not yet been confirmed by a subsequent Docker build; xUnit assertions and provider/runtime regressions have still not run.
+- Remaining Infrastructure warnings include RSA nullable analysis, EF Core's obsolete query-filter API, and QueryString nullability. The gRPC nullable warning is addressed by the overload selection above; other warnings remain intentionally visible for focused follow-up.
 ## 2026-11-23 — Rate limiter registration namespace correction
 
 ### Compile fix
