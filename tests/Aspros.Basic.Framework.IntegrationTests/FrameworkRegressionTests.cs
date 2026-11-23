@@ -317,16 +317,22 @@ public sealed class FrameworkRegressionTests
         var db = scope.ServiceProvider.GetRequiredService<MySqlTestDbContext>();
         await db.Database.EnsureCreatedAsync();
 
+        // The Docker MySQL volume persists between runs. Use a unique marker so
+        // this regression remains repeatable even when previous test data exists.
+        var marker = $"framework-regression-{Guid.NewGuid():N}";
         var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        await uow.RegisterNew(new MySqlTestRow { Name = "framework-regression" });
+        await uow.RegisterNew(new MySqlTestRow { Name = marker });
         Assert.True(await uow.CommitAsync());
 
         var dapper = scope.ServiceProvider.GetRequiredService<IDapperExecutor>();
         var count = await dapper.QuerySingleOrDefaultAsync<int>(
             "SELECT COUNT(*) FROM FrameworkRegressionRows WHERE Name = @Name",
-            new { Name = "framework-regression" });
+            new { Name = marker });
 
         Assert.Equal(1, count);
+
+        // Keep the persistent test database tidy without relying on an empty DB.
+        await db.Rows.Where(x => x.Name == marker).ExecuteDeleteAsync();
     }
 
     [Fact]
@@ -334,8 +340,15 @@ public sealed class FrameworkRegressionTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddDbContext<TestDbContext>(options => options.UseInMemoryDatabase("framework-cap-test"));
-        services.AddFrameworkCap<TestDbContext>();
+
+        // CAP's EF storage requires a relational provider. InMemory is not a
+        // valid substitute here because it has no relational connection string.
+        var connectionString =
+            Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase") ??
+            "Server=localhost;Port=3306;Database=aspros_framework_test;User=framework;Password=framework_password;";
+        services.AddDbContext<MySqlTestDbContext>(options =>
+            options.UseMySQL(connectionString));
+        services.AddFrameworkCap<MySqlTestDbContext>();
 
         using var provider = services.BuildServiceProvider();
         Assert.NotNull(provider.GetRequiredService<ICapPublisher>());
@@ -371,10 +384,6 @@ internal sealed class RegressionGreeterService : RegressionGreeter.RegressionGre
 
         return Task.FromResult(new HelloReply { Message = message });
     }
-}
-
-internal sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options)
-{
 }
 
 internal sealed class MySqlTestDbContext(DbContextOptions<MySqlTestDbContext> options) : DbContext(options), IDbContext
