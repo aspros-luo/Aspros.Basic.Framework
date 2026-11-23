@@ -71,6 +71,7 @@ services:
       args:
         PROJECT_PATH: samples/Framework.Core.Provider/Framework.Core.Provider.csproj
     profiles: ["api"]
+    command: ["Framework.Core.Provider.dll"]
     ports:
       - "17041:8080"
       - "7041:7041"
@@ -89,6 +90,7 @@ services:
       args:
         PROJECT_PATH: samples/Framework.Core.Consumer/Framework.Core.Consumer.csproj
     profiles: ["api"]
+    command: ["Framework.Core.Consumer.dll"]
     depends_on:
       framework-core-provider:
         condition: service_healthy
