@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
 using Nacos.V2;
+using Nacos.V2.DependencyInjection;
+using Microsoft.Extensions.Caching.Distributed;
 using Xunit;
 
 namespace Aspros.Basic.Framework.IntegrationTests;
@@ -91,7 +93,7 @@ public sealed class FrameworkRegressionTests
 
         await using var provider = services.BuildServiceProvider();
         var client = provider
-            .GetRequiredService<Grpc.Net.ClientFactory.GrpcClientFactory>()
+            .GetRequiredService<global::Grpc.Net.ClientFactory.GrpcClientFactory>()
             .CreateClient<RegressionGreeter.RegressionGreeterClient>("regression");
 
         var response = await client.SayHelloAsync(
