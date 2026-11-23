@@ -1,23 +1,11 @@
-# Framework Regression Tests
+# Framework Regression Tests — Paused
 
-The preferred disposable acceptance entry point is `docker compose --profile infra --profile full-regression run --rm framework-full-regression`.
+The Framework xUnit and migration test projects are retained as source, but their Docker execution path is intentionally paused.
 
-This is the independent regression test project.
+Do not use the former `framework-test`, `framework-provider-test`, `framework-migration-test` or `framework-full-regression` commands as the current environment startup or acceptance workflow.
 
-The final matrix covers DI, AutoInject, UnitOfWork, Repository, EF mapping, migrations, gRPC, service discovery, permission, HTTP resilience, health, rate limiting, CAP, Redis, compatibility, serialization and core utility behavior.
+The active workflow is infrastructure deployment plus API-level verification. See:
+- `dev-environment/README.md`
+- `dev-environment/README.zh-CN.md`
 
-A disposable MySQL migration fixture now exercises add, idempotent script generation, protected update, repeated update, a reviewed rename migration and data-preservation verification.
-
-HTTP regression tests execute transient retry, unsafe-method retry protection, liveness/readiness endpoints, rate-limit rejection, and permission 403/503 scenarios.
-
-The provider profile also executes a real Redis distributed-cache round trip.
-
-Provider- and infrastructure-dependent scenarios must run inside the disposable Docker environment rather than being represented by mocks.
-
-The complete acceptance command is:
-
-```bash
-docker compose --profile infra --profile full-regression run --rm framework-full-regression
-```
-
-A module is PASS only after real build/test execution. Static inspection must never be reported as runtime PASS.
+The test source has not been deleted. It can be reviewed or re-enabled separately after the API runtime workflow is established. Container startup and API responses must be reported separately from Framework unit/integration-test status.
