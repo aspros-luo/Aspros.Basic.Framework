@@ -1,5 +1,6 @@
 using Aspros.Base.Framework.Infrastructure;
 using Xr.Category.Domain;
+using CategoryEntity = Xr.Category.Domain.Category;
 
 namespace Xr.Category.Application;
 
@@ -54,7 +55,7 @@ public sealed class CategoryService(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var category = new Category(
+        var category = new CategoryEntity(
             request.Code,
             request.Name,
             request.ParentId,
@@ -115,7 +116,7 @@ public sealed class CategoryService(
         return true;
     }
 
-    private static CategoryDto ToDto(Category category) => new(
+    private static CategoryDto ToDto(CategoryEntity category) => new(
         category.Id,
         category.Code,
         category.Name,
