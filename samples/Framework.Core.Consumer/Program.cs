@@ -12,10 +12,7 @@ var endpoint = new Uri(
     builder.Configuration["Grpc:Provider"] ?? "https://localhost:7041");
 
 builder.Services
-    .AddFrameworkGrpcClient<CoreService.CoreServiceClient>(endpoint)
-    // Forward the incoming HTTP Bearer token to the outgoing gRPC call.
-    // 将当前 HTTP 请求的 Bearer Token 继续传递给下游 gRPC。
-    .ForwardAuthorizationHeader();
+    .AddFrameworkGrpcClient<CoreService.CoreServiceClient>(endpoint);
 
 var app = builder.Build();
 
