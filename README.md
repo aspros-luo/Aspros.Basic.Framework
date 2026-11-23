@@ -128,9 +128,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 - samples/Framework.Core.Provider：gRPC Provider。
 - samples/Framework.Core.Consumer：调用 Provider 的 HTTP Web API。
 
-Provider 默认使用 https://localhost:7041。
-
-Consumer 暴露 GET /core/ping，通过框架注册的 gRPC ClientFactory 调用 Provider。
+Provider 使用 HTTP/2 gRPC（http://localhost:7041），并通过 http://localhost:8080/health 提供 HTTP 健康检查。Consumer 通过 http://localhost:7141 暴露 HTTP API，并通过框架注册的 gRPC ClientFactory 调用 Provider。
 
 ## 典型业务流
 
