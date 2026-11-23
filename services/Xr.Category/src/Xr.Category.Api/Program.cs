@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xr.Category.Api.Messaging;
 using Xr.Category.Api.Validation;
+using CategoryEntity = Xr.Category.Domain.Category;
 using Xr.Category.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
