@@ -351,7 +351,7 @@ internal sealed class RegressionGreeterService : RegressionGreeter.RegressionGre
 {
     public override Task<HelloReply> SayHello(
         HelloRequest request,
-        Grpc.Core.ServerCallContext context)
+        global::Grpc.Core.ServerCallContext context)
     {
         var bearer = context.RequestHeaders
             .FirstOrDefault(metadata =>
