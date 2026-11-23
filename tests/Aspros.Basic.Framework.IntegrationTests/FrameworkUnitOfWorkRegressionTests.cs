@@ -349,9 +349,17 @@ public sealed class FrameworkUnitOfWorkRegressionTests
         await using var scope = provider.CreateAsyncScope();
 
         var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var row = new SqliteRegressionRow { Name = "transaction-rollback" };
 
         await uow.BeginTransactionAsync();
-        await uow.RegisterNew(new SqliteRegressionRow { Name = "transaction-rollback" });
+        await uow.RegisterNew(row);
+
+        // Flush the INSERT while the explicit transaction is still open.
+        // Without this step, RollbackAsync would only clear an unpersisted entity
+        // from the ChangeTracker and would not test database transaction rollback.
+        Assert.Equal(1, await writer.SaveChangesAsync());
+        Assert.Equal(EntityState.Unchanged, writer.Entry(row).State);
+
         await uow.RollbackAsync();
 
         await using var observer = new SqliteRegressionDbContext(options);
