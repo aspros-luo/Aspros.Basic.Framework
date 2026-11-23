@@ -54,6 +54,7 @@ public sealed class FrameworkHttpRegressionTests
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
+        builder.Services.AddLogging();
         builder.Services.AddFrameworkHealthChecks(healthChecks =>
         {
             healthChecks.AddCheck(
@@ -85,6 +86,7 @@ public sealed class FrameworkHttpRegressionTests
         builder.WebHost.UseTestServer();
         builder.Services.AddFrameworkRateLimiting(options =>
         {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.AddFixedWindowLimiter(
                 "framework-regression",
                 limiter =>
