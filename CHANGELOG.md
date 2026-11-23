@@ -1,3 +1,14 @@
+## 2026-11-23 — Integration regression test runtime corrections
+
+- The first successful Docker build reached xUnit execution: 33 of 44 tests passed and 11 failed. The failures were reviewed as test-harness/setup and assertion issues rather than treated as 11 production defects.
+- Added explicit skip messages to conditional Redis / MySQL / RabbitMQ / Nacos tests, as required by the current xUnit Microsoft Testing Platform runner.
+- Registered a test DbContext before resolving the UnitOfWork from `AddAsprosFramework`; the framework registers the UnitOfWork implementation, while the business application remains responsible for supplying `IDbContext`.
+- Registered logging in the isolated CAP and HealthChecks service-provider tests.
+- Made the rate-limit test explicitly configure HTTP 429; ASP.NET Core's default rejection status is 503 unless the application chooses another status.
+- Updated the Polly assertion to expect the typed `BrokenCircuitException<HttpResponseMessage>`.
+- Corrected the soft-delete test to verify that the entity is marked Modified and the delete remains staged until commit, rather than expecting an uncommitted in-memory change to alter the persisted query result.
+- These test corrections are committed; the next Docker run is required to verify the new runtime result. No production behavior was changed in this pass.
+ 
 ## 2026-11-23 — Rate limiter test namespace fix
 
 - Imported `Microsoft.AspNetCore.RateLimiting` in `FrameworkRegressionTests.cs` so the test can resolve `RateLimiterOptions.AddFixedWindowLimiter`.
