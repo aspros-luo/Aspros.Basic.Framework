@@ -65,6 +65,29 @@ docker compose -f dev-environment/docker-compose.yml exec -T mysql \
 
 也可以通过 `ConnectionStrings__Category` 环境变量覆盖连接字符串。容器内连接 MySQL 时，Host 应使用 Compose 服务名 `mysql`，而不是 `localhost`。
 
+## Redis Cache validation
+
+The API registers the standard `IDistributedCache` Redis provider using `ConnectionStrings:Redis`. The Category detail read (`GET /api/categories/{id}`) uses a small Cache-Aside flow:
+
+- Read from Redis first; on a miss, load the active category from MySQL and cache the DTO.
+- Category detail entries use a five-minute absolute TTL.
+- Successful updates and logical deletes invalidate the corresponding detail key.
+- If Redis is unavailable, reads fall back to MySQL and cache write/invalidation failures are logged. Cache availability is not required for the underlying CRUD operation.
+
+The configured Redis key prefix is `xr-category:`; the detail key for category ID 1 is `xr-category:category:detail:1`.
+
+Inspect the key and its remaining TTL:
+
+```bash
+docker compose -f dev-environment/docker-compose.yml exec redis \
+  redis-cli --scan --pattern 'xr-category:category:detail:*'
+
+docker compose -f dev-environment/docker-compose.yml exec redis \
+  redis-cli TTL xr-category:category:detail:1
+```
+
+To validate cache-aside behavior, request the same category twice, inspect the key, update that category, and inspect the key again. The first read populates Redis; the second read can be served from Redis; a successful update removes the cached detail so the next read reloads the new value from MySQL.
+
 ## EF Core CRUD validation
 
 以下 API 验证 Framework 的 EF Core Mapping 自动发现、Repository 查询、UoW 新增/更新/逻辑删除及 Commit。
