@@ -201,6 +201,10 @@ internal sealed class CoreBehaviorEntity : BaseEntity
 internal sealed class CoreBehaviorWorkContext : IWorkContext
 {
     public Task<long> GetUserId() => Task.FromResult(99L);
+
+    public Task<long> GetTenantId() => Task.FromResult(0L);
+
+    public Task<T> Get<T>(string key) => Task.FromResult(default(T)!);
 }
 
 internal enum RegressionStatus
