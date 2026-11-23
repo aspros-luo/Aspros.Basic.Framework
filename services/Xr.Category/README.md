@@ -161,6 +161,18 @@ curl --fail \
 
 该查询用于验证 Dapper 对多条件、关联和聚合读取的使用体验。此服务没有为 Dapper 另造一层通用查询框架。
 
+## Explicit UnitOfWork transaction validation
+
+The Development-only diagnostic endpoint validates explicit transaction commit and rollback against MySQL:
+
+```bash
+curl -i -X POST http://localhost:7242/_dev/validation/unit-of-work
+```
+
+The endpoint creates two rows in one UnitOfWork transaction and commits them, then creates two more rows in a separate transaction. For the rollback case it calls `DbContext.SaveChangesAsync` while the transaction is still open before invoking `RollbackAsync`; this ensures SQL has actually reached MySQL and the rollback is not merely clearing unpersisted ChangeTracker entries.
+
+Both cases are verified through a fresh dependency-injection scope and DbContext. A successful response reports two committed rows and zero rows remaining from the rolled-back transaction. The endpoint is not mapped outside the Development environment and is intended only for local framework validation, not as a production business API.
+
 ## Framework reference mode
 
 由于服务目前与 Framework 位于同一仓库，项目通过 `ProjectReference` 引用 Framework 源码，便于 RC 阶段同步开发和调试。待 Framework 包发布并确定服务版本策略后，再切换为 NuGet `PackageReference`。
