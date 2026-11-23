@@ -1,6 +1,6 @@
 # Xr.Category
 
-类目业务服务。此目录属于 `services/`，与 Framework 的 `samples/` 示例项目分开维护。
+类目服务目前作为 Aspros Framework 的真实消费方和集成验证服务使用。当前目标是验证框架 API 在业务代码中的实际使用体验，不代表类目产品的最终领域设计。
 
 ## Project structure
 
@@ -8,6 +8,8 @@
 Xr.Category/
 ├── Xr.Category.sln
 ├── Directory.Build.props
+├── database/
+│   └── 001_create_category.sql
 └── src/
     ├── Xr.Category.Api/
     ├── Xr.Category.Application/
@@ -18,11 +20,11 @@ Xr.Category/
 依赖职责：
 
 - **Api**：HTTP 入口、配置和服务组合。
-- **Application**：业务用例与应用层协调。
-- **Domain**：类目领域模型、领域规则和仓储查询契约。
-- **Infrastructure**：MySQL、DbContext、EF Mapping 和仓储实现。
+- **Application**：业务用例、请求/响应 DTO，以及 Dapper 查询契约。
+- **Domain**：用于验证聚合根、基础实体、仓储契约和关系映射的最小 Category 模型。
+- **Infrastructure**：MySQL、DbContext、EF Mapping、Repository，以及 Dapper SQL 实现。
 
-当前 Framework 把 `IUnitOfWork` 公共契约放在 `Aspros.Base.Framework.Infrastructure` 程序集中，因此 Application 需要引用该程序集来使用 UoW；Application 不直接依赖 EF Core Provider，也不负责数据库映射。
+当前 Framework 把 `IUnitOfWork` 和 `IDapperExecutor` 公共契约放在 `Aspros.Base.Framework.Infrastructure` 程序集中，因此 Application 需要引用该程序集来使用这些契约；EF Provider、DbContext 和 SQL 实现仍由 Infrastructure 负责。
 
 ## Build and run
 
@@ -34,19 +36,14 @@ dotnet build services/Xr.Category/Xr.Category.sln
 dotnet run --project services/Xr.Category/src/Xr.Category.Api/Xr.Category.Api.csproj -- --urls http://localhost:7242
 ```
 
-检查 API 存活状态：
+检查 API 存活状态和数据库连接：
 
 ```bash
 curl --fail http://localhost:7242/health/live
-```
-
-检查 MySQL 是否可连接：
-
-```bash
 curl --fail http://localhost:7242/health/ready
 ```
 
-`/health/ready` 只验证数据库连接，不会创建数据库、表或执行 Migration。
+`/health/ready` 只验证数据库能否连接，不会创建数据库、表或执行 Migration。
 
 ## Local MySQL
 
@@ -56,24 +53,120 @@ curl --fail http://localhost:7242/health/ready
 - Database: `aspros_category`
 - User: `framework`
 
-当前 Compose 环境会创建 `aspros_framework_test`，不会自动创建类目服务数据库。使用 MySQL root 账号手动执行：
+当前 Compose 环境只会创建 `aspros_framework_test`。类目服务数据库由开发者显式创建，并按前序步骤给 `framework` 用户授权。
 
-```sql
-CREATE DATABASE aspros_category
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_0900_ai_ci;
+数据库表结构由开发者手动执行仓库中的 SQL 文件，不由 API 在启动时自动创建：
 
-GRANT ALL PRIVILEGES ON aspros_category.* TO 'framework'@'%';
+```bash
+docker compose -f dev-environment/docker-compose.yml exec -T mysql \
+  mysql -uroot -proot_password aspros_category \
+  < services/Xr.Category/database/001_create_category.sql
 ```
 
 也可以通过 `ConnectionStrings__Category` 环境变量覆盖连接字符串。容器内连接 MySQL 时，Host 应使用 Compose 服务名 `mysql`，而不是 `localhost`。
 
-数据库结构仍由业务开发者显式管理。服务启动时不会调用 `EnsureCreated` 或 `Database.Migrate`。
+## EF Core CRUD validation
+
+以下 API 验证 Framework 的 EF Core Mapping 自动发现、Repository 查询、UoW 新增/更新/逻辑删除及 Commit。
+
+### 1. Create a parent category
+
+```bash
+curl -i -X POST http://localhost:7242/api/categories \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "code": "ELECTRONICS",
+    "name": "Electronics",
+    "sortOrder": 10,
+    "isEnabled": true
+  }'
+```
+
+响应包含数据库生成的 `id`。下面的子类目请求使用该 ID 作为 `parentId`。
+
+### 2. Create a child category
+
+```bash
+curl -i -X POST http://localhost:7242/api/categories \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "code": "PHONES",
+    "name": "Phones",
+    "parentId": 1,
+    "sortOrder": 20,
+    "isEnabled": true
+  }'
+```
+
+### 3. Read and list
+
+```bash
+curl --fail http://localhost:7242/api/categories/1
+curl --fail 'http://localhost:7242/api/categories?page=1&pageSize=20'
+```
+
+列表查询通过 Repository/EF Core 执行，按排序字段稳定排序并排除逻辑删除记录。
+
+### 4. Update
+
+```bash
+curl -i -X PUT http://localhost:7242/api/categories/1 \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "code": "ELECTRONICS",
+    "name": "Consumer Electronics",
+    "sortOrder": 10,
+    "isEnabled": true
+  }'
+```
+
+更新路径先通过 Repository 加载跟踪实体，再调用 `RegisterDirty` 和 `CommitAsync`。这也用于观察 UoW 是否保留 EF Core 的属性级变更跟踪。
+
+### 5. Logical delete
+
+```bash
+curl -i -X DELETE http://localhost:7242/api/categories/2
+curl -i http://localhost:7242/api/categories/2
+```
+
+删除调用 `RegisterDeleted` 的默认逻辑删除模式。记录保留在数据库中，但 Repository 查询不再返回它。
+
+## Dapper complex query validation
+
+`GET /api/categories/search/dapper` 走 `IDapperExecutor.QueryAsync<T>` 和 `QuerySingleOrDefaultAsync<T>`，不经过 EF Core LINQ。
+
+查询包含：
+
+- 可选关键字过滤（名称或编码）；
+- 可选父类目、启用状态过滤；
+- Self JOIN 读取父类目名称；
+- LEFT JOIN + COUNT 聚合子类目数量；
+- 分页、稳定排序；
+- 独立 Count 查询返回总数；
+- 所有查询值使用 Dapper 参数绑定，不拼接用户输入。
+
+示例：
+
+```bash
+curl --fail \
+  'http://localhost:7242/api/categories/search/dapper?keyword=phone&parentId=1&isEnabled=true&page=1&pageSize=20'
+```
+
+查询父类目并查看子类目数量：
+
+```bash
+curl --fail \
+  'http://localhost:7242/api/categories/search/dapper?keyword=ELECTRONICS&page=1&pageSize=20'
+```
+
+该查询用于验证 Dapper 对多条件、关联和聚合读取的使用体验。此服务没有为 Dapper 另造一层通用查询框架。
 
 ## Framework reference mode
 
-由于服务目前与 Framework 位于同一仓库，项目先通过 `ProjectReference` 引用 Framework 源码，便于在 RC 阶段同步开发和调试。待 Framework 包发布并确定服务独立仓库/版本策略后，再切换为 NuGet `PackageReference`。
+由于服务目前与 Framework 位于同一仓库，项目通过 `ProjectReference` 引用 Framework 源码，便于 RC 阶段同步开发和调试。待 Framework 包发布并确定服务版本策略后，再切换为 NuGet `PackageReference`。
 
-## Domain scope
+服务的注册顺序有意先调用 `AddCategoryInfrastructure`，再调用 `AddAsprosFramework`。这会先建立 `IDbContext` 到同一 Scoped `CategoryDbContext` 的映射，再扫描业务程序集，确保 Repository 与 UnitOfWork 共享同一个 DbContext。
 
-当前提交只建立服务边界、依赖注册和数据库连接检查。类目实体字段、单级/多级结构、排序、停用、删除和父子关系规则尚未预设，确定这些业务规则后再进入 Domain 与 CRUD 实现。
+## Validation scope
+
+当前 Category 字段和自关联关系是用于 Framework CRUD / Dapper 集成验证的最小数据模型，不应视为已经确定的产品类目领域规则。此阶段不实现完整的类目树规则、移动规则或产品业务流程。
