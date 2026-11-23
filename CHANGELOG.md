@@ -1,9 +1,21 @@
+## 2026-11-23 — .NET 10 native test-runner alignment
+
+### Test execution
+- Enabled the .NET 10 native dotnet test integration for xUnit v3 / Microsoft Testing Platform v2 through the root global.json runner selection and the test project's MTP runner configuration.
+- Set the test project output type to executable, as required by Microsoft Testing Platform.
+- Updated the lightweight, provider, and full-regression test commands to the .NET 10 dotnet test --project form.
+- Retained Microsoft.NET.Test.Sdk and xunit.runner.visualstudio for backward compatibility with older IDE/test hosts; this change does not attempt a broader test-package cleanup.
+- Removed the redundant Microsoft.Extensions.Diagnostics.HealthChecks package reference because the ASP.NET Core shared framework already supplies it.
+
+### Verification state
+- The user's latest Docker run confirmed solution restore and build succeeded and dotnet-ef resolved to 10.0.15.
+- The test command then stopped before test discovery because the repository had not opted into the .NET 10 native MTP runner. No xUnit assertions have run yet; the regression suite remains unverified pending rerun with this configuration.
 ## 2026-11-23 — .NET 10 restore and dependency security fix
 
 ### Restore correctness
 - Replaced the non-existent `Microsoft.AspNetCore.RateLimiting 10.0.15` package reference with the `Microsoft.AspNetCore.App` framework reference. Rate limiting is supplied by the ASP.NET Core shared framework; do not add the retired 7.0 RC-only package or pin it to an older release.
 - Pinned the transitive `MySqlConnector` dependency brought by `DotNetCore.CAP.MySql 10.0.2` to patched version `2.6.2` (the minimum patched release for GHSA-473q-m89c-ghf8 is 2.6.1).
-- These changes correct dependency resolution and the known vulnerability warning; a successful restore/build still needs to be confirmed in the user's Docker environment.
+- The user's latest Docker run confirmed restore/build now succeed; the remaining test failure was the separate MTP runner configuration documented above.
 
 ## 2026-11-23 — Release candidate 2.0.0-rc.1 hardening
 
