@@ -1,17 +1,7 @@
 # Framework.Core.Api
 
-这是针对 Aspros Basic Framework 2.0.0 / .NET 10 的真实外部消费者模拟。
+这是一个独立的外部消费者示例，用于展示 .NET 10 业务 API 如何通过 NuGet `PackageReference` 引用 `Aspros.Base.Framework.Infrastructure`，而不是通过 `ProjectReference` 直接引用 Framework 源码。
 
-这个 Web API 不使用 ProjectReference 直接引用 Framework 源码，而是通过 NuGet PackageReference 引用 `Aspros.Base.Framework.Infrastructure` 版本 `2.0.0`。
+此前的临时 NuGet 打包消费者回归脚本已经退役，不再属于当前 Docker 环境工作流。
 
-回归脚本会先把 Framework 打包到一次性的本地 NuGet 源，然后让 Core API 从该 NuGet 源恢复依赖、编译并启动服务，最后请求 `GET /health`。
-
-默认地址：`http://127.0.0.1:7210`
-
-执行：
-
-```bash
-bash dev-environment/run-core-package-consumer-regression.sh
-```
-
-这个过程用于模拟真实业务服务发布后通过 Framework NuGet 包进行消费。
+该示例保留为手动包消费参考。当前 Docker API 环境使用 `Framework.Core.Provider` 与 `Framework.Core.Consumer`，启动方式见 `dev-environment/README.zh-CN.md`。
