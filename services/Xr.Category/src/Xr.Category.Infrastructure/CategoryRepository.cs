@@ -5,11 +5,11 @@ using CategoryEntity = Xr.Category.Domain.Category;
 namespace Xr.Category.Infrastructure;
 
 /// <summary>
-/// Category-specific EF Core queries. The service owns the concrete query implementation;
-/// the Framework repository contract remains the small IQueryable-based abstraction.
+/// Category-specific EF Core queries. The service supplies the EF Core implementation
+/// for its domain repository contract.
 /// </summary>
 public sealed class CategoryRepository(CategoryDbContext dbContext)
-    : ICategoryRepository, IScoped
+    : Xr.Category.Domain.ICategoryRepository, IScoped
 {
     private readonly CategoryDbContext _dbContext =
         dbContext ?? throw new ArgumentNullException(nameof(dbContext));
