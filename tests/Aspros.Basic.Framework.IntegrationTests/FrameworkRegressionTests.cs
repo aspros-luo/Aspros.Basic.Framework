@@ -407,4 +407,8 @@ internal sealed class CapRegressionSubscriber : ICapSubscribe
 internal sealed class TestWorkContext : IWorkContext
 {
     public Task<long> GetUserId() => Task.FromResult(1L);
+
+    public Task<long> GetTenantId() => Task.FromResult(0L);
+
+    public Task<T> Get<T>(string key) => Task.FromResult(default(T)!);
 }
