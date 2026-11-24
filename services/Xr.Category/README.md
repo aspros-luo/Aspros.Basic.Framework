@@ -198,7 +198,7 @@ Both cases are verified through a fresh dependency-injection scope and DbContext
 
 ## RabbitMQ / CAP validation
 
-The API uses `AddFrameworkCap<CategoryDbContext>()`: CAP stores its local published/received message records in the Category MySQL database and uses RabbitMQ as the transport. CAP's MySQL provider initializes its own `cap`-prefixed infrastructure tables at startup; it does not create or migrate the Category business schema.
+The API uses `AddFrameworkCap<CategoryDbContext>()`: CAP stores its local published/received message records in the Category MySQL database and uses RabbitMQ as the transport. CAP's MySQL provider initializes its own `cap`-prefixed infrastructure tables at startup; it does not create or migrate the Category business schema. The EF Core provider is `Microting.EntityFrameworkCore.MySql` (10.0.14), built on `MySqlConnector`, matching the driver used by `DotNetCore.CAP.MySql`. Keep both providers on the same ADO.NET driver because CAP shares the EF Core connection and transaction when writing the outbox.
 
 Before running the validation, create the separate business receipt table manually:
 
@@ -208,7 +208,7 @@ docker compose -f dev-environment/docker-compose.yml exec -T mysql \
   < services/Xr.Category/database/002_create_cap_validation_receipt.sql
 ```
 
-The receipt entity uses ordinary .NET strings with maximum lengths; the MySQL columns are `VARCHAR(36)` and `VARCHAR(32)`. Do not change these columns to `CHAR`: the configured `MySql.EntityFrameworkCore` provider does not support mapping these string properties to `char(n)`.
+The receipt entity uses ordinary .NET strings with maximum lengths; the MySQL columns are `VARCHAR(36)` and `VARCHAR(32)`. The Category EF Core provider (`Microting.EntityFrameworkCore.MySql`) and CAP's MySQL storage provider both use `MySqlConnector`, so they can share the same connection and transaction without mixing incompatible ADO.NET parameter types.
 
 If you already created the table from an earlier version of this script, `CREATE TABLE IF NOT EXISTS` will not change its existing column definitions. Upgrade it once manually:
 
