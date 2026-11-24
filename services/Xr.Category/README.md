@@ -304,6 +304,33 @@ The table uses append-only `MergeTree`. It does not enforce a unique key, so dup
 
 This endpoint publishes synthetic messages without coupling them to a Category business transaction. The separate CAP validation above already verifies transactional outbox commit and rollback with MySQL. A production behavior event that must be atomic with a business change should be published inside that business transaction using the same CAP-aware transaction boundary.
 
+### Minimal per-user category ranking validation
+
+The Development-only personalization validation demonstrates that the same behavior-event dataset can produce different category rankings for different users. It reads the first two enabled, non-deleted categories from MySQL, writes a deterministic synthetic event pattern to ClickHouse, and queries the per-user scores.
+
+Start a validation run:
+
+```bash
+curl --fail -X POST http://localhost:7242/_dev/validation/personalization
+```
+
+The response contains a generated `runId`. Query the rankings:
+
+```bash
+curl --fail http://localhost:7242/_dev/validation/personalization/<runId>
+```
+
+The sample uses these illustrative weights:
+
+- `view`: 1 point
+- `click`: 3 points
+- `purchase`: 8 points
+
+User A has stronger activity in the first category; User B has stronger activity in the second. The query first groups by the stable `event_id`, then aggregates scores by `user_id` and `category_id`. The sample deliberately inserts one duplicate physical row: the expected result is 11 physical rows but 10 logical events, without the duplicate increasing the score.
+
+A passing result must show opposite top-ranked categories for the two users. These weights are only a transparent validation fixture, not a production recommendation model. This endpoint uses synthetic events and does not yet publish real Category business events through CAP. The next integration step is to connect real business actions to the transactional outbox.
+
+
 ## Framework reference mode
 
 由于服务目前与 Framework 位于同一仓库，项目通过 `ProjectReference` 引用 Framework 源码，便于 RC 阶段同步开发和调试。待 Framework 包发布并确定服务版本策略后，再切换为 NuGet `PackageReference`。

@@ -4,6 +4,7 @@ using DotNetCore.CAP;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xr.Category.Api.Messaging;
+using Xr.Category.Api.Analytics;
 using Xr.Category.Api.Validation;
 using CategoryEntity = Xr.Category.Domain.Category;
 using Xr.Category.Infrastructure;
@@ -51,6 +52,7 @@ builder.Services.AddTransient<CategoryCapValidationSubscriber>();
 builder.Services.AddSingleton<CategoryCapValidationRunner>();
 builder.Services.AddSingleton<CategoryBehaviorEventState>();
 builder.Services.AddTransient<CategoryBehaviorEventSubscriber>();
+builder.Services.AddCategoryPersonalizationValidation();
 
 builder.Services.AddFrameworkCap<CategoryDbContext>(options =>
 {
@@ -99,6 +101,8 @@ app.MapGet("/health/ready", async (
 
 if (app.Environment.IsDevelopment())
 {
+    app.MapCategoryPersonalizationValidation();
+
     app.MapPost("/_dev/validation/clickhouse-cap", async (
         ICapPublisher capPublisher,
         CategoryBehaviorEventState state,
