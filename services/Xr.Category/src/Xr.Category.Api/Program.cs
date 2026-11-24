@@ -49,6 +49,8 @@ var rabbitMqPort = rabbitMqConfiguration.GetValue<int>("Port", 5672);
 builder.Services.AddSingleton<CategoryCapValidationState>();
 builder.Services.AddTransient<CategoryCapValidationSubscriber>();
 builder.Services.AddSingleton<CategoryCapValidationRunner>();
+builder.Services.AddSingleton<CategoryBehaviorEventState>();
+builder.Services.AddTransient<CategoryBehaviorEventSubscriber>();
 
 builder.Services.AddFrameworkCap<CategoryDbContext>(options =>
 {
@@ -97,6 +99,123 @@ app.MapGet("/health/ready", async (
 
 if (app.Environment.IsDevelopment())
 {
+    app.MapPost("/_dev/validation/clickhouse-cap", async (
+        ICapPublisher capPublisher,
+        CategoryBehaviorEventState state,
+        CancellationToken cancellationToken) =>
+    {
+        var runId = Guid.NewGuid().ToString("N");
+        var userId = "validation-user-1001";
+        const ulong categoryId = 1;
+        var eventTime = DateTime.UtcNow;
+        var run = new CategoryBehaviorEventRun(
+            runId,
+            userId,
+            categoryId,
+            Guid.NewGuid().ToString("N"),
+            Guid.NewGuid().ToString("N"));
+
+        state.RegisterRun(run);
+
+        // The retry event is first delivered unsuccessfully, then inserted after CAP retries.
+        await capPublisher.PublishAsync(
+            CategoryBehaviorEventTopics.Name,
+            new CategoryBehaviorEventMessage(
+                run.RetryEventId,
+                runId,
+                userId,
+                categoryId,
+                "view",
+                eventTime,
+                FailFirstDelivery: true),
+            cancellationToken: cancellationToken);
+
+        // Two independent CAP messages deliberately carry the same business EventId.
+        await capPublisher.PublishAsync(
+            CategoryBehaviorEventTopics.Name,
+            new CategoryBehaviorEventMessage(
+                run.DuplicateEventId,
+                runId,
+                userId,
+                categoryId,
+                "view",
+                eventTime,
+                FailFirstDelivery: false),
+            cancellationToken: cancellationToken);
+
+        await capPublisher.PublishAsync(
+            CategoryBehaviorEventTopics.Name,
+            new CategoryBehaviorEventMessage(
+                run.DuplicateEventId,
+                runId,
+                userId,
+                categoryId,
+                "view",
+                eventTime,
+                FailFirstDelivery: false),
+            cancellationToken: cancellationToken);
+
+        return Results.Accepted(
+            $"/_dev/validation/clickhouse-cap/{runId}",
+            new
+            {
+                runId,
+                userId,
+                categoryId,
+                retryEventId = run.RetryEventId,
+                duplicateEventId = run.DuplicateEventId
+            });
+    });
+
+    app.MapGet("/_dev/validation/clickhouse-cap/{runId}", async (
+        string runId,
+        ClickHouseClient clickHouse,
+        CategoryBehaviorEventState state) =>
+    {
+        var run = state.FindRun(runId);
+        if (run is null)
+        {
+            return Results.NotFound();
+        }
+
+        var physicalRows = Convert.ToInt64(await clickHouse.ExecuteScalarAsync(
+            $"SELECT count() FROM aspros_analytics.category_behavior_events WHERE run_id = '{runId}'"));
+        var logicalEventCount = Convert.ToInt64(await clickHouse.ExecuteScalarAsync(
+            $"SELECT uniqExact(event_id) FROM aspros_analytics.category_behavior_events WHERE run_id = '{runId}'"));
+
+        var retryAttempts = state.GetDeliveryAttempts(run.RetryEventId);
+        var duplicateAttempts = state.GetDeliveryAttempts(run.DuplicateEventId);
+        var retryWrites = state.GetSuccessfulWrites(run.RetryEventId);
+        var duplicateWrites = state.GetSuccessfulWrites(run.DuplicateEventId);
+
+        var completed =
+            retryAttempts >= 2 &&
+            duplicateAttempts >= 2 &&
+            retryWrites >= 1 &&
+            duplicateWrites >= 2;
+
+        // MergeTree is append-only. Duplicate deliveries can create physical rows,
+        // so analytical consumers must count distinct business event IDs.
+        var passed =
+            completed &&
+            physicalRows == 3 &&
+            logicalEventCount == 2;
+
+        return Results.Json(new
+        {
+            completed,
+            passed,
+            runId,
+            retryDeliveryAttempts = retryAttempts,
+            retrySuccessfulWrites = retryWrites,
+            duplicateDeliveryAttempts = duplicateAttempts,
+            duplicateSuccessfulWrites = duplicateWrites,
+            physicalRows,
+            logicalEventCount,
+            deduplication = "uniqExact(event_id)"
+        });
+    });
+
     app.MapPost("/_dev/validation/clickhouse", async (ClickHouseClient clickHouse) =>
     {
         var runId = Guid.NewGuid().ToString("N");
