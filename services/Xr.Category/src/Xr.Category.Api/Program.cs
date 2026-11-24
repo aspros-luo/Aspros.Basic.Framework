@@ -178,10 +178,12 @@ if (app.Environment.IsDevelopment())
             return Results.NotFound();
         }
 
+        // Use the server-generated run ID from registered state, never raw route input in SQL.
+        var registeredRunId = run.RunId;
         var physicalRows = Convert.ToInt64(await clickHouse.ExecuteScalarAsync(
-            $"SELECT count() FROM aspros_analytics.category_behavior_events WHERE run_id = '{runId}'"));
+            $"SELECT count() FROM aspros_analytics.category_behavior_events WHERE run_id = '{registeredRunId}'"));
         var logicalEventCount = Convert.ToInt64(await clickHouse.ExecuteScalarAsync(
-            $"SELECT uniqExact(event_id) FROM aspros_analytics.category_behavior_events WHERE run_id = '{runId}'"));
+            $"SELECT uniqExact(event_id) FROM aspros_analytics.category_behavior_events WHERE run_id = '{registeredRunId}'"));
 
         var retryAttempts = state.GetDeliveryAttempts(run.RetryEventId);
         var duplicateAttempts = state.GetDeliveryAttempts(run.DuplicateEventId);
