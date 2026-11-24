@@ -220,7 +220,11 @@ if (app.Environment.IsDevelopment())
             runId,
             cancellationToken);
 
-        return result is null ? Results.NotFound() : Results.Ok(result);
+        IResult response = result is null
+            ? Results.NotFound()
+            : Results.Ok(result);
+
+        return response;
     });
 }
 
