@@ -208,6 +208,16 @@ docker compose -f dev-environment/docker-compose.yml exec -T mysql \
   < services/Xr.Category/database/002_create_cap_validation_receipt.sql
 ```
 
+The receipt entity uses ordinary .NET strings with maximum lengths; the MySQL columns are `VARCHAR(36)` and `VARCHAR(32)`. Do not change these columns to `CHAR`: the configured `MySql.EntityFrameworkCore` provider does not support mapping these string properties to `char(n)`.
+
+If you already created the table from an earlier version of this script, `CREATE TABLE IF NOT EXISTS` will not change its existing column definitions. Upgrade it once manually:
+
+```sql
+ALTER TABLE category_cap_validation_receipt
+    MODIFY COLUMN event_id VARCHAR(36) NOT NULL,
+    MODIFY COLUMN run_id VARCHAR(32) NOT NULL;
+```
+
 The Development-only validation endpoints exercise four reliability properties:
 
 1. **Transactional outbox commit**: a Category row and a CAP message are written in one CAP-aware EF Core transaction.
