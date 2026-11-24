@@ -247,6 +247,36 @@ The final response should report one committed Category row, zero rolled-back Ca
 
 The attempt counter is intentionally in memory because it is diagnostic evidence for this local test only. The business deduplication record is stored in MySQL so the idempotency key and business effect share the database's atomicity boundary. CAP delivery is at-least-once; consumers must remain idempotent. Do not interpret this local validation as an exactly-once delivery guarantee.
 
+## ClickHouse analytics validation
+
+ClickHouse is used as an analytical store for high-volume behavior events and aggregate reads. It is deliberately separate from the Category MySQL DbContext, EF Core and Dapper paths; it is not a replacement for transactional business storage.
+
+The service uses the official `ClickHouse.Driver` package and its thread-safe `ClickHouseClient` as a singleton. The local Compose service exposes HTTP on `localhost:18123` and native TCP on `localhost:19000`. The Category API uses the HTTP endpoint.
+
+Start the infrastructure profile:
+
+```bash
+docker compose -f dev-environment/docker-compose.yml --profile infra up -d clickhouse
+```
+
+Create the analytics database and event table explicitly:
+
+```bash
+docker compose -f dev-environment/docker-compose.yml exec -T clickhouse \
+  clickhouse-client --user framework --password framework_password \
+  < services/Xr.Category/database/003_create_category_behavior_events.sql
+```
+
+The schema is a monthly-partitioned `MergeTree` ordered by user, event time and event ID. Table creation is a manual deployment step; the API does not create or migrate ClickHouse tables.
+
+With the Category API running in Development mode, execute the one-event write/read smoke test:
+
+```bash
+curl -i -X POST http://localhost:7242/_dev/validation/clickhouse
+```
+
+A successful response reports `passed: true`, `insertedRows: 1` and `observedRows: 1`, together with the ClickHouse server version and generated run/event IDs. This validates connectivity, binary insert and query through the official client. It does not yet validate CAP delivery or deduplication; those belong to the next behavior-event integration step.
+
 ## Framework reference mode
 
 由于服务目前与 Framework 位于同一仓库，项目通过 `ProjectReference` 引用 Framework 源码，便于 RC 阶段同步开发和调试。待 Framework 包发布并确定服务版本策略后，再切换为 NuGet `PackageReference`。
