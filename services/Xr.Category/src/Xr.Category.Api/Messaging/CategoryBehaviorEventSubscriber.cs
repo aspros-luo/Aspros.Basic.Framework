@@ -39,7 +39,7 @@ public sealed class CategoryBehaviorEventSubscriber(
                 "Intentional first-delivery failure for ClickHouse CAP validation.");
         }
 
-        await _clickHouse.InsertBinaryAsync(
+        var insertedRows = await _clickHouse.InsertBinaryAsync(
             "aspros_analytics.category_behavior_events",
             ["event_id", "run_id", "user_id", "category_id", "event_type", "event_time"],
             new[]
@@ -54,6 +54,12 @@ public sealed class CategoryBehaviorEventSubscriber(
                     message.EventTimeUtc
                 }
             });
+
+        if (insertedRows != 1)
+        {
+            throw new InvalidOperationException(
+                $"Expected one ClickHouse row for event {message.EventId}, but inserted {insertedRows}.");
+        }
 
         _state.RecordSuccessfulWrite(message.EventId);
 
