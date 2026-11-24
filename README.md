@@ -252,7 +252,7 @@ The optional CLI is packaged as `Aspros.Basic.Framework.Tools` (the commands bel
 
 ## Docker API Environment
 
-The active Docker workflow starts MySQL, Redis, RabbitMQ and Nacos together with the Core Provider and Consumer APIs:
+The active Docker workflow starts MySQL, Redis, RabbitMQ, Nacos and ClickHouse together with the Core Provider and Consumer APIs:
 
     docker compose -f dev-environment/docker-compose.yml --profile infra --profile api up -d --build
 
