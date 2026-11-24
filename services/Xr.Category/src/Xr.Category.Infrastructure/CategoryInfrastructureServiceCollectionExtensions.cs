@@ -22,8 +22,13 @@ public static class CategoryInfrastructureServiceCollectionExtensions
                 "ConnectionStrings:Category must be configured.");
         }
 
+        // CAP's MySQL storage provider uses MySqlConnector. Use the same driver
+        // for EF Core so CAP and the business DbContext share compatible
+        // connections, transactions and parameter types.
+        var serverVersion = new MySqlServerVersion(new Version(8, 4, 0));
+
         services.AddAsprosDbContext<CategoryDbContext>(
-            options => options.UseMySQL(connectionString));
+            options => options.UseMySql(connectionString, serverVersion));
 
         return services;
     }
