@@ -277,6 +277,33 @@ curl -i -X POST http://localhost:7242/_dev/validation/clickhouse
 
 A successful response reports `passed: true`, `insertedRows: 1` and `observedRows: 1`, together with the ClickHouse server version and generated run/event IDs. This validates connectivity, binary insert and query through the official client. It does not yet validate CAP delivery or deduplication; those belong to the next behavior-event integration step.
 
+### CAP asynchronous behavior-event ingestion
+
+The Development-only CAP validation publishes one retry event and two independent messages with the same business `EventId`. The subscriber intentionally fails the first delivery of the retry event, then writes successful deliveries to ClickHouse through the official client.
+
+Start the validation:
+
+```bash
+curl -i -X POST http://localhost:7242/_dev/validation/clickhouse-cap
+```
+
+Poll the returned `runId`:
+
+```bash
+curl --fail http://localhost:7242/_dev/validation/clickhouse-cap/<runId>
+```
+
+A successful result should show:
+
+- retry deliveries: 2, successful ClickHouse writes: 1;
+- duplicate-event deliveries: 2, successful ClickHouse writes: 2;
+- physical ClickHouse rows: 3;
+- logical business events: 2, counted with `uniqExact(event_id)`.
+
+The table uses append-only `MergeTree`. It does not enforce a unique key, so duplicate CAP deliveries can create duplicate physical rows. The validation deliberately distinguishes physical writes from logical events. Analytical queries must deduplicate by the stable business `event_id` (for example, `uniqExact(event_id)`) before counting behavior. This is query-level logical deduplication, not exactly-once storage or physical row uniqueness.
+
+This endpoint publishes synthetic messages without coupling them to a Category business transaction. The separate CAP validation above already verifies transactional outbox commit and rollback with MySQL. A production behavior event that must be atomic with a business change should be published inside that business transaction using the same CAP-aware transaction boundary.
+
 ## Framework reference mode
 
 由于服务目前与 Framework 位于同一仓库，项目通过 `ProjectReference` 引用 Framework 源码，便于 RC 阶段同步开发和调试。待 Framework 包发布并确定服务版本策略后，再切换为 NuGet `PackageReference`。
