@@ -30,7 +30,6 @@ public sealed class CategoryDbContext(
 
             entity.Property(x => x.EventId)
                 .HasColumnName("event_id")
-                .HasColumnType("char(36)")
                 .HasMaxLength(36)
                 .IsRequired();
 
