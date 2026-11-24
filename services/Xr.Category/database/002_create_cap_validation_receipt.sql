@@ -3,8 +3,8 @@
 
 CREATE TABLE IF NOT EXISTS category_cap_validation_receipt
 (
-    event_id CHAR(36) NOT NULL,
-    run_id CHAR(32) NOT NULL,
+    event_id VARCHAR(36) NOT NULL,
+    run_id VARCHAR(32) NOT NULL,
     scenario VARCHAR(32) NOT NULL,
     processed_at DATETIME(6) NOT NULL,
     PRIMARY KEY (event_id),
