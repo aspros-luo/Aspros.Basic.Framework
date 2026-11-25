@@ -1,3 +1,11 @@
+## 2026-11-25 — Category behavior events to ClickHouse
+
+- Added `POST /api/categories/{id}/behavior-events` to validate an enabled, non-deleted category and publish a behavior event through the MySQL-backed CAP outbox transaction.
+- Added a dedicated CAP subscriber that writes accepted events to ClickHouse using the existing Framework `IClickHouseClient` registration and analytics table; no second ClickHouse client or schema was introduced.
+- Added event ID validation and a correlation ID for tracing. ClickHouse remains append-only, so duplicate deliveries are physically possible and analytical queries must deduplicate by the stable business event ID.
+- Documented the HTTP smoke test, ClickHouse verification query, and current security boundary: this minimal service has no authentication or tenant isolation, so production callers must supply a trusted authenticated user identity.
+- Source and documentation are committed on `feature/category-service`. Build and runtime validation have not been performed by the assistant; local validation is required.
+
 ## 2026-11-25 — Generic recommendation ranking foundation
 
 - Added weighted Reciprocal Rank Fusion to `Aspros.Base.Framework.Algorithms`. It fuses ordered candidate lists without requiring their raw scores to share a scale, supports source weights and custom key equality, deduplicates keys within each source, and preserves deterministic tie order.
