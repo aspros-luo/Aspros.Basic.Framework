@@ -186,7 +186,7 @@ public sealed class CategoryRecommendationService(
         DateTime asOfUtc,
         CancellationToken cancellationToken)
     {
-        const string sql = """
+        var sql = $"""
             WITH deduplicated_events AS
             (
                 SELECT
@@ -195,7 +195,7 @@ public sealed class CategoryRecommendationService(
                     argMin(category_id, event_time) AS category_id,
                     argMin(event_type, event_time) AS event_type,
                     min(event_time) AS event_time
-                FROM aspros_analytics.category_behavior_events
+                FROM {{EventsTable}}
                 WHERE event_time >= {window_start:DateTime64(3, 'UTC')}
                   AND event_time <= {as_of:DateTime64(3, 'UTC')}
                 GROUP BY event_id
@@ -213,7 +213,7 @@ public sealed class CategoryRecommendationService(
                         0
                     )) * exp(
                         -greatest(dateDiff('second', event_time, {as_of:DateTime64(3, 'UTC')}), 0)
-                        / 604800.0
+                        / {{DecayHalfLifeDays * 86400}}.0
                     ) AS weighted_score
                 FROM deduplicated_events
             ),
@@ -292,7 +292,7 @@ public sealed class CategoryRecommendationService(
             request.WindowDays,
             windowStartUtc,
             asOfUtc,
-            "view=1, click=3, purchase=8; exponential time decay with a 7-day half-life",
+            $"view=1, click=3, purchase=8; exponential time decay with a {DecayHalfLifeDays}-day half-life",
             "Deduplicate by event_id before scoring",
             mode,
             items);
