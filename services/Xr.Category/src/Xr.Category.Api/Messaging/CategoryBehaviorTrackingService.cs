@@ -39,7 +39,8 @@ public sealed class CategoryBehaviorTrackingService(
             return null;
         }
 
-        if (request.EventId is null || request.EventId == Guid.Empty)
+        var eventIdValue = request.EventId.GetValueOrDefault();
+        if (eventIdValue == Guid.Empty)
         {
             throw new ArgumentException(
                 "A non-empty event ID is required.",
@@ -85,7 +86,7 @@ public sealed class CategoryBehaviorTrackingService(
                 return null;
             }
 
-            var eventId = request.EventId.Value.ToString("N");
+            var eventId = eventIdValue.ToString("N");
             var correlationId = Guid.NewGuid().ToString("N");
             var eventTimeUtc = DateTime.UtcNow;
 
