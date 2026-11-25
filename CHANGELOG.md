@@ -1,3 +1,12 @@
+## 2026-11-25 — Real Category recommendation read path
+
+- Added `GET /api/categories/recommendations`, which ranks enabled, non-deleted Category candidates using real behavior events already ingested into ClickHouse.
+- Deduplicates append-only ClickHouse rows by stable `event_id` before aggregation; calculates user-specific behavior relevance and cross-user popularity over a configurable 1–90 day window.
+- Applies transparent baseline weights (view=1, click=3, purchase=8) and a seven-day exponential-decay half-life, then fuses independent personalized/popularity rankings with the Framework's generic RRF algorithm.
+- Keeps Category candidate eligibility and business scoring policy in the service; no Category-specific recommendation algorithm was added to Framework. Cold-start behavior falls back to popularity, and a completely empty event window falls back to stable catalog order.
+- Documents the real recommendation endpoint separately from the existing synthetic Development validation. Authentication and tenant isolation remain production prerequisites.
+- Source changes are committed on `feature/category-service`. The assistant has not run a .NET build or local ClickHouse query; user-side build and runtime verification are required.
+
 ## 2026-11-25 — Category behavior events to ClickHouse
 
 - Added `POST /api/categories/{id}/behavior-events` to validate an enabled, non-deleted category and publish a behavior event through the MySQL-backed CAP outbox transaction.
