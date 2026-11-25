@@ -302,7 +302,52 @@ A successful result should show:
 
 The table uses append-only `MergeTree`. It does not enforce a unique key, so duplicate CAP deliveries can create duplicate physical rows. The validation deliberately distinguishes physical writes from logical events. Analytical queries must deduplicate by the stable business `event_id` (for example, `uniqExact(event_id)`) before counting behavior. This is query-level logical deduplication, not exactly-once storage or physical row uniqueness.
 
-This endpoint publishes synthetic messages without coupling them to a Category business transaction. The separate CAP validation above already verifies transactional outbox commit and rollback with MySQL. A production behavior event that must be atomic with a business change should be published inside that business transaction using the same CAP-aware transaction boundary.
+This Development-only endpoint publishes synthetic messages to exercise retry and duplicate delivery. It is intentionally separate from the real Category behavior API described below. The separate CAP validation above verifies transactional outbox commit and rollback with MySQL. Whenever a future business mutation and its behavior event must succeed or fail together, both the mutation and CAP publish must share the same CAP-aware database transaction.
+
+### Real Category behavior event ingestion
+
+The Category API exposes `POST /api/categories/{id}/behavior-events` for a trusted upstream caller to submit a behavior event. The endpoint:
+
+1. Validates the event ID, user ID and supported event type (`view`, `click`, `purchase`).
+2. Confirms that the target category exists, is enabled and is not logically deleted.
+3. Publishes the event through CAP inside a transaction shared with CAP's MySQL outbox storage.
+4. Lets the CAP subscriber write the event to ClickHouse through the Framework-registered `IClickHouseClient`.
+
+The API generates the event timestamp and a correlation ID. For compatibility with the current analytics table, the correlation ID is stored in its `run_id` column. The event's stable `event_id` is the logical idempotency key; ClickHouse's append-only `MergeTree` may still contain multiple physical rows for repeated deliveries or repeated HTTP submissions. Analytical aggregation must deduplicate by `event_id`.
+
+Send a behavior event for an existing, enabled category (replace the user ID with an identity supplied by your trusted caller):
+
+```bash
+EVENT_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
+
+curl -i -X POST http://localhost:7242/api/categories/1/behavior-events \
+  -H 'Content-Type: application/json' \
+  -d "{
+    \"eventId\": \"$EVENT_ID\",
+    \"userId\": \"demo-user-1001\",
+    \"eventType\": \"view\"
+  }"
+```
+
+A successful response is `202 Accepted` and contains `eventId`, `correlationId`, `categoryId` and `status: accepted`. Retain the returned correlation ID and inspect the event in ClickHouse:
+
+```bash
+docker compose -f dev-environment/docker-compose.yml exec clickhouse \
+  clickhouse-client --user framework --password framework_password \
+  --query "SELECT event_id, user_id, category_id, event_type, event_time FROM aspros_analytics.category_behavior_events WHERE run_id = '<correlationId>'"
+```
+
+To verify logical deduplication, submit the same request again with the same `eventId`. CAP may deliver both accepted messages and ClickHouse may store two physical rows, but the logical event count remains one:
+
+```sql
+SELECT
+    count() AS physical_rows,
+    uniqExact(event_id) AS logical_events
+FROM aspros_analytics.category_behavior_events
+WHERE event_id = '<eventId>';
+```
+
+An unknown, disabled or logically deleted category returns `404`; invalid event payloads return `400`. The current integration service has no authentication middleware, so `userId` in this test contract must be supplied by a trusted caller. A production deployment must derive it from the authenticated principal rather than trusting an arbitrary public request body. Tenant isolation is also not implemented in this minimal Category fixture and must be added before multi-tenant production use.
 
 ### Minimal per-user category ranking validation
 
@@ -328,7 +373,7 @@ The sample uses these illustrative weights:
 
 User A has stronger activity in the first category; User B has stronger activity in the second. The query first groups by the stable `event_id`, then aggregates scores by `user_id` and `category_id`. The sample deliberately inserts one duplicate physical row: the expected result is 11 physical rows but 10 logical events, without the duplicate increasing the score.
 
-A passing result must show opposite top-ranked categories for the two users. These weights are only a transparent validation fixture, not a production recommendation model. This endpoint uses synthetic events and does not yet publish real Category business events through CAP. The next integration step is to connect real business actions to the transactional outbox.
+A passing result must show opposite top-ranked categories for the two users. These weights are only a transparent validation fixture, not a production recommendation model. This endpoint remains a deterministic synthetic fixture for validating aggregation and ranking. The real Category behavior ingestion path is documented in the preceding section; this fixture is still useful because it creates controlled user preference distributions without depending on live traffic.
 
 The API produces two independent rankings for each user: personalized relevance (using the Framework's vector cosine similarity) and global popularity (aggregated across the validation users). It combines those ordered lists with `RankingAlgorithms.ReciprocalRankFusion`, so the two sources do not need to share a raw score scale. The response exposes `SimilarityScore`, `FusionScore` (not a probability), `SourceCount` and the final `Rank`. This demonstrates a reusable algorithm integration, not a production recommendation endpoint; candidate recall, tenant/eligibility filtering, event semantics and feature freshness remain Category business responsibilities.
 
