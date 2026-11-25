@@ -1,5 +1,6 @@
 using ClickHouse.Driver;
 using ClickHouse.Driver.ADO.Parameters;
+using ClickHouse.Driver.Utility;
 using Microsoft.EntityFrameworkCore;
 using Xr.Category.Infrastructure;
 
