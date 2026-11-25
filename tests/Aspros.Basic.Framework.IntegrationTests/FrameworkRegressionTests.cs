@@ -314,25 +314,27 @@ public sealed class FrameworkRegressionTests
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
+        var cancellationToken = TestContext.Current.CancellationToken;
         var db = scope.ServiceProvider.GetRequiredService<MySqlTestDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.EnsureCreatedAsync(cancellationToken);
 
         // The Docker MySQL volume persists between runs. Use a unique marker so
         // this regression remains repeatable even when previous test data exists.
         var marker = $"framework-regression-{Guid.NewGuid():N}";
         var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
         await uow.RegisterNew(new MySqlTestRow { Name = marker });
-        Assert.True(await uow.CommitAsync());
+        Assert.True(await uow.CommitAsync(cancellationToken));
 
         var dapper = scope.ServiceProvider.GetRequiredService<IDapperExecutor>();
         var count = await dapper.QuerySingleOrDefaultAsync<int>(
             "SELECT COUNT(*) FROM FrameworkRegressionRows WHERE Name = @Name",
-            new { Name = marker });
+            new { Name = marker },
+            cancellationToken);
 
         Assert.Equal(1, count);
 
         // Keep the persistent test database tidy without relying on an empty DB.
-        await db.Rows.Where(x => x.Name == marker).ExecuteDeleteAsync();
+        await db.Rows.Where(x => x.Name == marker).ExecuteDeleteAsync(cancellationToken);
     }
 
     [Fact]
