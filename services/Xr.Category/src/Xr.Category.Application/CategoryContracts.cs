@@ -47,6 +47,35 @@ public sealed record CategoryDto(
     DateTime CreateTime,
     DateTime UpdateTime);
 
+public sealed record TrackCategoryBehaviorRequest
+{
+    [Required]
+    public Guid? EventId { get; init; }
+
+    [Required]
+    [StringLength(128)]
+    public string UserId { get; init; } = string.Empty;
+
+    [Required]
+    [StringLength(16)]
+    [RegularExpression("^(view|click|purchase)$")]
+    public string EventType { get; init; } = string.Empty;
+}
+
+public sealed record CategoryBehaviorEventAccepted(
+    string EventId,
+    string CorrelationId,
+    long CategoryId,
+    string Status);
+
+public interface ICategoryBehaviorTrackingService
+{
+    Task<CategoryBehaviorEventAccepted?> TrackAsync(
+        long categoryId,
+        TrackCategoryBehaviorRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ICategoryService
 {
     Task<CategoryDto?> FindByIdAsync(
