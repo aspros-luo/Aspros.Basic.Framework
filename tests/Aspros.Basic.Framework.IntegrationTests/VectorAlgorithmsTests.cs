@@ -62,7 +62,7 @@ public sealed class VectorAlgorithmsTests
     [Fact]
     public void JaccardSimilarity_IgnoresDuplicates()
     {
-        Assert.Equal(0.5d, SetSimilarityAlgorithms.JaccardSimilarity(
+        Assert.Equal(1d / 3d, SetSimilarityAlgorithms.JaccardSimilarity(
             new[] { "a", "a", "b" },
             new[] { "b", "c" }));
     }
