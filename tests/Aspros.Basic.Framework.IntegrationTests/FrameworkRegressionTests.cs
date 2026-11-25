@@ -336,7 +336,7 @@ public sealed class FrameworkRegressionTests
     }
 
     [Fact]
-    public void AddFrameworkCap_RegistersCapPublisher()
+    public void AddFrameworkCap_WithTransport_RegistersCapPublisher()
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -348,7 +348,10 @@ public sealed class FrameworkRegressionTests
             "Server=localhost;Port=3306;Database=aspros_framework_test;User=framework;Password=framework_password;";
         services.AddDbContext<MySqlTestDbContext>(options =>
             options.UseMySQL(connectionString));
-        services.AddFrameworkCap<MySqlTestDbContext>();
+        // Framework owns EF-backed CAP storage; the application supplies its transport.
+        // Register RabbitMQ without starting a host or connecting to the broker.
+        services.AddFrameworkCap<MySqlTestDbContext>(options =>
+            options.UseRabbitMQ("localhost"));
 
         using var provider = services.BuildServiceProvider();
         Assert.NotNull(provider.GetRequiredService<ICapPublisher>());
