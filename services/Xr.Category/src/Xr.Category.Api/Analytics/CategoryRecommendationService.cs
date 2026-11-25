@@ -212,8 +212,10 @@ public sealed class CategoryRecommendationService(
                         event_type = 'view', 1,
                         0
                     )) * exp(
-                        -greatest(dateDiff('second', event_time, {as_of:DateTime64(3, 'UTC')}), 0)
-                        / {{DecayHalfLifeDays * 86400}}.0
+                        -0.6931471805599453 * greatest(
+                            dateDiff('second', event_time, {as_of:DateTime64(3, 'UTC')}),
+                            0
+                        ) / {{DecayHalfLifeDays * 86400}}.0
                     ) AS weighted_score
                 FROM deduplicated_events
             ),
