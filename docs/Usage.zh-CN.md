@@ -196,3 +196,69 @@ Framework 不要求所有微服务使用同一套“全家桶”注册方式。�
 - Controller / gRPC Contract
 
 Framework 负责跨服务重复的基础机制，而不是接管业务代码。
+
+
+## 13. 通用个性化推荐
+
+推荐能力是可选模块，不会由 \`AddAsprosFramework\` 自动启用，也不绑定 ClickHouse、Redis 或某种业务对象。
+
+### 注册
+
+每一种推荐对象类型注册一个 Provider。Provider 负责读取该类型的用户画像、召回候选对象，并执行租户、上下架、库存、地域等业务过滤：
+
+\`\`\`csharp
+builder.Services.AddFrameworkRecommendation(options =>
+{
+    options.SimilarityWeight = 0.65;
+    options.QualityWeight = 0.20;
+    options.PopularityWeight = 0.10;
+    options.FreshnessWeight = 0.05;
+});
+
+builder.Services.AddRecommendationProvider<ProductRecommendationProvider>();
+builder.Services.AddRecommendationProvider<MerchantRecommendationProvider>();
+builder.Services.AddRecommendationProvider<ArticleRecommendationProvider>();
+\`\`\`
+
+Provider 的 \`ObjectType\` 必须唯一，例如 \`product\`、\`merchant\`、\`article\`。每种对象类型拥有自己的特征语义空间；不要把商品的“品牌偏好”和文章的“主题偏好”直接混入同一个向量。
+
+### 发起推荐
+
+\`\`\`csharp
+public sealed class HomeFeedService(IRecommendationService recommendations)
+{
+    public Task<RecommendationResult> GetProductsAsync(
+        long userId,
+        CancellationToken cancellationToken)
+        => recommendations.RecommendAsync(
+            new RecommendationRequest
+            {
+                UserId = userId.ToString(),
+                ObjectType = "product",
+                TenantId = "tenant-1",
+                Scene = "home",
+                Page = 1,
+                PageSize = 20,
+                CandidateLimit = 500
+            },
+            cancellationToken);
+}
+\`\`\`
+
+推荐结果只返回业务对象 ID、排序分数和分数组成。业务服务再通过 Redis 批量读取详情、对未命中项回源 MySQL，并按推荐结果中的 ID 顺序组装响应。推荐模块不依赖具体业务 Entity 或 DTO。
+
+### Provider 契约
+
+- \`GetUserProfileAsync\` 返回该用户在当前 \`ObjectType\` 下的稀疏特征向量。
+- \`GetCandidatesAsync\` 返回有界候选集；多路召回应由 Provider 合并并按 ObjectId 去重后返回。
+- 用户向量和候选向量必须使用相同的特征命名与含义，特征值必须是有限的非负数。
+- \`QualityScore\`、\`PopularityScore\`、\`FreshnessScore\` 必须预先归一化到 \`[0, 1]\`。
+- Provider 必须执行可信的租户隔离和业务资格过滤；请求中的 Context 只能作为场景参数，不能作为授权依据。
+- \`CandidateLimit\` 限制本次召回窗口，不代表整个业务目录的总量。排序在该候选窗口内完成，再进行稳定分页。
+- 没有用户画像或画像为零向量时，服务会忽略相似度权重，按质量、热度和新鲜度退化排序。
+
+### 排序说明与边界
+
+默认权重只是可解释的起始值，不是通用最优值。上线前应使用离线样本和线上实验调整权重。第一版使用余弦相似度与线性加权，不包含模型训练、协同过滤、跨对象类型混排或多样性重排。
+
+推荐服务不负责详情回填、曝光埋点或行为事件投递。业务服务应在实际曝光时记录 impression，而不是把“已返回推荐结果”误当成“用户已看到”；点击、收藏、购买等事件再通过业务事务与 CAP Outbox 连接到分析链路。
