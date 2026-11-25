@@ -109,6 +109,31 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 业务服务注入 `IDistributedCache` 后即可使用 `GetStringAsync` / `SetStringAsync`。缓存 Key、TTL 和一致性策略仍由业务服务决定；`AddAsprosFramework` 不会隐式连接 Redis。
 
+## 通用排序与推荐基础能力
+
+`Aspros.Base.Framework.Algorithms` 提供与业务对象、存储和模型无关的算法能力：
+
+- 向量点积、余弦相似度和欧氏距离；
+- 集合 Jaccard 相似度；
+- 多路排序融合（Weighted Reciprocal Rank Fusion）。
+
+推荐业务可以分别生成个性化、热门、质量、地域或运营策略排序，再用 RRF 合并候选列表：
+
+```csharp
+var ranked = RankingAlgorithms.ReciprocalRankFusion(
+    [
+        new RankingSource<Product>("personalized", personalizedProducts),
+        new RankingSource<Product>("popular", popularProducts, Weight: 0.5)
+    ],
+    product => product.Id);
+```
+
+RRF 使用各来源中的相对名次，而不是直接比较来源的原始分数。返回的 `Score` 是融合分数，不是概率，也不保证位于 `[0, 1]`。同一来源内重复的业务键只按第一次出现的位置计分，同分时保留稳定的首次出现顺序。
+
+业务服务负责候选召回、权限/租户隔离、业务资格过滤、特征生成和个性化模型。Framework 不内置商品、商家、内容等对象模型，也不预设质量、热度、新鲜度等固定评分字段。ClickHouse、Redis 和 MQ 由业务服务按需组合；算法项目不依赖这些基础设施。
+
+这是可组合的算法基础，不是完整的推荐平台；召回策略、模型训练、在线实验和业务约束仍由具体产品负责。
+
 ## 自动注入
 
 推荐显式指定扫描程序集：
