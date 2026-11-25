@@ -283,7 +283,14 @@ public sealed class CategoryPersonalizationValidationService(
                 group => group.ToDictionary(score => checked((long)score.CategoryId)),
                 StringComparer.Ordinal);
 
-        var rankings = new List<CategoryPersonalizationScore>(rawScores.Count);
+        var popularityScores = scoresByUser.Values
+            .SelectMany(userScores => userScores.Values)
+            .GroupBy(score => checked((long)score.CategoryId))
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(score => score.Score));
+
+        var rankings = new List<CategoryPersonalizationScore>(scoresByUser.Count * categoryIds.Length);
 
         foreach (var (userId, scores) in scoresByUser)
         {
@@ -293,13 +300,11 @@ public sealed class CategoryPersonalizationValidationService(
                     : 0d)
                 .ToArray();
 
+            var candidates = new List<CategoryPersonalizationScore>(categoryIds.Length);
             for (var index = 0; index < categoryIds.Length; index++)
             {
                 var categoryId = categoryIds[index];
-                if (!scores.TryGetValue(categoryId, out var score))
-                {
-                    continue;
-                }
+                scores.TryGetValue(categoryId, out var score);
 
                 // Each category is a one-hot candidate vector; the user vector
                 // contains behavior-weighted category interests aggregated in ClickHouse.
@@ -315,25 +320,50 @@ public sealed class CategoryPersonalizationValidationService(
                     ? name
                     : $"Category {categoryId}";
 
-                rankings.Add(new CategoryPersonalizationScore(
+                candidates.Add(new CategoryPersonalizationScore(
                     userId,
                     categoryId,
                     categoryName,
-                    score.Score,
-                    score.EventCount,
+                    score?.Score ?? 0,
+                    score?.EventCount ?? 0,
                     similarity,
+                    FusionScore: 0d,
+                    SourceCount: 0,
                     Rank: 0));
             }
-        }
 
-        rankings = rankings
-            .GroupBy(item => item.UserId, StringComparer.Ordinal)
-            .SelectMany(group => group
+            // Keep personalized relevance and global popularity as independent ranking
+            // sources. RRF combines their relative positions without assuming their raw
+            // scores share the same scale.
+            var personalized = candidates
                 .OrderByDescending(item => item.SimilarityScore)
                 .ThenByDescending(item => item.Score)
                 .ThenBy(item => item.CategoryId)
-                .Select((item, index) => item with { Rank = index + 1 }))
-            .ToList();
+                .ToArray();
+
+            var popular = candidates
+                .OrderByDescending(item => popularityScores.GetValueOrDefault(item.CategoryId))
+                .ThenBy(item => item.CategoryId)
+                .ToArray();
+
+            var fused = RankingAlgorithms.ReciprocalRankFusion(
+                [
+                    new RankingSource<CategoryPersonalizationScore>(
+                        "personalized",
+                        personalized),
+                    new RankingSource<CategoryPersonalizationScore>(
+                        "popular",
+                        popular)
+                ],
+                item => item.CategoryId);
+
+            rankings.AddRange(fused.Select(item => item.Item with
+            {
+                FusionScore = item.Score,
+                SourceCount = item.SourceCount,
+                Rank = item.Rank
+            }));
+        }
 
         var physicalRows = await CountRowsAsync(
             "SELECT count() FROM aspros_analytics.category_behavior_events WHERE run_id = {run_id:String}",
@@ -414,6 +444,8 @@ public sealed record CategoryPersonalizationScore(
     long Score,
     ulong EventCount,
     double SimilarityScore,
+    double FusionScore,
+    int SourceCount,
     int Rank);
 
 public sealed record CategoryPersonalizationValidationResult(
