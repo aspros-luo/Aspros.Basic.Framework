@@ -1,3 +1,4 @@
+using ClickHouse.Driver;
 using Aspros.Base.Framework.Algorithms;
 using Aspros.Base.Framework.ClickHouse;
 using ClickHouse.Driver.ADO.Parameters;
