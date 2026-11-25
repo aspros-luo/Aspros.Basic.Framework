@@ -68,6 +68,7 @@ public static class RankingAlgorithms
             }
 
             var seenInSource = new HashSet<TKey>(keyComparer);
+            var sourceRank = 0;
             for (var index = 0; index < source.Items.Count; index++)
             {
                 var item = source.Items[index];
@@ -84,7 +85,8 @@ public static class RankingAlgorithms
                     continue;
                 }
 
-                var rank = index + 1;
+                sourceRank++;
+                var rank = sourceRank;
                 var contribution = source.Weight / (rankConstant + (double)rank);
 
                 if (!aggregates.TryGetValue(key, out var aggregate))
