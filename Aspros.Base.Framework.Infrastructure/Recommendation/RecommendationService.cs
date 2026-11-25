@@ -96,6 +96,7 @@ public sealed class RecommendationService : IRecommendationService
 
         if (profile is not null)
         {
+            ArgumentException.ThrowIfNullOrWhiteSpace(profile.FeatureSchemaVersion);
             ValidateFeatures(profile.Features, "user profile");
         }
 
@@ -125,11 +126,30 @@ public sealed class RecommendationService : IRecommendationService
             StringComparer.Ordinal);
         var ranked = new List<RecommendationItemScore>(candidates.Count);
         var seenIds = new HashSet<string>(StringComparer.Ordinal);
+        string? candidateSchemaVersion = null;
 
         foreach (var candidate in candidates)
         {
             ArgumentNullException.ThrowIfNull(candidate);
             ArgumentException.ThrowIfNullOrWhiteSpace(candidate.ObjectId);
+            ArgumentException.ThrowIfNullOrWhiteSpace(candidate.FeatureSchemaVersion);
+
+            candidateSchemaVersion ??= candidate.FeatureSchemaVersion;
+            if (!StringComparer.Ordinal.Equals(
+                candidateSchemaVersion,
+                candidate.FeatureSchemaVersion))
+            {
+                throw new InvalidOperationException(
+                    $"Recommendation provider '{objectType}' returned candidates with different feature schema versions.");
+            }
+
+            if (profile is not null && !StringComparer.Ordinal.Equals(
+                profile.FeatureSchemaVersion,
+                candidate.FeatureSchemaVersion))
+            {
+                throw new InvalidOperationException(
+                    $"User profile schema '{profile.FeatureSchemaVersion}' does not match candidate schema '{candidate.FeatureSchemaVersion}' for object type '{objectType}'.");
+            }
 
             if (!seenIds.Add(candidate.ObjectId))
             {

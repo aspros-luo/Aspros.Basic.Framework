@@ -13,8 +13,8 @@ public sealed class RecommendationServiceTests
             "product",
             new Dictionary<string, RecommendationUserProfile>(StringComparer.Ordinal)
             {
-                ["user-a"] = new(new Dictionary<string, double> { ["coffee"] = 1 }),
-                ["user-b"] = new(new Dictionary<string, double> { ["running"] = 1 })
+                ["user-a"] = new("v1", new Dictionary<string, double> { ["coffee"] = 1 }),
+                ["user-b"] = new("v1", new Dictionary<string, double> { ["running"] = 1 })
             },
             [
                 Candidate("coffee-machine", "coffee"),
@@ -39,11 +39,12 @@ public sealed class RecommendationServiceTests
             "product",
             new Dictionary<string, RecommendationUserProfile>
             {
-                ["user"] = new(new Dictionary<string, double> { ["feature"] = 1e308 })
+                ["user"] = new("v1", new Dictionary<string, double> { ["feature"] = 1e308 })
             },
             [
                 new RecommendationCandidate(
                     "matching",
+                    "v1",
                     new Dictionary<string, double> { ["feature"] = 1e308 },
                     QualityScore: 0.5,
                     PopularityScore: 0.5,
@@ -64,12 +65,14 @@ public sealed class RecommendationServiceTests
             [
                 new RecommendationCandidate(
                     "high-quality",
+                    "v1",
                     new Dictionary<string, double>(),
                     QualityScore: 1,
                     PopularityScore: 0,
                     FreshnessScore: 0),
                 new RecommendationCandidate(
                     "popular",
+                    "v1",
                     new Dictionary<string, double>(),
                     QualityScore: 0,
                     PopularityScore: 1,
@@ -90,17 +93,19 @@ public sealed class RecommendationServiceTests
             "product",
             new Dictionary<string, RecommendationUserProfile>
             {
-                ["user"] = new(new Dictionary<string, double> { ["coffee"] = 0 })
+                ["user"] = new("v1", new Dictionary<string, double> { ["coffee"] = 0 })
             },
             [
                 new RecommendationCandidate(
                     "quality-first",
+                    "v1",
                     new Dictionary<string, double> { ["coffee"] = 1 },
                     QualityScore: 1,
                     PopularityScore: 0,
                     FreshnessScore: 0),
                 new RecommendationCandidate(
                     "popular",
+                    "v1",
                     new Dictionary<string, double> { ["coffee"] = 1 },
                     QualityScore: 0,
                     PopularityScore: 1,
@@ -120,7 +125,7 @@ public sealed class RecommendationServiceTests
             "article",
             new Dictionary<string, RecommendationUserProfile>
             {
-                ["reader"] = new(new Dictionary<string, double> { ["topic"] = 1 })
+                ["reader"] = new("v1", new Dictionary<string, double> { ["topic"] = 1 })
             },
             [
                 Candidate("article-a", "topic"),
@@ -142,6 +147,29 @@ public sealed class RecommendationServiceTests
         Assert.Single(result.Items);
         Assert.Equal("article-c", result.Items[0].ObjectId);
         Assert.Equal(2, result.Items[0].Rank);
+    }
+
+    [Fact]
+    public async Task RecommendAsync_RejectsMismatchedFeatureSchemaVersions()
+    {
+        var provider = new FakeRecommendationProvider(
+            "product",
+            new Dictionary<string, RecommendationUserProfile>
+            {
+                ["user"] = new("v1", new Dictionary<string, double> { ["feature"] = 1 })
+            },
+            [
+                new RecommendationCandidate(
+                    "item",
+                    "v2",
+                    new Dictionary<string, double> { ["feature"] = 1 },
+                    QualityScore: 0.5,
+                    PopularityScore: 0.5,
+                    FreshnessScore: 0.5)
+            ]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateService(provider).RecommendAsync(Request("user")));
     }
 
     [Fact]
@@ -175,6 +203,7 @@ public sealed class RecommendationServiceTests
         string feature)
         => new(
             objectId,
+            "v1",
             new Dictionary<string, double> { [feature] = 1 },
             QualityScore: 0.5,
             PopularityScore: 0.5,

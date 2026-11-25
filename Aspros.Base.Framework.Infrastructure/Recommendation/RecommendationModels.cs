@@ -49,6 +49,7 @@ public sealed record RecommendationCandidateQuery(
 /// for a user profile and candidates of the same ObjectType.
 /// </summary>
 public sealed record RecommendationUserProfile(
+    string FeatureSchemaVersion,
     IReadOnlyDictionary<string, double> Features);
 
 /// <summary>
@@ -57,6 +58,7 @@ public sealed record RecommendationUserProfile(
 /// </summary>
 public sealed record RecommendationCandidate(
     string ObjectId,
+    string FeatureSchemaVersion,
     IReadOnlyDictionary<string, double> Features,
     double QualityScore,
     double PopularityScore,

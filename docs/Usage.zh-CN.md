@@ -251,7 +251,7 @@ public sealed class HomeFeedService(IRecommendationService recommendations)
 
 - \`GetUserProfileAsync\` 返回该用户在当前 \`ObjectType\` 下的稀疏特征向量。
 - \`GetCandidatesAsync\` 返回有界候选集；多路召回应由 Provider 合并并按 ObjectId 去重后返回。
-- 用户向量和候选向量必须使用相同的特征命名与含义，特征值必须是有限的非负数。
+- 用户向量和候选向量必须使用相同的特征命名与含义、相同的 FeatureSchemaVersion；同一批候选必须使用同一个版本。特征值必须是有限的非负数。
 - \`QualityScore\`、\`PopularityScore\`、\`FreshnessScore\` 必须预先归一化到 \`[0, 1]\`。
 - Provider 必须执行可信的租户隔离和业务资格过滤；请求中的 Context 只能作为场景参数，不能作为授权依据。
 - \`CandidateLimit\` 限制本次召回窗口，不代表整个业务目录的总量。排序在该候选窗口内完成，再进行稳定分页。
