@@ -76,6 +76,47 @@ public interface ICategoryBehaviorTrackingService
         CancellationToken cancellationToken = default);
 }
 
+public sealed record CategoryRecommendationRequest
+{
+    [Required]
+    [StringLength(128)]
+    public string UserId { get; init; } = string.Empty;
+
+    [Range(1, 90)]
+    public int WindowDays { get; init; } = 30;
+
+    [Range(1, 100)]
+    public int Take { get; init; } = 20;
+}
+
+public sealed record CategoryRecommendationItem(
+    long CategoryId,
+    string CategoryName,
+    double PersonalizedScore,
+    long BehaviorEventCount,
+    DateTime? LastBehaviorAtUtc,
+    double PopularityScore,
+    double FusionScore,
+    int SourceCount,
+    int Rank);
+
+public sealed record CategoryRecommendationResponse(
+    string UserId,
+    int WindowDays,
+    DateTime WindowStartUtc,
+    DateTime GeneratedAtUtc,
+    string ScoringRule,
+    string DeduplicationRule,
+    string RecommendationMode,
+    IReadOnlyList<CategoryRecommendationItem> Items);
+
+public interface ICategoryRecommendationService
+{
+    Task<CategoryRecommendationResponse> RecommendAsync(
+        CategoryRecommendationRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ICategoryService
 {
     Task<CategoryDto?> FindByIdAsync(
