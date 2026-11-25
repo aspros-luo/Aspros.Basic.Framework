@@ -190,7 +190,10 @@ internal static class AsprosTool
             CreateNoWindow = true
         };
 
-        startInfo.ArgumentList.AddRange(efArguments);
+        foreach (var argument in efArguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
 
         using var process = new Process { StartInfo = startInfo };
         process.OutputDataReceived += (_, e) =>
