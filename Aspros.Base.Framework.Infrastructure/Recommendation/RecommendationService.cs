@@ -217,22 +217,27 @@ public sealed class RecommendationService : IRecommendationService
             return 0;
         }
 
-        var leftNormSquared = 0d;
-        foreach (var value in left.Values)
-        {
-            leftNormSquared += value * value;
-        }
+        // Scale each vector before squaring so very large but finite feature values
+        // cannot overflow while calculating norms or the dot product.
+        var leftScale = left.Values.Max();
+        var rightScale = right.Values.Max();
 
-        var rightNormSquared = 0d;
-        foreach (var value in right.Values)
-        {
-            rightNormSquared += value * value;
-        }
-
-        if (leftNormSquared == 0 || rightNormSquared == 0)
+        if (leftScale == 0 || rightScale == 0)
         {
             return 0;
         }
+
+        var leftNormSquared = left.Values.Sum(value =>
+        {
+            var normalized = value / leftScale;
+            return normalized * normalized;
+        });
+
+        var rightNormSquared = right.Values.Sum(value =>
+        {
+            var normalized = value / rightScale;
+            return normalized * normalized;
+        });
 
         var smaller = left.Count <= right.Count ? left : right;
         var larger = ReferenceEquals(smaller, left) ? right : left;
@@ -242,7 +247,7 @@ public sealed class RecommendationService : IRecommendationService
         {
             if (larger.TryGetValue(feature, out var otherValue))
             {
-                dotProduct += value * otherValue;
+                dotProduct += (value / leftScale) * (otherValue / rightScale);
             }
         }
 

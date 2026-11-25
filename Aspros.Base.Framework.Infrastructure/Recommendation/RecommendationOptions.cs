@@ -21,16 +21,19 @@ public sealed class RecommendationOptions
         ValidateWeight(PopularityWeight, nameof(PopularityWeight));
         ValidateWeight(FreshnessWeight, nameof(FreshnessWeight));
 
-        if (SimilarityWeight + QualityWeight + PopularityWeight + FreshnessWeight <= 0)
+        var totalWeight = SimilarityWeight + QualityWeight + PopularityWeight + FreshnessWeight;
+        var coldStartWeight = QualityWeight + PopularityWeight + FreshnessWeight;
+
+        if (!double.IsFinite(totalWeight) || totalWeight <= 0)
         {
             throw new InvalidOperationException(
-                "At least one recommendation scoring weight must be greater than zero.");
+                "The total recommendation scoring weight must be finite and greater than zero.");
         }
 
-        if (QualityWeight + PopularityWeight + FreshnessWeight <= 0)
+        if (!double.IsFinite(coldStartWeight) || coldStartWeight <= 0)
         {
             throw new InvalidOperationException(
-                "At least one non-personalized scoring weight must be greater than zero for cold-start users.");
+                "The total non-personalized scoring weight must be finite and greater than zero for cold-start users.");
         }
     }
 

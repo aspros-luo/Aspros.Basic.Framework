@@ -33,6 +33,29 @@ public sealed class RecommendationServiceTests
     }
 
     [Fact]
+    public async Task RecommendAsync_CosineSimilarityDoesNotOverflowForLargeFiniteFeatures()
+    {
+        var provider = new FakeRecommendationProvider(
+            "product",
+            new Dictionary<string, RecommendationUserProfile>
+            {
+                ["user"] = new(new Dictionary<string, double> { ["feature"] = 1e308 })
+            },
+            [
+                new RecommendationCandidate(
+                    "matching",
+                    new Dictionary<string, double> { ["feature"] = 1e308 },
+                    QualityScore: 0.5,
+                    PopularityScore: 0.5,
+                    FreshnessScore: 0.5)
+            ]);
+
+        var result = await CreateService(provider).RecommendAsync(Request("user"));
+
+        Assert.Equal(1d, result.Items[0].SimilarityScore);
+    }
+
+    [Fact]
     public async Task RecommendAsync_UsesNonPersonalizedSignalsWhenProfileIsMissing()
     {
         var provider = new FakeRecommendationProvider(
