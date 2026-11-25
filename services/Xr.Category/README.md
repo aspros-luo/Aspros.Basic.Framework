@@ -43,7 +43,7 @@ curl --fail http://localhost:7242/health/live
 curl --fail http://localhost:7242/health/ready
 ```
 
-`/health/ready` 只验证数据库能否连接，不会创建数据库、表或执行 Migration。
+`/health/ready` 会检查 MySQL 和 ClickHouse 是否可连接，不会创建数据库、表或执行 Migration。
 
 ## Local MySQL
 
@@ -313,7 +313,7 @@ The Category API exposes `POST /api/categories/{id}/behavior-events` for a trust
 3. Publishes the event through CAP inside a transaction shared with CAP's MySQL outbox storage.
 4. Lets the CAP subscriber write the event to ClickHouse through the Framework-registered `IClickHouseClient`.
 
-The API generates the event timestamp and a correlation ID. For compatibility with the current analytics table, the correlation ID is stored in its `run_id` column. The event's stable `event_id` is the logical idempotency key; ClickHouse's append-only `MergeTree` may still contain multiple physical rows for repeated deliveries or repeated HTTP submissions. Analytical aggregation must deduplicate by `event_id`.
+The API generates the event timestamp and a correlation ID. For compatibility with the current analytics table, the correlation ID is stored in its `run_id` column. The event's stable `event_id` is the logical idempotency key. Reuse it only when retrying the exact same logical event with an identical payload. ClickHouse's append-only `MergeTree` may still contain multiple physical rows for repeated deliveries or repeated HTTP submissions. Analytical aggregation must deduplicate by `event_id`; reusing one ID for different payloads is invalid.
 
 Send a behavior event for an existing, enabled category (replace the user ID with an identity supplied by your trusted caller):
 
