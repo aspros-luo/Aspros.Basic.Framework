@@ -70,6 +70,7 @@ public sealed class RankingAlgorithmsTests
         Assert.Equal(1, result[0].SourceCount);
         Assert.Equal("first", result[0].Item.Origin);
         Assert.Equal(1d / 61d, result[0].Score, 12);
+        Assert.Equal(1d / 62d, result[1].Score, 12);
     }
 
     [Fact]
