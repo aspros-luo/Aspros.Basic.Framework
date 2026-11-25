@@ -186,7 +186,7 @@ public sealed class CategoryRecommendationService(
         DateTime asOfUtc,
         CancellationToken cancellationToken)
     {
-        var sql = $"""
+        var sql = $$"""
             WITH deduplicated_events AS
             (
                 SELECT
