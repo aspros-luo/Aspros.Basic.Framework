@@ -34,6 +34,11 @@ public sealed class CategoryBehaviorTrackingService(
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (categoryId <= 0)
+        {
+            return null;
+        }
+
         if (request.EventId is null || request.EventId == Guid.Empty)
         {
             throw new ArgumentException(
@@ -41,7 +46,7 @@ public sealed class CategoryBehaviorTrackingService(
                 nameof(request));
         }
 
-        var userId = request.UserId.Trim();
+        var userId = request.UserId?.Trim();
         if (string.IsNullOrWhiteSpace(userId))
         {
             throw new ArgumentException(
@@ -49,7 +54,8 @@ public sealed class CategoryBehaviorTrackingService(
                 nameof(request));
         }
 
-        if (!SupportedEventTypes.Contains(request.EventType))
+        if (string.IsNullOrWhiteSpace(request.EventType) ||
+            !SupportedEventTypes.Contains(request.EventType))
         {
             throw new ArgumentException(
                 "Supported event types are view, click and purchase.",
