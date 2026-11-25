@@ -88,26 +88,12 @@ public sealed class CategoryRecommendationService(
         // Fall back to the stable business catalog order until behavior arrives.
         if (behaviorScores.Count == 0)
         {
-            var fallbackItems = categories
-                .Take(request.Take)
-                .Select((category, index) => new CategoryRecommendationItem(
-                    category.Id,
-                    category.Name,
-                    PersonalizedScore: 0d,
-                    BehaviorEventCount: 0,
-                    LastBehaviorAtUtc: null,
-                    PopularityScore: 0d,
-                    FusionScore: 0d,
-                    SourceCount: 0,
-                    Rank: index + 1))
-                .ToArray();
-
             return CreateResponse(
                 request,
                 asOfUtc,
                 windowStartUtc,
                 "catalog-fallback",
-                fallbackItems);
+                CreateCatalogFallback(categories, request.Take));
         }
 
         var candidates = categories
@@ -122,6 +108,16 @@ public sealed class CategoryRecommendationService(
                     score?.PopularityScore ?? 0d);
             })
             .ToArray();
+
+        if (!candidates.Any(candidate => candidate.PopularityScore > 0d))
+        {
+            return CreateResponse(
+                request,
+                asOfUtc,
+                windowStartUtc,
+                "catalog-fallback",
+                CreateCatalogFallback(categories, request.Take));
+        }
 
         var popularityRanking = candidates
             .OrderByDescending(candidate => candidate.PopularityScore)
@@ -282,6 +278,23 @@ public sealed class CategoryRecommendationService(
 
         return scores;
     }
+
+    private static IReadOnlyList<CategoryRecommendationItem> CreateCatalogFallback(
+        IReadOnlyList<CategoryCandidate> categories,
+        int take)
+        => categories
+            .Take(take)
+            .Select((category, index) => new CategoryRecommendationItem(
+                category.Id,
+                category.Name,
+                PersonalizedScore: 0d,
+                BehaviorEventCount: 0,
+                LastBehaviorAtUtc: null,
+                PopularityScore: 0d,
+                FusionScore: 0d,
+                SourceCount: 0,
+                Rank: index + 1))
+            .ToArray();
 
     private static CategoryRecommendationResponse CreateResponse(
         CategoryRecommendationRequest request,
