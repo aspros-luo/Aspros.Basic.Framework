@@ -192,7 +192,7 @@ public sealed class CategoryRecommendationService(
                     argMin(user_id, event_time) AS user_id,
                     argMin(category_id, event_time) AS category_id,
                     argMin(event_type, event_time) AS event_type,
-                    min(event_time) AS event_time
+                    min(event_time) AS deduplicated_event_time
                 FROM {{EventsTable}}
                 WHERE event_time >= {window_start:DateTime64(3, 'UTC')}
                   AND event_time <= {as_of:DateTime64(3, 'UTC')}
@@ -203,7 +203,7 @@ public sealed class CategoryRecommendationService(
                 SELECT
                     user_id,
                     category_id,
-                    event_time,
+                    deduplicated_event_time AS event_time,
                     toFloat64(multiIf(
                         event_type = 'purchase', 8,
                         event_type = 'click', 3,
