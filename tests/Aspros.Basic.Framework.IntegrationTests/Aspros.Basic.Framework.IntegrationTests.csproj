@@ -32,4 +32,8 @@
   <ItemGroup>
     <Protobuf Include="Grpc/regression.proto" GrpcServices="Both" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Aspros.Base.Framework.ClickHouse/Aspros.Base.Framework.ClickHouse.csproj" />
+    <ProjectReference Include="../../Aspros.Base.Framework.Algorithms/Aspros.Base.Framework.Algorithms.csproj" />
+  </ItemGroup>
 </Project>

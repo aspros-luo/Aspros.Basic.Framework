@@ -196,3 +196,53 @@ Framework 不要求所有微服务使用同一套“全家桶”注册方式。�
 - Controller / gRPC Contract
 
 Framework 负责跨服务重复的基础机制，而不是接管业务代码。
+
+
+## 13. ClickHouse（可选集成）
+
+只有需要分析型存储的服务才安装并注册独立的 ClickHouse 集成项目；普通服务不需要引入 ClickHouse.Driver。
+
+```csharp
+builder.Services.AddFrameworkClickHouse(options =>
+{
+    options.ConnectionString =
+        builder.Configuration.GetConnectionString("Analytics")
+        ?? throw new InvalidOperationException("Missing Analytics connection string.");
+});
+
+// ClickHouse 是就绪依赖，不应阻塞进程存活探针。
+builder.Services.AddHealthChecks()
+    .AddFrameworkClickHouseHealthCheck();
+```
+
+业务服务通过官方驱动接口执行参数化 SQL 和批量写入：
+
+```csharp
+public sealed class CategoryAnalytics(IClickHouseClient clickHouse)
+{
+    public Task<object> CountAsync(CancellationToken cancellationToken) =>
+        clickHouse.ExecuteScalarAsync(
+            "SELECT count() FROM aspros_analytics.category_behavior_events",
+            cancellationToken: cancellationToken);
+}
+```
+
+Framework 负责 Client 生命周期和通用健康检查，不创建数据库或表，不封装业务 SQL，不提供 ClickHouse ORM。表结构、分区、排序键、TTL、物化视图和去重语义由业务服务根据查询模式决定。
+
+## 14. 通用相似度算法
+
+算法项目不依赖数据库或推荐业务模型：
+
+```csharp
+using Aspros.Base.Framework.Algorithms;
+
+var similarity = VectorAlgorithms.CosineSimilarity(
+    userVector,
+    categoryVector);
+
+var overlap = SetSimilarityAlgorithms.JaccardSimilarity(
+    viewedCategoryIds,
+    candidateCategoryIds);
+```
+
+向量维度必须一致，输入必须是有限数值。余弦相似度保留数学定义范围 [-1, 1]；任一向量为零向量时返回 0。两个空集合的 Jaccard 相似度定义为 1。用户画像、召回、过滤、权重和排序仍由业务服务实现。

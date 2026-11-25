@@ -192,3 +192,53 @@ The business service owns:
 - Controller and gRPC contracts
 
 Framework owns repeated infrastructure mechanics rather than taking ownership of business code.
+
+
+## 13. Optional ClickHouse integration
+
+Only services that need analytical storage should reference the separate ClickHouse integration project. Services that do not use ClickHouse do not acquire a ClickHouse.Driver dependency.
+
+```csharp
+builder.Services.AddFrameworkClickHouse(options =>
+{
+    options.ConnectionString =
+        builder.Configuration.GetConnectionString("Analytics")
+        ?? throw new InvalidOperationException("Missing Analytics connection string.");
+});
+
+// ClickHouse is a readiness dependency, not a liveness dependency.
+builder.Services.AddHealthChecks()
+    .AddFrameworkClickHouseHealthCheck();
+```
+
+Use the official driver API for parameterized SQL and bulk inserts:
+
+```csharp
+public sealed class CategoryAnalytics(IClickHouseClient clickHouse)
+{
+    public Task<object> CountAsync(CancellationToken cancellationToken) =>
+        clickHouse.ExecuteScalarAsync(
+            "SELECT count() FROM aspros_analytics.category_behavior_events",
+            cancellationToken: cancellationToken);
+}
+```
+
+The framework owns client lifetime and the generic health check. It does not create databases or tables, own business SQL, or provide a ClickHouse ORM. Table schemas, partitioning, sorting keys, TTL, materialized views and deduplication semantics remain application decisions based on query patterns.
+
+## 14. General-purpose similarity algorithms
+
+The algorithms project has no database or recommendation-domain dependency:
+
+```csharp
+using Aspros.Base.Framework.Algorithms;
+
+var similarity = VectorAlgorithms.CosineSimilarity(
+    userVector,
+    categoryVector);
+
+var overlap = SetSimilarityAlgorithms.JaccardSimilarity(
+    viewedCategoryIds,
+    candidateCategoryIds);
+```
+
+Vector dimensions must match and inputs must contain finite numbers. Cosine similarity preserves its mathematical range [-1, 1]; it returns 0 when either vector is a zero vector. Jaccard similarity for two empty sets is defined as 1. User profiles, candidate retrieval, filtering, weights and ranking remain application responsibilities.
