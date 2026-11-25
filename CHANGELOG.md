@@ -1,3 +1,10 @@
+## 2026-11-25 — Generic recommendation ranking foundation
+
+- Added weighted Reciprocal Rank Fusion to `Aspros.Base.Framework.Algorithms`. It fuses ordered candidate lists without requiring their raw scores to share a scale, supports source weights and custom key equality, deduplicates keys within each source, and preserves deterministic tie order.
+- Kept candidate recall, tenant/eligibility filtering, feature generation, event semantics and model policy in the consuming business service. No fixed product/merchant/article model or universal scoring weights were introduced.
+- Integrated the algorithm into the Category development validation by combining personalized cosine-similarity ranking with global popularity ranking over the ClickHouse validation events.
+- Added focused algorithm tests. Build and test execution have not been performed in this change; local validation is still required.
+
 ## 2026-11-23 — Docker environment switched to API runtime validation
 
 - Replaced the Docker Compose framework-test, provider-test, migration-test and full-regression runners with two explicit profiles: `infra` for MySQL / Redis / RabbitMQ / Nacos, and `api` for the Core Provider and Consumer services.
