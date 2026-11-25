@@ -306,7 +306,7 @@ This endpoint publishes synthetic messages without coupling them to a Category b
 
 ### Minimal per-user category ranking validation
 
-The Development-only personalization validation demonstrates that the same behavior-event dataset can produce different category rankings for different users. It reads the first two enabled, non-deleted categories from MySQL, writes a deterministic synthetic event pattern to ClickHouse, and queries the per-user scores.
+The Development-only personalization validation demonstrates that the same behavior-event dataset can produce different category rankings for different users. It creates or reuses two stable, dedicated validation categories in MySQL, writes a deterministic synthetic event pattern to ClickHouse, and queries the per-user scores. Repeated runs update the same fixture rows instead of selecting arbitrary business categories or creating new random rows.
 
 Start a validation run:
 
