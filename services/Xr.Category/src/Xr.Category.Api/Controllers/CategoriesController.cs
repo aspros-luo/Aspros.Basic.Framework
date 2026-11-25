@@ -8,7 +8,8 @@ namespace Xr.Category.Api.Controllers;
 public sealed class CategoriesController(
     ICategoryService categoryService,
     ICategoryDapperQueryService dapperQueryService,
-    ICategoryBehaviorTrackingService behaviorTrackingService) : ControllerBase
+    ICategoryBehaviorTrackingService behaviorTrackingService,
+    ICategoryRecommendationService recommendationService) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status201Created)]
@@ -107,6 +108,25 @@ public sealed class CategoriesController(
         }
 
         return Accepted(accepted);
+    }
+
+    /// <summary>
+    /// Returns a behavior-based Category ranking for a user.
+    /// This endpoint is an integration surface; production authentication and tenant isolation
+    /// must be supplied by the hosting application.
+    /// </summary>
+    [HttpGet("recommendations")]
+    [ProducesResponseType(typeof(CategoryRecommendationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<CategoryRecommendationResponse>> Recommend(
+        [FromQuery] CategoryRecommendationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await recommendationService.RecommendAsync(
+            request,
+            cancellationToken);
+
+        return Ok(result);
     }
 
     [HttpGet("search/dapper")]
