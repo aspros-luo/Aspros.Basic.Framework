@@ -64,6 +64,7 @@ builder.Services.AddTransient<CategoryBehaviorEventSubscriber>();
 builder.Services.AddScoped<ICategoryBehaviorTrackingService, CategoryBehaviorTrackingService>();
 builder.Services.AddTransient<CategoryBehaviorRecordedSubscriber>();
 builder.Services.AddCategoryPersonalizationValidation();
+builder.Services.AddScoped<ICategoryRecommendationService, CategoryRecommendationService>();
 
 builder.Services.AddFrameworkCap<CategoryDbContext>(options =>
 {
