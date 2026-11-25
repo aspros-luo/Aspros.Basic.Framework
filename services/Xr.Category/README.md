@@ -340,3 +340,24 @@ A passing result must show opposite top-ranked categories for the two users. The
 ## Validation scope
 
 当前 Category 字段和自关联关系是用于 Framework CRUD / Dapper 集成验证的最小数据模型，不应视为已经确定的产品类目领域规则。此阶段不实现完整的类目树规则、移动规则或产品业务流程。
+
+
+## Recommendation ranking validation
+
+The Development-only `/_dev/validation/personalization` endpoint also exercises the Framework's generic reciprocal-rank fusion algorithm.
+
+The validation path intentionally separates two ranking sources:
+
+1. **Personalized relevance**: ClickHouse aggregates each user's behavior-weighted category interests; the API uses the Framework's vector cosine similarity to rank category candidates.
+2. **Global popularity**: the API aggregates category behavior scores across the validation users and produces an independent popularity ranking.
+
+The two ordered lists are combined with `RankingAlgorithms.ReciprocalRankFusion`. This verifies that the same algorithm can combine different ranking signals without assuming that their raw scores share a scale. The fixture users have opposite category preferences, so their top-ranked categories should remain opposite even when both users share the same global popularity signal.
+
+The response includes:
+
+- `SimilarityScore`: personalized relevance for the user/category pair;
+- `FusionScore`: reciprocal-rank fusion score across the personalized and popularity sources (not a probability);
+- `SourceCount`: number of ranking sources that contained the category;
+- `Rank`: final fused position for that user.
+
+This is an algorithm integration test, not a production recommendation endpoint. Category eligibility, tenant filtering, candidate recall, event semantics and online feature freshness remain business-service responsibilities. The Framework does not persist user profiles or prescribe a universal scoring model.
