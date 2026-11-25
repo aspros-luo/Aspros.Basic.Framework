@@ -101,7 +101,12 @@ public sealed class CategoriesController(
             request,
             cancellationToken);
 
-        return accepted is null ? NotFound() : Accepted(accepted);
+        if (accepted is null)
+        {
+            return NotFound();
+        }
+
+        return Accepted(accepted);
     }
 
     [HttpGet("search/dapper")]
