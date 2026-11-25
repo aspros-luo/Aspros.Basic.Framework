@@ -7,7 +7,8 @@ namespace Xr.Category.Api.Controllers;
 [Route("api/categories")]
 public sealed class CategoriesController(
     ICategoryService categoryService,
-    ICategoryDapperQueryService dapperQueryService) : ControllerBase
+    ICategoryDapperQueryService dapperQueryService,
+    ICategoryBehaviorTrackingService behaviorTrackingService) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status201Created)]
@@ -81,6 +82,26 @@ public sealed class CategoriesController(
             cancellationToken);
 
         return deleted ? NoContent() : NotFound();
+    }
+
+    /// <summary>
+    /// Accepts a user behavior event and publishes it through the CAP outbox.
+    /// </summary>
+    [HttpPost("{id:long}/behavior-events")]
+    [ProducesResponseType(typeof(CategoryBehaviorEventAccepted), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CategoryBehaviorEventAccepted>> TrackBehavior(
+        long id,
+        TrackCategoryBehaviorRequest request,
+        CancellationToken cancellationToken)
+    {
+        var accepted = await behaviorTrackingService.TrackAsync(
+            id,
+            request,
+            cancellationToken);
+
+        return accepted is null ? NotFound() : Accepted(accepted);
     }
 
     [HttpGet("search/dapper")]
