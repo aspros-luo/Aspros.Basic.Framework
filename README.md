@@ -35,6 +35,7 @@
     Abstractions <- Domain <- Infrastructure
 
 业务服务再依赖 Domain / Infrastructure；Domain 不再反向依赖 Infrastructure。
+Algorithms 与 ClickHouse 是可选的独立能力项目，不加入 Domain / Infrastructure 的核心依赖链；业务服务按需显式引用。
 
 ## gRPC
 
