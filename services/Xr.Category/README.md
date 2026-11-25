@@ -349,6 +349,73 @@ WHERE event_id = '<eventId>';
 
 An unknown, disabled or logically deleted category returns `404`; invalid event payloads return `400`. The current integration service has no authentication middleware, so `userId` in this test contract must be supplied by a trusted caller. A production deployment must derive it from the authenticated principal rather than trusting an arbitrary public request body. Tenant isolation is also not implemented in this minimal Category fixture and must be added before multi-tenant production use.
 
+### Real Category recommendation API
+
+The real recommendation read path consumes the behavior events submitted through
+`POST /api/categories/{id}/behavior-events`. Unlike the Development-only personalization
+fixture below, it does not generate synthetic events or create test categories.
+
+Request recommendations for a user:
+
+```bash
+curl --fail \
+  'http://localhost:7242/api/categories/recommendations?userId=demo-user-1001&windowDays=30&take=20'
+```
+
+Query parameters:
+
+- `userId`: trusted caller's user identifier (required, maximum 128 characters).
+- `windowDays`: behavior lookback window from 1 to 90 days; defaults to 30.
+- `take`: maximum returned categories from 1 to 100; defaults to 20.
+
+The service reads enabled, non-deleted Category candidates from MySQL and behavior aggregates
+from ClickHouse. It deduplicates physical ClickHouse rows by `event_id` before scoring. The
+initial, deliberately transparent business weights are `view=1`, `click=3`, and
+`purchase=8`; event influence decays exponentially with a seven-day half-life. These are
+baseline policy values for this integration, not learned model parameters.
+
+Two independent lists are fused using the Framework's generic weighted Reciprocal Rank Fusion:
+user-specific behavior relevance and global popularity across users. The response includes
+the underlying personalized/popularity scores, logical behavior-event count, last behavior
+time, fusion score, source count and final rank. A fusion score is not a probability.
+Categories with no user history can still enter through popularity. If the selected window
+contains no behavior events at all, the service returns eligible categories in stable catalog
+order with `recommendationMode: catalog-fallback`.
+
+Example response fields:
+
+```json
+{
+  "userId": "demo-user-1001",
+  "windowDays": 30,
+  "recommendationMode": "personalized-and-popular",
+  "items": [
+    {
+      "categoryId": 1,
+      "categoryName": "Electronics",
+      "personalizedScore": 2.41,
+      "behaviorEventCount": 3,
+      "popularityScore": 8.72,
+      "fusionScore": 0.0325,
+      "sourceCount": 2,
+      "rank": 1
+    }
+  ]
+}
+```
+
+For a useful local check, submit several events for at least two existing categories and
+multiple users, then call the recommendation endpoint for each user. The same user should
+receive a stronger personalized signal for categories they interacted with, while the
+popularity source reflects activity across users. Use distinct EventIds for distinct logical
+events; resubmitting an EventId is treated as a duplicate by the aggregation query.
+
+This API is currently an integration endpoint, not production-secure multi-tenant
+recommendation. The service has no authentication middleware or tenant model: do not expose
+it publicly or trust arbitrary caller-supplied user IDs. Production hosting must derive
+identity from authenticated claims and apply tenant/candidate visibility filters before
+returning results.
+
 ### Minimal per-user category ranking validation
 
 The Development-only personalization validation demonstrates that the same behavior-event dataset can produce different category rankings for different users. It creates or reuses two stable, dedicated validation categories in MySQL, writes a deterministic synthetic event pattern to ClickHouse, and queries the per-user scores. Repeated runs update the same fixture rows instead of selecting arbitrary business categories or creating new random rows.
