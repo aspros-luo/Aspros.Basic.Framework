@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xr.Category.Api.Messaging;
 using Xr.Category.Api.Analytics;
 using Xr.Category.Api.Validation;
+using Xr.Category.Application;
 using CategoryEntity = Xr.Category.Domain.Category;
 using Xr.Category.Infrastructure;
 
@@ -60,6 +61,8 @@ builder.Services.AddTransient<CategoryCapValidationSubscriber>();
 builder.Services.AddSingleton<CategoryCapValidationRunner>();
 builder.Services.AddSingleton<CategoryBehaviorEventState>();
 builder.Services.AddTransient<CategoryBehaviorEventSubscriber>();
+builder.Services.AddScoped<ICategoryBehaviorTrackingService, CategoryBehaviorTrackingService>();
+builder.Services.AddTransient<CategoryBehaviorRecordedSubscriber>();
 builder.Services.AddCategoryPersonalizationValidation();
 
 builder.Services.AddFrameworkCap<CategoryDbContext>(options =>
