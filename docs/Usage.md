@@ -192,3 +192,38 @@ The business service owns:
 - Controller and gRPC contracts
 
 Framework owns repeated infrastructure mechanics rather than taking ownership of business code.
+
+
+## 13. Optional ClickHouse integration
+
+Only services that need analytical storage should reference the separate ClickHouse integration project. Services that do not use ClickHouse do not acquire a ClickHouse.Driver dependency.
+
+```csharp
+builder.Services.AddFrameworkClickHouse(options =>
+{
+    options.ConnectionString =
+        builder.Configuration.GetConnectionString("ClickHouse")
+        ?? throw new InvalidOperationException("Missing ClickHouse connection string.");
+});
+
+builder.Services.AddHealthChecks()
+    .AddFrameworkClickHouseHealthCheck();
+```
+
+Use `IClickHouseClient` for the official driver's parameterized SQL, asynchronous reads and binary bulk inserts. The framework owns client lifetime and the generic health check; it does not create databases or tables, provide an ORM, or own business SQL. Partitioning, sorting keys, TTL, materialized views and deduplication semantics remain application decisions based on query patterns.
+
+## 14. General-purpose algorithms
+
+```csharp
+using Aspros.Base.Framework.Algorithms;
+
+var similarity = VectorAlgorithms.CosineSimilarity(
+    userVector,
+    categoryVector);
+
+var overlap = SetSimilarityAlgorithms.JaccardSimilarity(
+    viewedCategoryIds,
+    candidateCategoryIds);
+```
+
+Vector dimensions must match and inputs must contain finite numbers. Cosine similarity follows its mathematical definition and ranges from -1 to 1; it returns 0 when either vector is a zero vector. Jaccard similarity for two empty sets is defined as 1. The framework provides algorithms, not user profiles, candidate retrieval, business filters, weights or ranking policies.

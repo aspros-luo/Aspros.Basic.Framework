@@ -6,6 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="../Xr.Category.Application/Xr.Category.Application.csproj" />
     <ProjectReference Include="../Xr.Category.Infrastructure/Xr.Category.Infrastructure.csproj" />
-    <PackageReference Include="ClickHouse.Driver" Version="1.5.0" />
+    <ProjectReference Include="../../../../Aspros.Base.Framework.ClickHouse/Aspros.Base.Framework.ClickHouse.csproj" />
+    <ProjectReference Include="../../../../Aspros.Base.Framework.Algorithms/Aspros.Base.Framework.Algorithms.csproj" />
   </ItemGroup>
 </Project>

@@ -4,11 +4,11 @@ using DotNetCore.CAP;
 namespace Xr.Category.Api.Messaging;
 
 public sealed class CategoryBehaviorEventSubscriber(
-    ClickHouseClient clickHouse,
+    IClickHouseClient clickHouse,
     CategoryBehaviorEventState state,
     ILogger<CategoryBehaviorEventSubscriber> logger) : ICapSubscribe
 {
-    private readonly ClickHouseClient _clickHouse =
+    private readonly IClickHouseClient _clickHouse =
         clickHouse ?? throw new ArgumentNullException(nameof(clickHouse));
 
     private readonly CategoryBehaviorEventState _state =
@@ -53,7 +53,8 @@ public sealed class CategoryBehaviorEventSubscriber(
                     message.EventType,
                     message.EventTimeUtc
                 }
-            });
+            },
+            cancellationToken: cancellationToken);
 
         if (insertedRows != 1)
         {

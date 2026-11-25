@@ -1,8 +1,11 @@
+using Aspros.Base.Framework.Algorithms;
+using Aspros.Base.Framework.ClickHouse;
 using ClickHouse.Driver;
 using ClickHouse.Driver.ADO.Parameters;
 using ClickHouse.Driver.Utility;
 using Microsoft.EntityFrameworkCore;
 using Xr.Category.Infrastructure;
+using CategoryEntity = Xr.Category.Domain.Category;
 
 namespace Xr.Category.Api.Analytics;
 
@@ -49,7 +52,7 @@ public static class CategoryPersonalizationValidationExtensions
 /// </summary>
 public sealed class CategoryPersonalizationValidationService(
     CategoryDbContext dbContext,
-    ClickHouseClient clickHouse)
+    IClickHouseClient clickHouse)
 {
     private const string EventsTable =
         "aspros_analytics.category_behavior_events";
@@ -60,28 +63,56 @@ public sealed class CategoryPersonalizationValidationService(
     private readonly CategoryDbContext _dbContext =
         dbContext ?? throw new ArgumentNullException(nameof(dbContext));
 
-    private readonly ClickHouseClient _clickHouse =
+    private readonly IClickHouseClient _clickHouse =
         clickHouse ?? throw new ArgumentNullException(nameof(clickHouse));
 
     public async Task<CategoryPersonalizationValidationStarted> StartAsync(
         CancellationToken cancellationToken)
     {
-        var categories = await _dbContext.Categories
-            .AsNoTracking()
-            .Where(category => !category.Deleted && category.IsEnabled)
-            .OrderBy(category => category.SortOrder)
-            .ThenBy(category => category.Id)
-            .Take(2)
-            .Select(category => new CategoryPersonalizationCategory(
-                category.Id,
-                category.Name))
-            .ToArrayAsync(cancellationToken);
-
-        if (categories.Length < 2)
+        // Use two stable, dedicated fixture rows instead of whichever business categories
+        // happen to sort first. Repeated validation runs update these rows instead of polluting
+        // the category table with new random test data.
+        var fixtureDefinitions = new[]
         {
-            throw new InvalidOperationException(
-                "Personalization validation requires at least two active categories in MySQL.");
+            (Code: "FRAMEWORK-VALIDATION-PERSONALIZATION-A", Name: "Validation Category A", SortOrder: 900001),
+            (Code: "FRAMEWORK-VALIDATION-PERSONALIZATION-B", Name: "Validation Category B", SortOrder: 900002)
+        };
+        var fixtureCodes = fixtureDefinitions.Select(item => item.Code).ToArray();
+        var existingFixtures = await _dbContext.Categories
+            .Where(category => fixtureCodes.Contains(category.Code))
+            .ToDictionaryAsync(category => category.Code, cancellationToken);
+
+        var fixtureEntities = new List<CategoryEntity>(fixtureDefinitions.Length);
+        foreach (var definition in fixtureDefinitions)
+        {
+            if (!existingFixtures.TryGetValue(definition.Code, out var entity))
+            {
+                entity = new CategoryEntity(
+                    definition.Code,
+                    definition.Name,
+                    parentId: null,
+                    definition.SortOrder,
+                    isEnabled: true);
+                _dbContext.Categories.Add(entity);
+            }
+            else
+            {
+                entity.Deleted = false;
+                entity.Update(
+                    definition.Code,
+                    definition.Name,
+                    parentId: null,
+                    definition.SortOrder,
+                    isEnabled: true);
+            }
+
+            fixtureEntities.Add(entity);
         }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        var categories = fixtureEntities
+            .Select(entity => new CategoryPersonalizationCategory(entity.Id, entity.Name))
+            .ToArray();
 
         var runId = Guid.NewGuid().ToString("N");
         var eventTime = DateTime.UtcNow;
@@ -107,7 +138,7 @@ public sealed class CategoryPersonalizationValidationService(
             ];
         }
 
-        // User A prefers category 1: view (1) + click (3) + purchase (8) = 12.
+        // User A prefers category A: view (1) + click (3) + purchase (8) = 12.
         rows.Add(CreateEvent(UserA, categories[0].Id, "view", 1));
         rows.Add(CreateEvent(UserA, categories[0].Id, "click", 2));
         var duplicatedPurchase = CreateEvent(
@@ -131,7 +162,8 @@ public sealed class CategoryPersonalizationValidationService(
         var insertedRows = await _clickHouse.InsertBinaryAsync(
             EventsTable,
             ["event_id", "run_id", "user_id", "category_id", "event_type", "event_time"],
-            rows);
+            rows,
+            cancellationToken: cancellationToken);
 
         if (insertedRows != rows.Count)
         {
@@ -211,7 +243,8 @@ public sealed class CategoryPersonalizationValidationService(
         var rawScores = new List<RawCategoryScore>();
         await using (var reader = await _clickHouse.ExecuteReaderAsync(
             rankingSql,
-            parameters))
+            parameters,
+            cancellationToken: cancellationToken))
         {
             while (reader.Read())
             {
@@ -231,6 +264,7 @@ public sealed class CategoryPersonalizationValidationService(
         var categoryIds = rawScores
             .Select(score => checked((long)score.CategoryId))
             .Distinct()
+            .OrderBy(categoryId => categoryId)
             .ToArray();
 
         var categoryNames = await _dbContext.Categories
@@ -242,38 +276,74 @@ public sealed class CategoryPersonalizationValidationService(
                 category => category.Name,
                 cancellationToken);
 
-        var ranks = new Dictionary<string, int>(StringComparer.Ordinal);
+        var scoresByUser = rawScores
+            .GroupBy(score => score.UserId, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.ToDictionary(score => checked((long)score.CategoryId)),
+                StringComparer.Ordinal);
+
         var rankings = new List<CategoryPersonalizationScore>(rawScores.Count);
 
-        foreach (var score in rawScores)
+        foreach (var (userId, scores) in scoresByUser)
         {
-            ranks.TryGetValue(score.UserId, out var currentRank);
-            var rank = currentRank + 1;
-            ranks[score.UserId] = rank;
+            var userVector = categoryIds
+                .Select(categoryId => scores.TryGetValue(categoryId, out var score)
+                    ? (double)score.Score
+                    : 0d)
+                .ToArray();
 
-            var categoryId = checked((long)score.CategoryId);
-            var categoryName = categoryNames.TryGetValue(
-                categoryId,
-                out var name)
-                ? name
-                : $"Category {categoryId}";
+            for (var index = 0; index < categoryIds.Length; index++)
+            {
+                var categoryId = categoryIds[index];
+                if (!scores.TryGetValue(categoryId, out var score))
+                {
+                    continue;
+                }
 
-            rankings.Add(new CategoryPersonalizationScore(
-                score.UserId,
-                categoryId,
-                categoryName,
-                score.Score,
-                score.EventCount,
-                rank));
+                // Each category is a one-hot candidate vector; the user vector
+                // contains behavior-weighted category interests aggregated in ClickHouse.
+                var candidateVector = new double[categoryIds.Length];
+                candidateVector[index] = 1d;
+                var similarity = VectorAlgorithms.CosineSimilarity(
+                    userVector,
+                    candidateVector);
+
+                var categoryName = categoryNames.TryGetValue(
+                    categoryId,
+                    out var name)
+                    ? name
+                    : $"Category {categoryId}";
+
+                rankings.Add(new CategoryPersonalizationScore(
+                    userId,
+                    categoryId,
+                    categoryName,
+                    score.Score,
+                    score.EventCount,
+                    similarity,
+                    Rank: 0));
+            }
         }
+
+        rankings = rankings
+            .GroupBy(item => item.UserId, StringComparer.Ordinal)
+            .SelectMany(group => group
+                .OrderByDescending(item => item.SimilarityScore)
+                .ThenByDescending(item => item.Score)
+                .ThenBy(item => item.CategoryId)
+                .Select((item, index) => item with { Rank = index + 1 }))
+            .ToList();
 
         var physicalRows = await CountRowsAsync(
             "SELECT count() FROM aspros_analytics.category_behavior_events WHERE run_id = {run_id:String}",
-            normalizedRunId);
+            normalizedRunId,
+            cancellationToken);
 
         var logicalEvents = await CountRowsAsync(
             "SELECT uniqExact(event_id) FROM aspros_analytics.category_behavior_events WHERE run_id = {run_id:String}",
-            normalizedRunId);
+            normalizedRunId,
+            cancellationToken);
 
         var userARankings = rankings
             .Where(item => item.UserId == UserA)
@@ -292,8 +362,8 @@ public sealed class CategoryPersonalizationValidationService(
             userBRankings.Length == 2 &&
             userARankings[0].CategoryId == userBRankings[1].CategoryId &&
             userARankings[1].CategoryId == userBRankings[0].CategoryId &&
-            userARankings[0].Score > userARankings[1].Score &&
-            userBRankings[0].Score > userBRankings[1].Score;
+            userARankings[0].SimilarityScore > userARankings[1].SimilarityScore &&
+            userBRankings[0].SimilarityScore > userBRankings[1].SimilarityScore;
 
         return new CategoryPersonalizationValidationResult(
             passed,
@@ -305,12 +375,18 @@ public sealed class CategoryPersonalizationValidationService(
             "Deduplicate by event_id before aggregating");
     }
 
-    private async Task<long> CountRowsAsync(string sql, string runId)
+    private async Task<long> CountRowsAsync(
+        string sql,
+        string runId,
+        CancellationToken cancellationToken)
     {
         var parameters = new ClickHouseParameterCollection();
         parameters.AddParameter("run_id", runId);
 
-        var value = await _clickHouse.ExecuteScalarAsync(sql, parameters);
+        var value = await _clickHouse.ExecuteScalarAsync(
+            sql,
+            parameters,
+            cancellationToken: cancellationToken);
         return Convert.ToInt64(value, System.Globalization.CultureInfo.InvariantCulture);
     }
 
@@ -337,6 +413,7 @@ public sealed record CategoryPersonalizationScore(
     string CategoryName,
     long Score,
     ulong EventCount,
+    double SimilarityScore,
     int Rank);
 
 public sealed record CategoryPersonalizationValidationResult(
