@@ -27,6 +27,8 @@
 | Aspros.Base.Framework.Abstractions | DI 标记、事件等最小通用契约 |
 | Aspros.Base.Framework.Domain | Entity、Aggregate Root、Repository 契约 |
 | Aspros.Base.Framework.Infrastructure | EF Core、Dapper、UoW、Web API、gRPC、缓存、消息等基础设施 |
+| Aspros.Base.Framework.Algorithms | 通用向量/集合相似度与多路排序融合算法 |
+| Aspros.Base.Framework.ClickHouse | 可选 ClickHouse 客户端与健康检查集成 |
 
 依赖方向：
 
