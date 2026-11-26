@@ -1,3 +1,9 @@
+## 2026-11-26 — Real multi-user recommendation walkthrough
+
+- Documented a reproducible two-user Category API example using real behavior-event ingestion and recommendation reads.
+- Clarified the responsibility boundary: Framework supplies generic ranking/fusion algorithms; each business service owns candidate selection, behavior semantics, scoring policy and the desired balance between personalized and global signals.
+- Explained that opposite personalized rankings do not guarantee opposite final RRF order because RRF fuses source ranks and global popularity can remain influential.
+
 ## 2026-11-25 — Real Category recommendation read path
 
 - Added `GET /api/categories/recommendations`, which ranks enabled, non-deleted Category candidates using real behavior events already ingested into ClickHouse.
