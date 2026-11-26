@@ -128,6 +128,6 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 ### Resilience migration validation (pending)
 
 - [ ] Run permission allow/deny/dependency-unavailable/timeout/caller-cancellation regressions.
-- [ ] Run HTTP transient GET retry and unsafe-method no-retry regressions.
+- [ ] Run HTTP transient GET retry, unsafe-method no-retry and circuit-breaker regressions.
 - [ ] Run the full Release solution build and inspect the transitive dependency graph.
 - [ ] Confirm no source, sample, test or documentation code still depends on the removed PollyExtend API.
