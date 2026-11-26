@@ -1,3 +1,11 @@
+## 2026-11-26 — Official HTTP resilience migration
+
+- Removed the Framework-owned `PollyExtend` policy factory and its legacy policy regression tests.
+- Migrated permission validation from Flurl plus manually executed retry policies to a named `IHttpClientFactory` client using the existing Microsoft standard HTTP resilience pipeline.
+- Preserved fail-closed permission semantics: dependency errors, resilience timeouts, open circuits and invalid responses return 503; explicit denial returns 403; caller cancellation propagates.
+- Removed direct `Polly` and `Flurl.Http` package references from Infrastructure. The Microsoft resilience package may still bring Polly as an implementation dependency.
+- Added permission timeout and caller-cancellation regression tests. These tests and the full Release build have not yet been executed after this change; local validation is required before RC integration.
+
 ## 2026-11-26 — Real multi-user recommendation walkthrough
 
 - Documented a reproducible two-user Category API example using real behavior-event ingestion and recommendation reads.
