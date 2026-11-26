@@ -41,9 +41,10 @@ The Provider's gRPC endpoint is exposed on `localhost:7041`; its HTTP health end
 | Redis 7 | `localhost:16379` | no password |
 | RabbitMQ | `localhost:5672` | user `framework`, password `framework_password` |
 | RabbitMQ Management | `http://localhost:15672` | user `framework`, password `framework_password` |
+| ClickHouse 26.8 LTS | `http://localhost:18123` (HTTP), `localhost:19000` (Native TCP) | user `framework`, password `framework_password` |
 | Nacos 2.5.1 | `http://localhost:18848/nacos` | authentication disabled for local development |
 
-These infrastructure containers are started independently from the sample APIs. The current sample HTTP API exercises the HTTP-to-gRPC Provider/Consumer path; MySQL, Redis, RabbitMQ and Nacos are available for subsequent API-level scenarios but are not claimed as API-verified by the current smoke calls.
+These infrastructure containers are started independently from the sample APIs. ClickHouse exposes HTTP on host port 18123 and Native TCP on host port 19000. Starting an infrastructure container does not by itself mean that a business API integration has been validated.
 
 ## Logs and shutdown
 

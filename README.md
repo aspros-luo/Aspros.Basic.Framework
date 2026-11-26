@@ -131,14 +131,9 @@ var ranked = RankingAlgorithms.ReciprocalRankFusion(
     product => product.Id);
 ```
 
-RRF 使用各来源中的相对名次，而不是直接比较来源的原始分数。它适合融合量纲不同的召回/排序结果；返回的 `Score` 是融合分数，不是概率，也不保证位于 `[0, 1]`。同一来源内重复的业务键只按第一次出现的位置计分，最终同分时保留稳定的首次出现顺序。
+RRF 使用各来源中的相对名次，而不是直接比较来源的原始分数。返回的 `Score` 是融合分数，不是概率，也不保证位于 `[0, 1]`。同一来源内重复的业务键只按第一次出现的位置计分，同分时保留稳定的首次出现顺序。
 
-边界保持明确：
-
-- 业务服务负责候选召回、权限/租户隔离、库存/上下架等资格过滤，以及业务特征和个性化模型。
-- Framework Algorithms 只提供可复用的数值计算与排序融合，不内置商品、商家、内容等对象模型，也不预设质量、热度、新鲜度等固定评分字段。
-- ClickHouse、Redis 和 MQ 由业务服务按需组合：例如 MQ 接收行为事件、ClickHouse 做离线聚合、Redis 提供在线特征或缓存；算法项目不依赖这些基础设施。
-- 推荐结果的曝光、点击、收藏和购买必须由业务在真实行为发生时记录，不能把“返回了推荐结果”当成“已曝光”。
+业务服务负责候选召回、权限/租户隔离、业务资格过滤、特征生成和个性化模型。Framework 不内置商品、商家、内容等对象模型，也不预设质量、热度、新鲜度等固定评分字段。ClickHouse、Redis 和 MQ 由业务服务按需组合；算法项目不依赖这些基础设施。
 
 这是可组合的算法基础，不是完整的推荐平台；召回策略、模型训练、在线实验和业务约束仍由具体产品负责。
 
@@ -208,7 +203,7 @@ The framework returns a ServiceEndpoint containing the selected healthy instance
 
 ## Permission validation
 
-For applications that need the legacy permission middleware:
+For applications that need endpoint permission validation:
 
     builder.Services.AddFrameworkPermissionValidation(options =>
     {
@@ -219,7 +214,7 @@ For applications that need the legacy permission middleware:
 
     app.UseFrameworkPermissionValidation();
 
-Permission checks fail closed: an unavailable permission service returns 503 and a denied permission returns 403.
+Permission checks use a named `IHttpClientFactory` client with the Framework standard HTTP resilience pipeline. They fail closed: an unavailable permission service returns 503 and a denied permission returns 403. Caller cancellation is propagated.
 
 ## One-line runtime registration
 
@@ -285,7 +280,7 @@ The optional CLI is packaged as `Aspros.Basic.Framework.Tools` (the commands bel
 
 ## Docker API Environment
 
-The active Docker workflow starts MySQL, Redis, RabbitMQ and Nacos together with the Core Provider and Consumer APIs:
+The active Docker workflow starts MySQL, Redis, RabbitMQ, Nacos and ClickHouse together with the Core Provider and Consumer APIs:
 
     docker compose -f dev-environment/docker-compose.yml --profile infra --profile api up -d --build
 
@@ -301,3 +296,9 @@ Framework xUnit and migration test sources remain in tests/, but their Docker ex
 ## 2.0.0-rc.1 Migration note
 
 `BasicEntity.Status` now uses `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus` instead of the root-namespace `Status` enum. This avoids collisions with business-owned status models; update explicit enum references when moving to this package line.
+
+## Business Services
+
+The `services/` directory contains deployable business services and is kept separate from `samples/` (framework examples). Each service owns its solution and runtime entry point.
+
+The first service scaffold is [Xr.Category](services/Xr.Category/README.md). It uses the four-layer structure and the current Framework source projects. The service has its own solution and is not added to the Framework solution.

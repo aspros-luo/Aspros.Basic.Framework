@@ -2,6 +2,8 @@ namespace Aspros.Base.Framework.Infrastructure;
 
 public sealed class PermissionOptions
 {
+    internal const string HttpClientName = "Framework.PermissionValidation";
+
     public string ServiceName { get; set; } = "saas-system";
 
     public string GroupName { get; set; } = "DEFAULT_GROUP";

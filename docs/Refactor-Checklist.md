@@ -21,7 +21,7 @@
 - [x] Added a lightweight Dapper executor that can reuse the current UnitOfWork transaction.
 - [x] Made WorkContext claim-first and removed its Redis cache dependency.
 - [x] Fixed permission middleware so failed permission checks do not pass through.
-- [x] Restricted Polly retry/circuit-breaker decisions to transient failures.
+- [x] Removed the Framework-owned Polly policy helpers; outbound HTTP resilience is provided by the Microsoft standard pipeline.
 - [x] Added Core Provider / Consumer gRPC samples.
 - [x] Added HTTP smoke tests.
 - [x] Added Chinese and English documentation.
@@ -62,7 +62,7 @@ The refactor is complete when the required engineering and compatibility gates b
 - [ ] Migrate all external HTTP calls to typed/IHttpClientFactory clients.
 - [ ] Standardize richer gRPC error codes and metadata.
 - [ ] Eventually remove the ServiceLocator compatibility shim.
-- [ ] Further unify Polly with newer .NET resilience APIs.
+- [x] Replace Framework-owned Polly policy helpers with the Microsoft standard HTTP resilience pipeline.
 - [ ] Publish NuGet 2.0.0 only after the .NET 10 runtime and consumer compatibility gates pass. The current upgrade intentionally targets `net10.0` rather than introducing a multi-target package matrix.
 - [ ] Expand the unit/integration test matrix.
 
@@ -123,3 +123,13 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 - [x] Documented distributed transaction boundaries: local transaction + durable message, not cross-service 2PC.
 - [x] Documented idempotency, distributed lock, cascading-failure and Saga/compensation boundaries.
 - [x] Kept reliability capabilities out of the default AddAsprosFramework registration.
+
+
+### Resilience migration validation (verified 2026-11-26)
+
+- [x] Permission allow/deny/dependency-unavailable/non-success/timeout/caller-cancellation regressions passed.
+- [x] HTTP transient GET retry, unsafe-method no-retry and circuit-breaker regressions passed.
+- [x] Release solution build succeeded (148 warnings); dependency inspection confirmed Polly is transitive through Microsoft.Extensions.Http.Resilience.
+- [x] Source/project scan found no remaining PollyExtend, `using Polly`, Flurl or direct Polly package references.
+
+The 8 targeted regressions and Release build passed; this does not claim the full integration suite passed.

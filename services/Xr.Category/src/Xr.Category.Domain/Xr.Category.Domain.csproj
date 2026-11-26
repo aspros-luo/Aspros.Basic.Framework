@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Xr.Category.Domain</AssemblyName>
+    <RootNamespace>Xr.Category.Domain</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../../Aspros.Base.Framework.Domain/Aspros.Base.Framework.Domain.csproj" />
+  </ItemGroup>
+</Project>

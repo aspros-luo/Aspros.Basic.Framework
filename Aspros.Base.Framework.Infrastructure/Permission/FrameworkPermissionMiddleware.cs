@@ -1,6 +1,6 @@
-using Flurl.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 
@@ -27,12 +27,16 @@ public sealed class FrameworkPermissionMiddleware(RequestDelegate next)
         HttpContext context,
         IServiceDiscovery serviceDiscovery,
         IWorkContext workContext,
-        IOptions<PermissionOptions> options)
+        IHttpClientFactory httpClientFactory,
+        IOptions<PermissionOptions> options,
+        ILogger<FrameworkPermissionMiddleware> logger)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(serviceDiscovery);
         ArgumentNullException.ThrowIfNull(workContext);
+        ArgumentNullException.ThrowIfNull(httpClientFactory);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(logger);
 
         var endpoint =
             context.Features.Get<IEndpointFeature>()?.Endpoint;
@@ -67,8 +71,13 @@ public sealed class FrameworkPermissionMiddleware(RequestDelegate next)
         {
             throw;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            logger.LogWarning(
+                exception,
+                "Permission service discovery failed for {ServiceName}.",
+                settings.ServiceName);
+
             await WriteErrorAsync(
                 context,
                 StatusCodes.Status503ServiceUnavailable,
@@ -90,62 +99,70 @@ public sealed class FrameworkPermissionMiddleware(RequestDelegate next)
             Path = settings.ValidationPath,
             Query =
                 $"PermissionCode={Uri.EscapeDataString(permission.Code)}&userId={userId}"
-        }.Uri.ToString();
+        }.Uri;
+
+        bool allowed;
+        int? unsuccessfulStatusCode = null;
 
         try
         {
-            var policy = PollyExtend.GetRetryPolicy();
-
-            var response = await policy.ExecuteAsync(
-                async () =>
-                {
-                    var flurlResponse = await url
-                        .AllowAnyHttpStatus()
-                        .GetAsync(cancellationToken: context.RequestAborted);
-
-                    return flurlResponse.ResponseMessage;
-                });
+            using var response = await httpClientFactory
+                .CreateClient(PermissionOptions.HttpClientName)
+                .GetAsync(url, context.RequestAborted);
 
             if (!response.IsSuccessStatusCode)
             {
-                await WriteErrorAsync(
-                    context,
-                    StatusCodes.Status503ServiceUnavailable,
-                    "权限服务请求失败");
-                return;
+                unsuccessfulStatusCode = (int)response.StatusCode;
+                allowed = false;
             }
-
-            var allowed = await response.Content.ReadFromJsonAsync<bool>(
-                context.RequestAborted);
-
-            if (allowed != true)
+            else
             {
-                await WriteErrorAsync(
-                    context,
-                    StatusCodes.Status403Forbidden,
-                    "当前用户权限不够");
-                return;
+                allowed = await response.Content.ReadFromJsonAsync<bool>(
+                    context.RequestAborted) == true;
             }
         }
         catch (OperationCanceledException)
             when (context.RequestAborted.IsCancellationRequested)
         {
+            // Preserve caller cancellation; it is not a dependency failure.
             throw;
         }
-        catch (HttpRequestException)
+        catch (Exception exception)
         {
+            // Fail closed for transport errors, resilience timeouts, open circuits,
+            // and invalid dependency responses. Never turn a dependency failure into access.
+            logger.LogWarning(
+                exception,
+                "Permission validation failed for {ServiceName}; denying the request.",
+                settings.ServiceName);
+
             await WriteErrorAsync(
                 context,
                 StatusCodes.Status503ServiceUnavailable,
                 "权限服务不可用");
             return;
         }
-        catch (FlurlHttpException)
+
+        if (unsuccessfulStatusCode is not null)
         {
+            logger.LogWarning(
+                "Permission service {ServiceName} returned HTTP {StatusCode}.",
+                settings.ServiceName,
+                unsuccessfulStatusCode.Value);
+
             await WriteErrorAsync(
                 context,
                 StatusCodes.Status503ServiceUnavailable,
-                "权限服务不可用");
+                "权限服务请求失败");
+            return;
+        }
+
+        if (!allowed)
+        {
+            await WriteErrorAsync(
+                context,
+                StatusCodes.Status403Forbidden,
+                "当前用户权限不够");
             return;
         }
 

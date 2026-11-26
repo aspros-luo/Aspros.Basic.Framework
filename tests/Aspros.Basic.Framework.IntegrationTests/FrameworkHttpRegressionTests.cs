@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Http.Resilience;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
@@ -47,6 +48,45 @@ public sealed class FrameworkHttpRegressionTests
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, postResponse.StatusCode);
         Assert.Equal(1, postHandler.CallCount);
+    }
+
+    [Fact]
+    public async Task StandardResilience_OpensCircuitAfterConfiguredFailures()
+    {
+        // The standard handler requires at least one retry attempt. Two failed
+        // attempts in the first request therefore provide the breaker throughput.
+        var handler = new SequenceHandler(
+            HttpStatusCode.ServiceUnavailable,
+            HttpStatusCode.ServiceUnavailable);
+
+        var services = new ServiceCollection();
+        services.ConfigureAll<HttpStandardResilienceOptions>(options =>
+        {
+            options.Retry.MaxRetryAttempts = 1;
+            options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(1);
+            options.CircuitBreaker.MinimumThroughput = 2;
+            options.CircuitBreaker.FailureRatio = 0.5;
+            options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(3);
+            options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(5);
+        });
+        services
+            .AddHttpClient("circuit-breaker")
+            .ConfigurePrimaryHttpMessageHandler(() => handler)
+            .UseFrameworkResilience();
+
+        await using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<IHttpClientFactory>()
+            .CreateClient("circuit-breaker");
+
+        using var first = await client.GetAsync("http://framework.test/first");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, first.StatusCode);
+        await Assert.ThrowsAnyAsync<Exception>(
+            () => client.GetAsync("http://framework.test/blocked"));
+
+        // The second request is rejected by the open circuit and never reaches
+        // the primary handler.
+        Assert.Equal(2, handler.CallCount);
     }
 
     [Fact]
@@ -193,6 +233,102 @@ public sealed class FrameworkHttpRegressionTests
         await app.DisposeAsync();
     }
 
+    [Fact]
+    public async Task PermissionMiddleware_Returns503WhenPermissionServiceReturnsNonSuccessStatus()
+    {
+        var builder = CreatePermissionTestBuilder(new Uri("http://permission-regression.test/"));
+        builder.Services
+            .AddHttpClient("Framework.PermissionValidation")
+            .ConfigurePrimaryHttpMessageHandler(() =>
+                new DelegateHandler((_, _) =>
+                    Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound))));
+
+        var app = builder.Build();
+        app.UseRouting();
+        app.UseFrameworkPermissionValidation();
+        app.MapGet("/protected", () => Results.Ok("allowed"))
+            .WithMetadata(new Permission("orders.read"));
+
+        await app.StartAsync();
+
+        using var response = await app.GetTestClient().GetAsync("/protected");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task PermissionMiddleware_Returns503WhenPermissionHttpClientTimesOut()
+    {
+        var builder = CreatePermissionTestBuilder(new Uri("http://permission-regression.test/"));
+        builder.Services.ConfigureAll<HttpStandardResilienceOptions>(options =>
+        {
+            options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(2);
+            options.AttemptTimeout.Timeout = TimeSpan.FromMilliseconds(50);
+            options.Retry.MaxRetryAttempts = 1;
+        });
+        builder.Services
+            .AddHttpClient("Framework.PermissionValidation")
+            .ConfigurePrimaryHttpMessageHandler(() =>
+                new DelegateHandler(async (_, cancellationToken) =>
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    throw new InvalidOperationException("Unreachable.");
+                }));
+
+        var app = builder.Build();
+        app.UseRouting();
+        app.UseFrameworkPermissionValidation();
+        app.MapGet("/protected", () => Results.Ok("allowed"))
+            .WithMetadata(new Permission("orders.read"));
+
+        await app.StartAsync();
+
+        using var response = await app.GetTestClient().GetAsync("/protected");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task PermissionMiddleware_PropagatesCallerCancellation()
+    {
+        var handlerStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var builder = CreatePermissionTestBuilder(new Uri("http://permission-regression.test/"));
+        builder.Services
+            .AddHttpClient("Framework.PermissionValidation")
+            .ConfigurePrimaryHttpMessageHandler(() =>
+                new DelegateHandler(async (_, cancellationToken) =>
+                {
+                    handlerStarted.TrySetResult();
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    throw new InvalidOperationException("Unreachable.");
+                }));
+
+        var app = builder.Build();
+        app.UseRouting();
+        app.UseFrameworkPermissionValidation();
+        app.MapGet("/protected", () => Results.Ok("allowed"))
+            .WithMetadata(new Permission("orders.read"));
+
+        await app.StartAsync();
+
+        using var cancellation = new CancellationTokenSource();
+        var request = app.GetTestClient().GetAsync("/protected", cancellation.Token);
+        await handlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
     private static WebApplicationBuilder CreatePermissionTestBuilder(Uri permissionEndpoint)
     {
         var builder = WebApplication.CreateBuilder();
@@ -235,6 +371,16 @@ internal sealed class SequenceHandler(params HttpStatusCode[] responses) : HttpM
             RequestMessage = request
         });
     }
+}
+
+internal sealed class DelegateHandler(
+    Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send)
+    : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken) =>
+        send(request, cancellationToken);
 }
 
 internal sealed class StaticServiceDiscovery(Uri endpoint) : IServiceDiscovery

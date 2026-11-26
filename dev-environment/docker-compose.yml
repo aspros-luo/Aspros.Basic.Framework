@@ -51,6 +51,25 @@ services:
       retries: 20
     restart: unless-stopped
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8.45.6
+    profiles: ["infra"]
+    environment:
+      CLICKHOUSE_USER: framework
+      CLICKHOUSE_PASSWORD: framework_password
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "18123:8123"
+      - "19000:9000"
+    volumes:
+      - framework-clickhouse-data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "framework", "--password", "framework_password", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   nacos:
     image: nacos/nacos-server:v2.5.1
     profiles: ["infra"]
@@ -110,4 +129,5 @@ volumes:
   framework-mysql-data:
   framework-redis-data:
   framework-rabbitmq-data:
+  framework-clickhouse-data:
   framework-nacos-data:

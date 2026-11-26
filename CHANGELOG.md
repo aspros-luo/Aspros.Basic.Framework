@@ -1,3 +1,34 @@
+## 2026-11-26 — Official HTTP resilience migration
+
+- Removed the Framework-owned `PollyExtend` policy factory and its legacy policy regression tests.
+- Migrated permission validation from Flurl plus manually executed retry policies to a named `IHttpClientFactory` client using the existing Microsoft standard HTTP resilience pipeline.
+- Preserved fail-closed permission semantics: dependency errors, resilience timeouts, open circuits and invalid responses return 503; explicit denial returns 403; caller cancellation propagates.
+- Removed direct `Polly` and `Flurl.Http` package references from Infrastructure. The Microsoft resilience package may still bring Polly as an implementation dependency.
+- Added HTTP retry/circuit-breaker and permission non-success/timeout/caller-cancellation regression tests. Local validation on 2026-11-26 passed all 8 targeted resilience regressions and the Release build (148 warnings). The dependency tree confirms Polly remains only as a transitive implementation dependency of Microsoft.Extensions.Http.Resilience; direct Polly/Flurl references and legacy source usages are absent. This is not a claim that the full integration suite passed.
+
+## 2026-11-26 — Real multi-user recommendation walkthrough
+
+- Documented a reproducible two-user Category API example using real behavior-event ingestion and recommendation reads.
+- Clarified the responsibility boundary: Framework supplies generic ranking/fusion algorithms; each business service owns candidate selection, behavior semantics, scoring policy and the desired balance between personalized and global signals.
+- Explained that opposite personalized rankings do not guarantee opposite final RRF order because RRF fuses source ranks and global popularity can remain influential.
+
+## 2026-11-25 — Real Category recommendation read path
+
+- Added `GET /api/categories/recommendations`, which ranks enabled, non-deleted Category candidates using real behavior events already ingested into ClickHouse.
+- Deduplicates append-only ClickHouse rows by stable `event_id` before aggregation; calculates user-specific behavior relevance and cross-user popularity over a configurable 1–90 day window.
+- Applies transparent baseline weights (view=1, click=3, purchase=8) and a seven-day exponential-decay half-life, then fuses independent personalized/popularity rankings with the Framework's generic RRF algorithm.
+- Keeps Category candidate eligibility and business scoring policy in the service; no Category-specific recommendation algorithm was added to Framework. Cold-start behavior falls back to popularity, and a completely empty event window falls back to stable catalog order.
+- Documents the real recommendation endpoint separately from the existing synthetic Development validation. Authentication and tenant isolation remain production prerequisites.
+- Source changes are committed on `feature/category-service`. The assistant has not run a .NET build or local ClickHouse query; user-side build and runtime verification are required.
+
+## 2026-11-25 — Category behavior events to ClickHouse
+
+- Added `POST /api/categories/{id}/behavior-events` to validate an enabled, non-deleted category and publish a behavior event through the MySQL-backed CAP outbox transaction.
+- Added a dedicated CAP subscriber that writes accepted events to ClickHouse using the existing Framework `IClickHouseClient` registration and analytics table; no second ClickHouse client or schema was introduced.
+- Added event ID validation and a correlation ID for tracing. ClickHouse remains append-only, so duplicate deliveries are physically possible and analytical queries must deduplicate by the stable business event ID.
+- Documented the HTTP smoke test, ClickHouse verification query, and current security boundary: this minimal service has no authentication or tenant isolation, so production callers must supply a trusted authenticated user identity.
+- Source and documentation are committed on `feature/category-service`. Build and runtime validation have not been performed by the assistant; local validation is required.
+
 ## 2026-11-25 — Generic recommendation ranking foundation
 
 - Added weighted Reciprocal Rank Fusion to `Aspros.Base.Framework.Algorithms`. It fuses ordered candidate lists without requiring their raw scores to share a scale, supports source weights and custom key equality, deduplicates keys within each source, and preserves deterministic tie order.

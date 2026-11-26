@@ -41,9 +41,10 @@ Provider 的 gRPC 端口映射为 `localhost:7041`，HTTP 健康检查映射为 
 | Redis 7 | `localhost:16379` | 无密码 |
 | RabbitMQ | `localhost:5672` | 用户 `framework`，密码 `framework_password` |
 | RabbitMQ 管理界面 | `http://localhost:15672` | 用户 `framework`，密码 `framework_password` |
+| ClickHouse 26.8 LTS | `http://localhost:18123`（HTTP），`localhost:19000`（Native TCP） | 用户 `framework`，密码 `framework_password` |
 | Nacos 2.5.1 | `http://localhost:18848/nacos` | 本地开发环境关闭认证 |
 
-这些基础设施容器独立于示例 API 启动。当前示例 API 的 smoke request 只验证 HTTP API 到 gRPC Provider/Consumer 的调用链；MySQL、Redis、RabbitMQ、Nacos 已提供运行环境，但不能把“容器启动”误认为“已通过 API 验证”。
+这些基础设施容器独立于示例 API 启动。ClickHouse 通过 HTTP 8123（宿主机 18123）和 Native TCP 9000（宿主机 19000）提供服务。当前示例 API 的 smoke request 只验证 HTTP API 到 gRPC Provider/Consumer 的调用链；基础设施容器启动本身不代表业务 API 已完成集成验证。
 
 ## 日志与关闭环境
 

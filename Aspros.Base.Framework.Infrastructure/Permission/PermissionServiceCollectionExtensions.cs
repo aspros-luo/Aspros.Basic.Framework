@@ -6,14 +6,13 @@ namespace Aspros.Base.Framework.Infrastructure;
 public static class PermissionServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers permission validation configuration and its service-discovery dependency.
-    /// 注册权限校验配置，以及权限服务所依赖的服务发现能力。
+    /// Registers permission validation configuration, service discovery and its resilient HTTP client.
+    /// 注册权限校验配置、服务发现，以及使用 Framework 标准 Resilience Pipeline 的 HTTP Client。
     ///
     /// <para>
-    /// <paramref name="configure"/> is optional, so the framework can use defaults
-    /// while applications can override the service name, group and validation path.
-    /// <paramref name="configure"/> 是可选的，业务服务可以直接使用默认值，
-    /// 也可以覆盖权限服务名称、分组和校验路径。
+    /// The permission client is named and managed by IHttpClientFactory. Its standard
+    /// resilience handler provides timeout, retry, circuit breaker and concurrency limiting.
+    /// 权限服务客户端由 IHttpClientFactory 管理，并使用标准弹性管线提供超时、重试、熔断和并发限制。
     /// </para>
     /// </summary>
     public static IServiceCollection AddFrameworkPermissionValidation(
@@ -30,6 +29,8 @@ public static class PermissionServiceCollectionExtensions
         }
 
         services.AddFrameworkServiceDiscovery();
+        services.AddFrameworkResilientHttpClient(PermissionOptions.HttpClientName);
+
         return services;
     }
 }
