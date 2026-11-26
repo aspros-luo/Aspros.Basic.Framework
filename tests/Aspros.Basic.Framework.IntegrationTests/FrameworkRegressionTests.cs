@@ -167,6 +167,7 @@ public sealed class FrameworkRegressionTests
         var rabbitHost = Environment.GetEnvironmentVariable("TestRabbitMq__Host")!;
 
         var services = new ServiceCollection();
+        services.AddLogging();
         services.AddDbContext<MySqlTestDbContext>(options =>
             options.UseMySQL(connectionString));
 
