@@ -125,9 +125,11 @@ Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging 
 - [x] Kept reliability capabilities out of the default AddAsprosFramework registration.
 
 
-### Resilience migration validation (pending)
+### Resilience migration validation (verified 2026-11-26)
 
-- [ ] Run permission allow/deny/dependency-unavailable/timeout/caller-cancellation regressions.
-- [ ] Run HTTP transient GET retry, unsafe-method no-retry and circuit-breaker regressions.
-- [ ] Run the full Release solution build and inspect the transitive dependency graph.
-- [ ] Confirm no source, sample, test or documentation code still depends on the removed PollyExtend API.
+- [x] Permission allow/deny/dependency-unavailable/non-success/timeout/caller-cancellation regressions passed.
+- [x] HTTP transient GET retry, unsafe-method no-retry and circuit-breaker regressions passed.
+- [x] Release solution build succeeded (148 warnings); dependency inspection confirmed Polly is transitive through Microsoft.Extensions.Http.Resilience.
+- [x] Source/project scan found no remaining PollyExtend, `using Polly`, Flurl or direct Polly package references.
+
+The 8 targeted regressions and Release build passed; this does not claim the full integration suite passed.
