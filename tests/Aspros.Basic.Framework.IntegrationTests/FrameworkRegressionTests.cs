@@ -168,8 +168,9 @@ public sealed class FrameworkRegressionTests
 
         var services = new ServiceCollection();
         services.AddLogging();
+        // Match Category and CAP storage: both require the MySqlConnector provider.
         services.AddDbContext<MySqlTestDbContext>(options =>
-            options.UseMySQL(connectionString));
+            options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 4, 0))));
 
         var received = new TaskCompletionSource<string>(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -307,7 +308,7 @@ public sealed class FrameworkRegressionTests
         var services = new ServiceCollection();
         services.AddScoped<IWorkContext, TestWorkContext>();
         services.AddAsprosDbContext<MySqlTestDbContext>(options =>
-            options.UseMySQL(connectionString));
+            options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 4, 0))));
         services.AddScoped<IDbContext>(sp => sp.GetRequiredService<MySqlTestDbContext>());
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IDapperExecutor, DapperExecutor>();
@@ -350,7 +351,7 @@ public sealed class FrameworkRegressionTests
             Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase") ??
             "Server=localhost;Port=3306;Database=aspros_framework_test;User=framework;Password=framework_password;";
         services.AddDbContext<MySqlTestDbContext>(options =>
-            options.UseMySQL(connectionString));
+            options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 4, 0))));
         // Framework owns EF-backed CAP storage; the application supplies its transport.
         // Register RabbitMQ without starting a host or connecting to the broker.
         services.AddFrameworkCap<MySqlTestDbContext>(options =>
