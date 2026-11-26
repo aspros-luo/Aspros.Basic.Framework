@@ -59,7 +59,7 @@
 - [ ] 将所有外部 HTTP 调用统一迁移到 typed client。
 - [ ] 更完整的 gRPC error-code / metadata 标准化。
 - [ ] ServiceLocator 的最终移除。
-- [ ] Polly 与 .NET 新 Resilience API 的进一步统一。
+- [x] 移除 Framework 自有 Polly 策略工具，统一使用 Microsoft 标准 HTTP Resilience Pipeline。
 - [ ] 仅在 .NET 10 Runtime 与消费者兼容验收通过后发布 NuGet 2.0.0。本次升级明确以 `net10.0` 为目标，不额外引入多目标框架矩阵。
 - [ ] 更完整的单元测试 / 集成测试矩阵。
 
@@ -118,3 +118,11 @@
 - [x] 明确分布式事务边界：本地事务 + 可靠消息，不做跨服务 2PC。
 - [x] 明确幂等、分布式锁、级联故障以及 Saga/补偿的设计边界。
 - [x] 可靠性能力不强制塞入 AddAsprosFramework 默认注册。
+
+
+### Resilience 迁移验收（待执行）
+
+- [ ] 执行权限放行、拒绝、依赖不可用、超时和调用方取消回归测试。
+- [ ] 执行 HTTP 瞬时 GET 重试与不安全方法不重试回归测试。
+- [ ] 执行完整 Release 构建并检查传递依赖树。
+- [ ] 确认源码、示例、测试和文档均不再依赖已删除的 PollyExtend API。
