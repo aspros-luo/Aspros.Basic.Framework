@@ -194,6 +194,32 @@ public sealed class FrameworkHttpRegressionTests
     }
 
     [Fact]
+    public async Task PermissionMiddleware_Returns503WhenPermissionServiceReturnsNonSuccessStatus()
+    {
+        var builder = CreatePermissionTestBuilder(new Uri("http://permission-regression.test/"));
+        builder.Services
+            .AddHttpClient("Framework.PermissionValidation")
+            .ConfigurePrimaryHttpMessageHandler(() =>
+                new DelegateHandler((_, _) =>
+                    Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound))));
+
+        var app = builder.Build();
+        app.UseRouting();
+        app.UseFrameworkPermissionValidation();
+        app.MapGet("/protected", () => Results.Ok("allowed"))
+            .WithMetadata(new Permission("orders.read"));
+
+        await app.StartAsync();
+
+        using var response = await app.GetTestClient().GetAsync("/protected");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
+    [Fact]
     public async Task PermissionMiddleware_Returns503WhenPermissionHttpClientTimesOut()
     {
         var builder = CreatePermissionTestBuilder(new Uri("http://permission-regression.test/"));
