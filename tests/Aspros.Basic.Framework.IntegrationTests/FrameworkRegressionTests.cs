@@ -178,7 +178,8 @@ public sealed class FrameworkRegressionTests
                 services.AddDbContext<MySqlTestDbContext>(options =>
                     options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 4, 0))));
 
-                services.AddSingleton(new CapRegressionSubscriber(received));
+                services.AddSingleton(received);
+                services.AddSingleton<CapRegressionSubscriber>();
                 services.AddFrameworkCap<MySqlTestDbContext>(options =>
                     options.UseRabbitMQ(rabbitHost));
             })
