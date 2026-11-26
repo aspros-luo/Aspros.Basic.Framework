@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Http.Resilience;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
@@ -223,12 +224,20 @@ public sealed class FrameworkHttpRegressionTests
     public async Task PermissionMiddleware_Returns503WhenPermissionHttpClientTimesOut()
     {
         var builder = CreatePermissionTestBuilder(new Uri("http://permission-regression.test/"));
+        builder.Services.ConfigureAll<HttpStandardResilienceOptions>(options =>
+        {
+            options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(2);
+            options.AttemptTimeout.Timeout = TimeSpan.FromMilliseconds(50);
+            options.Retry.MaxRetryAttempts = 0;
+        });
         builder.Services
             .AddHttpClient("Framework.PermissionValidation")
             .ConfigurePrimaryHttpMessageHandler(() =>
-                new DelegateHandler((_, _) =>
-                    Task.FromException<HttpResponseMessage>(
-                        new OperationCanceledException("Simulated downstream timeout."))));
+                new DelegateHandler(async (_, cancellationToken) =>
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    throw new InvalidOperationException("Unreachable.");
+                }));
 
         var app = builder.Build();
         app.UseRouting();
