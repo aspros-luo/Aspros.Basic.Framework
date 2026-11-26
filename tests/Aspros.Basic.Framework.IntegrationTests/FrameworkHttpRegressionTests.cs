@@ -53,18 +53,20 @@ public sealed class FrameworkHttpRegressionTests
     [Fact]
     public async Task StandardResilience_OpensCircuitAfterConfiguredFailures()
     {
+        // The standard handler requires at least one retry attempt. Two failed
+        // attempts in the first request therefore provide the breaker throughput.
         var handler = new SequenceHandler(
             HttpStatusCode.ServiceUnavailable,
-            HttpStatusCode.ServiceUnavailable,
-            HttpStatusCode.OK);
+            HttpStatusCode.ServiceUnavailable);
 
         var services = new ServiceCollection();
         services.ConfigureAll<HttpStandardResilienceOptions>(options =>
         {
-            options.Retry.MaxRetryAttempts = 0;
+            options.Retry.MaxRetryAttempts = 1;
+            options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(1);
             options.CircuitBreaker.MinimumThroughput = 2;
             options.CircuitBreaker.FailureRatio = 0.5;
-            options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(10);
+            options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(3);
             options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(5);
         });
         services
@@ -77,13 +79,13 @@ public sealed class FrameworkHttpRegressionTests
             .CreateClient("circuit-breaker");
 
         using var first = await client.GetAsync("http://framework.test/first");
-        using var second = await client.GetAsync("http://framework.test/second");
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, first.StatusCode);
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, second.StatusCode);
         await Assert.ThrowsAnyAsync<Exception>(
             () => client.GetAsync("http://framework.test/blocked"));
 
+        // The second request is rejected by the open circuit and never reaches
+        // the primary handler.
         Assert.Equal(2, handler.CallCount);
     }
 
@@ -265,7 +267,7 @@ public sealed class FrameworkHttpRegressionTests
         {
             options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(2);
             options.AttemptTimeout.Timeout = TimeSpan.FromMilliseconds(50);
-            options.Retry.MaxRetryAttempts = 0;
+            options.Retry.MaxRetryAttempts = 1;
         });
         builder.Services
             .AddHttpClient("Framework.PermissionValidation")
