@@ -4,7 +4,7 @@
 - Migrated permission validation from Flurl plus manually executed retry policies to a named `IHttpClientFactory` client using the existing Microsoft standard HTTP resilience pipeline.
 - Preserved fail-closed permission semantics: dependency errors, resilience timeouts, open circuits and invalid responses return 503; explicit denial returns 403; caller cancellation propagates.
 - Removed direct `Polly` and `Flurl.Http` package references from Infrastructure. The Microsoft resilience package may still bring Polly as an implementation dependency.
-- Added HTTP retry/circuit-breaker and permission non-success/timeout/caller-cancellation regression tests. These tests and the full Release build have not yet been executed after this change; local validation is required before RC integration.
+- Added HTTP retry/circuit-breaker and permission non-success/timeout/caller-cancellation regression tests. Local validation on 2026-11-26 passed all 8 targeted resilience regressions and the Release build (148 warnings). The dependency tree confirms Polly remains only as a transitive implementation dependency of Microsoft.Extensions.Http.Resilience; direct Polly/Flurl references and legacy source usages are absent. This is not a claim that the full integration suite passed.
 
 ## 2026-11-26 — Real multi-user recommendation walkthrough
 
