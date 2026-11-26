@@ -291,7 +291,7 @@ After these six cases, you understand the semantics rather than merely knowing A
 9. Retry amplification
 10. Hedging
 
-Do not start by memorizing Polly internals.
+Do not start by memorizing implementation-specific resilience APIs.
 
 ## 12. Framework boundary
 
@@ -308,6 +308,6 @@ It does not force:
 - one timeout for every dependency;
 - automatic retries for every POST;
 - a universal fallback;
-- Polly-specific public APIs in business code.
+- implementation-specific resilience APIs in business code.
 
 The goal is one consistent infrastructure entry point for User, Category, Identity, Trade and future services while preserving business-level policy decisions.
