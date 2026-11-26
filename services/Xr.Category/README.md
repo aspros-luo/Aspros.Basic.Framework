@@ -416,6 +416,88 @@ it publicly or trust arbitrary caller-supplied user IDs. Production hosting must
 identity from authenticated claims and apply tenant/candidate visibility filters before
 returning results.
 
+### Real multi-user recommendation walkthrough
+
+This walkthrough verifies that real behavior events produce user-specific recommendation
+signals. It uses the real HTTP ingestion and recommendation APIs; it is separate from the
+Development-only synthetic validation endpoint.
+
+Assume Category 1 and Category 2 already exist, are enabled, and are visible to both users.
+The example assigns opposite behavior patterns:
+
+| User | Category 1 | Category 2 |
+| --- | --- | --- |
+| `recommendation-test-user-a` | purchase (weight 8) | view (weight 1) |
+| `recommendation-test-user-b` | view (weight 1) | purchase (weight 8) |
+
+Submit four distinct logical events (each request should return `202 Accepted`):
+
+```bash
+curl -i -X POST http://localhost:7242/api/categories/1/behavior-events \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "eventId": "a1111111-1111-4111-8111-111111111111",
+    "userId": "recommendation-test-user-a",
+    "eventType": "purchase"
+  }'
+
+curl -i -X POST http://localhost:7242/api/categories/2/behavior-events \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "eventId": "a2222222-2222-4222-8222-222222222222",
+    "userId": "recommendation-test-user-a",
+    "eventType": "view"
+  }'
+
+curl -i -X POST http://localhost:7242/api/categories/1/behavior-events \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "eventId": "b1111111-1111-4111-8111-111111111111",
+    "userId": "recommendation-test-user-b",
+    "eventType": "view"
+  }'
+
+curl -i -X POST http://localhost:7242/api/categories/2/behavior-events \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "eventId": "b2222222-2222-4222-8222-222222222222",
+    "userId": "recommendation-test-user-b",
+    "eventType": "purchase"
+  }'
+```
+
+CAP delivery to ClickHouse is asynchronous. Wait briefly for ingestion, then query both
+users independently:
+
+```bash
+curl --fail \
+  'http://localhost:7242/api/categories/recommendations?userId=recommendation-test-user-a&windowDays=30&take=20'
+
+curl --fail \
+  'http://localhost:7242/api/categories/recommendations?userId=recommendation-test-user-b&windowDays=30&take=20'
+```
+
+What to verify:
+
+- Each user has one logical event for each category.
+- User A's Category 1 personalized score is higher than its Category 2 score.
+- User B's Category 2 personalized score is higher than its Category 1 score.
+- Popularity scores reflect activity across both users, not only the requesting user.
+- The two users' personalized rankings are opposite, even if their final fused order happens
+  to be the same.
+
+The final order is not required to be opposite. RRF combines source **ranks**, so a strong
+global-popularity position can outweigh a user's preference in the final fusion. This is a
+useful demonstration of the distinction between validating personalization signals and
+choosing a product's ranking policy. If a product wants personalization to dominate more
+strongly, that is a business decision: it can change source selection, source weights, or
+the ranking strategy without changing the Framework's responsibility.
+
+The example uses fixed EventIds for repeatability. Run it once against a clean test dataset,
+or replace the IDs before repeating it. Reusing an EventId is only valid for retrying the
+same logical event with an identical payload; the current HTTP endpoint does not provide
+request-level idempotency protection.
+
 ### Minimal per-user category ranking validation
 
 The Development-only personalization validation demonstrates that the same behavior-event dataset can produce different category rankings for different users. It creates or reuses two stable, dedicated validation categories in MySQL, writes a deterministic synthetic event pattern to ClickHouse, and queries the per-user scores. Repeated runs update the same fixture rows instead of selecting arbitrary business categories or creating new random rows.
