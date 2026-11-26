@@ -193,6 +193,68 @@ public sealed class FrameworkHttpRegressionTests
         await app.DisposeAsync();
     }
 
+    [Fact]
+    public async Task PermissionMiddleware_Returns503WhenPermissionHttpClientTimesOut()
+    {
+        var builder = CreatePermissionTestBuilder(new Uri("http://permission-regression.test/"));
+        builder.Services
+            .AddHttpClient("Framework.PermissionValidation")
+            .ConfigurePrimaryHttpMessageHandler(() =>
+                new DelegateHandler((_, _) =>
+                    Task.FromException<HttpResponseMessage>(
+                        new OperationCanceledException("Simulated downstream timeout."))));
+
+        var app = builder.Build();
+        app.UseRouting();
+        app.UseFrameworkPermissionValidation();
+        app.MapGet("/protected", () => Results.Ok("allowed"))
+            .WithMetadata(new Permission("orders.read"));
+
+        await app.StartAsync();
+
+        using var response = await app.GetTestClient().GetAsync("/protected");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task PermissionMiddleware_PropagatesCallerCancellation()
+    {
+        var handlerStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var builder = CreatePermissionTestBuilder(new Uri("http://permission-regression.test/"));
+        builder.Services
+            .AddHttpClient("Framework.PermissionValidation")
+            .ConfigurePrimaryHttpMessageHandler(() =>
+                new DelegateHandler(async (_, cancellationToken) =>
+                {
+                    handlerStarted.TrySetResult();
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    throw new InvalidOperationException("Unreachable.");
+                }));
+
+        var app = builder.Build();
+        app.UseRouting();
+        app.UseFrameworkPermissionValidation();
+        app.MapGet("/protected", () => Results.Ok("allowed"))
+            .WithMetadata(new Permission("orders.read"));
+
+        await app.StartAsync();
+
+        using var cancellation = new CancellationTokenSource();
+        var request = app.GetTestClient().GetAsync("/protected", cancellation.Token);
+        await handlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
     private static WebApplicationBuilder CreatePermissionTestBuilder(Uri permissionEndpoint)
     {
         var builder = WebApplication.CreateBuilder();
@@ -235,6 +297,16 @@ internal sealed class SequenceHandler(params HttpStatusCode[] responses) : HttpM
             RequestMessage = request
         });
     }
+}
+
+internal sealed class DelegateHandler(
+    Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send)
+    : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken) =>
+        send(request, cancellationToken);
 }
 
 internal sealed class StaticServiceDiscovery(Uri endpoint) : IServiceDiscovery
