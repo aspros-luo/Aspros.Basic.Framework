@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.Security.Claims;
 using Nacos.V2;
 using Nacos.V2.DependencyInjection;
@@ -166,44 +167,61 @@ public sealed class FrameworkRegressionTests
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__TestDatabase")!;
         var rabbitHost = Environment.GetEnvironmentVariable("TestRabbitMq__Host")!;
 
-        var services = new ServiceCollection();
-        services.AddLogging();
-        // Match Category and CAP storage: both require the MySqlConnector provider.
-        services.AddDbContext<MySqlTestDbContext>(options =>
-            options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 4, 0))));
-
         var received = new TaskCompletionSource<string>(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
-        services.AddSingleton(new CapRegressionSubscriber(received));
-        services.AddFrameworkCap<MySqlTestDbContext>(options =>
-            options.UseRabbitMQ(rabbitHost));
+        using var host = Host.CreateDefaultBuilder()
+            .ConfigureServices(services =>
+            {
+                services.AddLogging();
+                // Match Category and CAP storage: both require the MySqlConnector provider.
+                services.AddDbContext<MySqlTestDbContext>(options =>
+                    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 4, 0))));
 
-        await using var provider = services.BuildServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
+                services.AddSingleton(new CapRegressionSubscriber(received));
+                services.AddFrameworkCap<MySqlTestDbContext>(options =>
+                    options.UseRabbitMQ(rabbitHost));
+            })
+            .Build();
 
-        var db = scope.ServiceProvider.GetRequiredService<MySqlTestDbContext>();
-        await db.Database.EnsureCreatedAsync();
-
-        var publisher = scope.ServiceProvider.GetRequiredService<ICapPublisher>();
-        var marker = $"cap-regression-{Guid.NewGuid():N}";
-
-        using (var transaction = db.Database.BeginTransaction(publisher, autoCommit: true))
+        // Create the test business table before CAP starts. CAP creates its own
+        // published/received tables during the host startup lifecycle.
+        await using (var initializationScope = host.Services.CreateAsyncScope())
         {
-            db.Rows.Add(new MySqlTestRow { Name = marker });
-            await db.SaveChangesAsync();
-            await publisher.PublishAsync("aspros.framework.regression", marker);
+            var db = initializationScope.ServiceProvider.GetRequiredService<MySqlTestDbContext>();
+            await db.Database.EnsureCreatedAsync();
         }
 
-        var completed = await Task.WhenAny(
-            received.Task,
-            Task.Delay(TimeSpan.FromSeconds(15)));
+        await host.StartAsync();
 
-        Assert.Same(received.Task, completed);
-        Assert.Equal(marker, await received.Task);
+        try
+        {
+            await using var scope = host.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<MySqlTestDbContext>();
+            var publisher = scope.ServiceProvider.GetRequiredService<ICapPublisher>();
+            var marker = $"cap-regression-{Guid.NewGuid():N}";
 
-        var exists = await db.Rows.AnyAsync(x => x.Name == marker);
-        Assert.True(exists);
+            using (var transaction = db.Database.BeginTransaction(publisher, autoCommit: true))
+            {
+                db.Rows.Add(new MySqlTestRow { Name = marker });
+                await db.SaveChangesAsync();
+                await publisher.PublishAsync("aspros.framework.regression", marker);
+            }
+
+            var completed = await Task.WhenAny(
+                received.Task,
+                Task.Delay(TimeSpan.FromSeconds(15)));
+
+            Assert.Same(received.Task, completed);
+            Assert.Equal(marker, await received.Task);
+
+            var exists = await db.Rows.AnyAsync(x => x.Name == marker);
+            Assert.True(exists);
+        }
+        finally
+        {
+            await host.StopAsync();
+        }
     }
 
     public static bool NacosAvailable =>
