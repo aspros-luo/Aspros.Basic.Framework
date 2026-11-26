@@ -120,9 +120,11 @@
 - [x] 可靠性能力不强制塞入 AddAsprosFramework 默认注册。
 
 
-### Resilience 迁移验收（待执行）
+### Resilience 迁移验收（2026-11-26 已验证）
 
-- [ ] 执行权限放行、拒绝、依赖不可用、超时和调用方取消回归测试。
-- [ ] 执行 HTTP 瞬时 GET 重试、不安全方法不重试和熔断器回归测试。
-- [ ] 执行完整 Release 构建并检查传递依赖树。
-- [ ] 确认源码、示例、测试和文档均不再依赖已删除的 PollyExtend API。
+- [x] 权限放行、拒绝、依赖不可用、非成功状态、超时和调用方取消回归测试通过。
+- [x] HTTP 瞬时 GET 重试、不安全方法不重试和熔断器回归测试通过。
+- [x] Release 构建成功（148 条警告）；依赖树确认 Polly 仅作为 Microsoft.Extensions.Http.Resilience 的传递实现依赖。
+- [x] 源码和项目文件扫描未发现 PollyExtend、`using Polly`、Flurl 或直接 Polly 包引用。
+
+本次通过的是 8 项定向回归测试和 Release 构建，不代表完整集成测试套件全部通过。
