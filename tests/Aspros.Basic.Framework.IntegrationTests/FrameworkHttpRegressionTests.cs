@@ -51,6 +51,43 @@ public sealed class FrameworkHttpRegressionTests
     }
 
     [Fact]
+    public async Task StandardResilience_OpensCircuitAfterConfiguredFailures()
+    {
+        var handler = new SequenceHandler(
+            HttpStatusCode.ServiceUnavailable,
+            HttpStatusCode.ServiceUnavailable,
+            HttpStatusCode.OK);
+
+        var services = new ServiceCollection();
+        services.ConfigureAll<HttpStandardResilienceOptions>(options =>
+        {
+            options.Retry.MaxRetryAttempts = 0;
+            options.CircuitBreaker.MinimumThroughput = 2;
+            options.CircuitBreaker.FailureRatio = 0.5;
+            options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(10);
+            options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(5);
+        });
+        services
+            .AddHttpClient("circuit-breaker")
+            .ConfigurePrimaryHttpMessageHandler(() => handler)
+            .UseFrameworkResilience();
+
+        await using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<IHttpClientFactory>()
+            .CreateClient("circuit-breaker");
+
+        using var first = await client.GetAsync("http://framework.test/first");
+        using var second = await client.GetAsync("http://framework.test/second");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, first.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, second.StatusCode);
+        await Assert.ThrowsAnyAsync<Exception>(
+            () => client.GetAsync("http://framework.test/blocked"));
+
+        Assert.Equal(2, handler.CallCount);
+    }
+
+    [Fact]
     public async Task HealthEndpoints_SeparateLivenessFromReadiness()
     {
         var builder = WebApplication.CreateBuilder();
