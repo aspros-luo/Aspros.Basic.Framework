@@ -343,7 +343,7 @@ Identity 从 503 恢复到 200。
 9. Retry Amplification
 10. Hedging
 
-不要从 Polly 内部 API 开始背。
+不要从底层弹性库的内部 API 开始背。
 
 ## 12. Framework 的边界
 
@@ -360,6 +360,6 @@ Framework 不规定：
 - 所有服务使用相同 Timeout；
 - 所有 POST 都 Retry；
 - 所有失败都 Fallback；
-- 业务代码直接依赖 Polly 类型。
+- 业务代码直接依赖底层弹性库的类型。
 
 目标是让 User、Category、Identity、Trade 等微服务拥有统一基础设施入口，同时保留业务策略的自主权。
