@@ -101,6 +101,9 @@ public sealed class FrameworkPermissionMiddleware(RequestDelegate next)
                 $"PermissionCode={Uri.EscapeDataString(permission.Code)}&userId={userId}"
         }.Uri;
 
+        bool allowed;
+        int? unsuccessfulStatusCode = null;
+
         try
         {
             using var response = await httpClientFactory
@@ -109,28 +112,13 @@ public sealed class FrameworkPermissionMiddleware(RequestDelegate next)
 
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning(
-                    "Permission service {ServiceName} returned HTTP {StatusCode}.",
-                    settings.ServiceName,
-                    (int)response.StatusCode);
-
-                await WriteErrorAsync(
-                    context,
-                    StatusCodes.Status503ServiceUnavailable,
-                    "权限服务请求失败");
-                return;
+                unsuccessfulStatusCode = (int)response.StatusCode;
+                allowed = false;
             }
-
-            var allowed = await response.Content.ReadFromJsonAsync<bool>(
-                context.RequestAborted);
-
-            if (allowed != true)
+            else
             {
-                await WriteErrorAsync(
-                    context,
-                    StatusCodes.Status403Forbidden,
-                    "当前用户权限不够");
-                return;
+                allowed = await response.Content.ReadFromJsonAsync<bool>(
+                    context.RequestAborted) == true;
             }
         }
         catch (OperationCanceledException)
@@ -152,6 +140,29 @@ public sealed class FrameworkPermissionMiddleware(RequestDelegate next)
                 context,
                 StatusCodes.Status503ServiceUnavailable,
                 "权限服务不可用");
+            return;
+        }
+
+        if (unsuccessfulStatusCode is not null)
+        {
+            logger.LogWarning(
+                "Permission service {ServiceName} returned HTTP {StatusCode}.",
+                settings.ServiceName,
+                unsuccessfulStatusCode.Value);
+
+            await WriteErrorAsync(
+                context,
+                StatusCodes.Status503ServiceUnavailable,
+                "权限服务请求失败");
+            return;
+        }
+
+        if (!allowed)
+        {
+            await WriteErrorAsync(
+                context,
+                StatusCodes.Status403Forbidden,
+                "当前用户权限不够");
             return;
         }
 
