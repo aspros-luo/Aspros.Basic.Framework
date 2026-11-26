@@ -171,7 +171,7 @@ public sealed class FrameworkRegressionTests
             TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var host = Host.CreateDefaultBuilder()
-            .ConfigureServices(services =>
+            .ConfigureServices((_, services) =>
             {
                 services.AddLogging();
                 // Match Category and CAP storage: both require the MySqlConnector provider.
