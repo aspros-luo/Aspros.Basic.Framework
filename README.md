@@ -203,7 +203,7 @@ The framework returns a ServiceEndpoint containing the selected healthy instance
 
 ## Permission validation
 
-For applications that need the legacy permission middleware:
+For applications that need endpoint permission validation:
 
     builder.Services.AddFrameworkPermissionValidation(options =>
     {
@@ -214,7 +214,7 @@ For applications that need the legacy permission middleware:
 
     app.UseFrameworkPermissionValidation();
 
-Permission checks fail closed: an unavailable permission service returns 503 and a denied permission returns 403.
+Permission checks use a named `IHttpClientFactory` client with the Framework standard HTTP resilience pipeline. They fail closed: an unavailable permission service returns 503 and a denied permission returns 403. Caller cancellation is propagated.
 
 ## One-line runtime registration
 
