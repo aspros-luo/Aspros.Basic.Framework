@@ -31,13 +31,10 @@ public sealed class RagPersistenceTests
                 pageNumber: 1,
                 sectionTitle: "Persistence");
             var generation = IndexGeneration.Create(
-                "tenant-a",
-                knowledgeBase.Id,
-                document.Id,
-                version.Id,
-                "local-embedding-v1",
-                768,
-                "plain-text-v1");
+            CreateIndexJob(knowledgeBase, document, version),
+            "local-embedding-v1",
+            768,
+            "plain-text-v1");
             generation.Activate();
             document.SetActiveIndexGeneration(generation);
 
@@ -108,10 +105,7 @@ public sealed class RagPersistenceTests
     {
         var (knowledgeBase, document, firstVersion) = CreateDocumentGraph();
         var firstGeneration = IndexGeneration.Create(
-            "tenant-a",
-            knowledgeBase.Id,
-            document.Id,
-            firstVersion.Id,
+            CreateIndexJob(knowledgeBase, document, firstVersion),
             "local-embedding-v1",
             768,
             "plain-text-v1");
@@ -130,10 +124,7 @@ public sealed class RagPersistenceTests
         // A failed rebuild must not make the last known-good generation unavailable.
         Assert.Equal(firstGeneration.Id, document.ActiveIndexGenerationId);
         var failedGeneration = IndexGeneration.Create(
-            "tenant-a",
-            knowledgeBase.Id,
-            document.Id,
-            secondVersion.Id,
+            CreateIndexJob(knowledgeBase, document, secondVersion),
             "local-embedding-v1",
             768,
             "plain-text-v1");
@@ -141,10 +132,7 @@ public sealed class RagPersistenceTests
         Assert.Equal(firstGeneration.Id, document.ActiveIndexGenerationId);
 
         var replacementGeneration = IndexGeneration.Create(
-            "tenant-a",
-            knowledgeBase.Id,
-            document.Id,
-            secondVersion.Id,
+            CreateIndexJob(knowledgeBase, document, secondVersion),
             "local-embedding-v1",
             768,
             "plain-text-v1");
@@ -167,10 +155,7 @@ public sealed class RagPersistenceTests
 
         var (knowledgeBase, document, firstVersion) = CreateDocumentGraph();
         var firstGeneration = IndexGeneration.Create(
-            "tenant-a",
-            knowledgeBase.Id,
-            document.Id,
-            firstVersion.Id,
+            CreateIndexJob(knowledgeBase, document, firstVersion),
             "local-embedding-v1",
             768,
             "plain-text-v1");
@@ -190,10 +175,7 @@ public sealed class RagPersistenceTests
         document.SetCurrentVersion(secondVersion);
 
         var failedGeneration = IndexGeneration.Create(
-            "tenant-a",
-            knowledgeBase.Id,
-            document.Id,
-            secondVersion.Id,
+            CreateIndexJob(knowledgeBase, document, secondVersion),
             "local-embedding-v1",
             768,
             "plain-text-v1");
@@ -206,10 +188,7 @@ public sealed class RagPersistenceTests
         Assert.Equal(IndexGenerationStatus.Active, firstGeneration.Status);
 
         var replacementGeneration = IndexGeneration.Create(
-            "tenant-a",
-            knowledgeBase.Id,
-            document.Id,
-            secondVersion.Id,
+            CreateIndexJob(knowledgeBase, document, secondVersion),
             "local-embedding-v1",
             768,
             "plain-text-v1");
@@ -475,6 +454,20 @@ public sealed class RagPersistenceTests
         Assert.Equal(IngestionJobStatus.Failed, persisted.Status);
         Assert.Equal("retry exhausted", persisted.LastError);
         Assert.Null(await queue.TryAcquireNextAsync("another-worker", TimeSpan.FromMinutes(1)));
+    }
+
+    private static IngestionJob CreateIndexJob(
+        KnowledgeBase knowledgeBase,
+        Document document,
+        DocumentVersion version)
+    {
+        return IngestionJob.Create(
+            document.TenantId,
+            knowledgeBase.Id,
+            document.Id,
+            version.Id,
+            $"index:{Guid.NewGuid():N}",
+            IngestionJobType.RebuildIndex);
     }
 
     private static async Task<Guid> SeedJobAsync(
