@@ -45,6 +45,15 @@ public sealed class EfCoreIndexGenerationActivator<TContext>
             return false;
         }
 
+        // A worker may crash after the pointer switch but before completing its job.
+        // Replaying activation for the already-selected generation is therefore a success.
+        if (document.ActiveIndexGenerationId == generationId &&
+            generation.Status == IndexGenerationStatus.Active)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        }
+
         var expectedVersionId = document.CurrentVersionId;
         var expectedActiveGenerationId = document.ActiveIndexGenerationId;
 
