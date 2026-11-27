@@ -233,6 +233,54 @@ app.MapPost("/api/knowledge-bases/{knowledgeBaseId:guid}/documents", async (
     }
 });
 
+app.MapPost("/api/documents/{documentId:guid}/rebuild-index", async (
+    Guid documentId,
+    DemoRagDbContext db,
+    CancellationToken cancellationToken) =>
+{
+    var document = await db.Set<Document>()
+        .SingleOrDefaultAsync(x => x.Id == documentId && x.TenantId == DemoTenantId, cancellationToken);
+    if (document is null)
+    {
+        return Results.NotFound(new { error = "Document not found." });
+    }
+
+    if (document.Status == DocumentStatus.Deleted || document.CurrentVersionId is null)
+    {
+        return Results.Conflict(new { error = "The document has no active version to rebuild." });
+    }
+
+    var knowledgeBaseAvailable = await db.Set<KnowledgeBase>()
+        .AnyAsync(x => x.Id == document.KnowledgeBaseId &&
+                       x.TenantId == DemoTenantId &&
+                       !x.IsArchived,
+            cancellationToken);
+    if (!knowledgeBaseAvailable)
+    {
+        return Results.Conflict(new { error = "The document's knowledge base is unavailable." });
+    }
+
+    var job = IngestionJob.Create(
+        DemoTenantId,
+        document.KnowledgeBaseId,
+        document.Id,
+        document.CurrentVersionId.Value,
+        $"rebuild:{document.Id:N}:{Guid.NewGuid():N}",
+        IngestionJobType.RebuildIndex);
+
+    db.Add(job);
+    await db.SaveChangesAsync(cancellationToken);
+
+    return Results.Accepted($"/api/ingestion-jobs/{job.Id}", new
+    {
+        documentId = document.Id,
+        document.CurrentVersionId,
+        jobId = job.Id,
+        job.JobType,
+        job.Status
+    });
+});
+
 app.MapGet("/api/knowledge-bases/{knowledgeBaseId:guid}/documents", async (
     Guid knowledgeBaseId,
     DemoRagDbContext db,
