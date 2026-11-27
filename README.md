@@ -261,7 +261,7 @@ See:
 
 ## External Package Consumer Sample
 
-samples/Framework.Core.Api remains as a standalone .NET 10 API example that consumes the Infrastructure package through PackageReference. It is not part of the active Docker environment workflow. The current runnable Docker API path is the Core Provider/Consumer pair described above.
+samples/Framework.Core.Api remains as a standalone .NET 10 package-consumer example that consumes all five Framework library packages through PackageReference. It is not part of the active Docker environment workflow. The current runnable Docker API path is the Core Provider/Consumer pair described above.
 
 ## Database Code First / Migration
 
