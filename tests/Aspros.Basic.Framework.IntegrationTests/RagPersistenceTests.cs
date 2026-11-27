@@ -45,6 +45,28 @@ public sealed class RagPersistenceTests
     }
 
     [Fact]
+    public async Task IngestionJob_IdempotencyKeyIsUniqueWithinTenant()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        await using var db = new RagTestDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var (knowledgeBase, document, version) = CreateDocumentGraph();
+        var first = IngestionJob.Create(
+            "tenant-a", knowledgeBase.Id, document.Id, version.Id, "same-request-key");
+        var duplicate = IngestionJob.Create(
+            "tenant-a", knowledgeBase.Id, document.Id, version.Id, "same-request-key",
+            IngestionJobType.RebuildIndex);
+
+        db.AddRange(knowledgeBase, document, version, first);
+        await db.SaveChangesAsync();
+        db.Add(duplicate);
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+    }
+
+    [Fact]
     public async Task TryAcquireNextAsync_GrantsOnlyOneActiveLease_AndCompletionIsIdempotentlyRejected()
     {
         await using var connection = await OpenConnectionAsync();
@@ -67,6 +89,22 @@ public sealed class RagPersistenceTests
         var persisted = await db.Set<IngestionJob>().AsNoTracking().SingleAsync();
         Assert.Equal(IngestionJobStatus.Succeeded, persisted.Status);
         Assert.Null(persisted.LeaseOwner);
+    }
+
+    [Fact]
+    public async Task RenewAsync_ExtendsAnOwnedLease()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        await SeedJobAsync(options);
+
+        await using var db = new RagTestDbContext(options);
+        var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
+        var lease = await queue.TryAcquireNextAsync("worker", TimeSpan.FromMinutes(1));
+
+        Assert.NotNull(lease);
+        Assert.True(await queue.RenewAsync(lease!, TimeSpan.FromMinutes(5)));
+        Assert.True(await queue.CompleteAsync(lease!));
     }
 
     [Fact]
