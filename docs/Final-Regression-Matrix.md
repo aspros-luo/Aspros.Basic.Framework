@@ -13,7 +13,7 @@ This is the active evidence matrix for `2.0.0-rc.1`. It supersedes the retired D
 | Category API CAP business validation | PASS | Commit, rollback, retry, duplicate delivery and idempotent receipt verified through the real API using RabbitMQ, MySQL and CAP EF Storage. |
 | HTTP resilience targeted regression | PASS | Eight targeted tests passed. |
 | Standalone Framework Generic Host CAP test | KNOWN GAP | The opt-in test timed out waiting for subscriber delivery. It is not a PASS. |
-| Packaged NuGet consumer | PENDING — REQUIRED | Run `bash scripts/verify-packaged-consumer.sh`. |
+| Packaged NuGet consumer | PASS | All six RC packages packed; five libraries restored and exercised by a standalone consumer; CLI tool installed and launched successfully. |
 | Migration regression | EXCLUDED | Explicitly excluded from this release gate; no PASS is claimed. |
 
 ## Integration test detail
@@ -31,13 +31,9 @@ The only skipped test was `Cap_RabbitMq_CanPublishAndConsumeWithEfStorage`. When
 
 The Category API CAP validation is a separate and successful real application-path test. It verified one committed business row, zero rolled-back business rows, two retry delivery attempts with one receipt, two duplicate delivery attempts with one receipt, and no receipt for the rolled-back message. CAP provides at-least-once delivery; idempotency is the application's responsibility. This result does not prove every possible Framework Generic Host setup.
 
-## Required next command
+## Packaged consumer validation
 
-```bash
-bash scripts/verify-packaged-consumer.sh
-```
-
-This packs all six RC NuGet artifacts (five libraries plus the CLI tool), restores the standalone `Framework.Core.Api` from the local package feed with an isolated NuGet cache, builds and starts it, verifies Framework DI / Algorithms / ClickHouse package use, then installs the CLI tool to a temporary tool path and checks its command entry point. Only a successful execution changes the package-consumer gate from PENDING to PASS.
+User-confirmed execution of `bash scripts/verify-packaged-consumer.sh` completed successfully. All six `2.0.0-rc.1` packages were packed. The standalone `Framework.Core.Api` restored and built using the five library packages from the local feed, then returned healthy responses from `/health` and `/framework`; the latter confirmed `IWorkContext` resolution, Algorithms execution and ClickHouse assembly loading. The `Aspros.Basic.Framework.Tools` package installed successfully as a .NET tool, and `aspros db migration --help` launched and printed its usage. The packaged-consumer gate is PASS.
 
 ## Environment boundary
 
