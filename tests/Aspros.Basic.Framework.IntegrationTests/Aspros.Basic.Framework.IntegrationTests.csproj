@@ -35,5 +35,7 @@
   <ItemGroup>
     <ProjectReference Include="../../Aspros.Base.Framework.ClickHouse/Aspros.Base.Framework.ClickHouse.csproj" />
     <ProjectReference Include="../../Aspros.Base.Framework.Algorithms/Aspros.Base.Framework.Algorithms.csproj" />
+    <ProjectReference Include="../../Aspros.Base.Framework.RAG/Aspros.Base.Framework.RAG.csproj" />
+    <ProjectReference Include="../../Aspros.Base.Framework.RAG.EntityFrameworkCore/Aspros.Base.Framework.RAG.EntityFrameworkCore.csproj" />
   </ItemGroup>
 </Project>
