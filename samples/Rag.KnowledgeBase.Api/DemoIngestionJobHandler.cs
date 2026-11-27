@@ -100,6 +100,9 @@ public sealed class DemoIngestionJobHandler(
                 aiClient.EmbeddingModelKey,
                 dimension,
                 version.ChunkingProfileVersion);
+            // The job was deliberately loaded without tracking. Attach it as an existing
+            // principal before adding the generation, otherwise EF would try to INSERT it again.
+            dbContext.Attach(job);
             dbContext.Add(generation);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
