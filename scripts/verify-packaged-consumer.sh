@@ -4,9 +4,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PACKAGE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/aspros-framework-packages.XXXXXX")"
 NUGET_PACKAGES_DIR="$(mktemp -d "${TMPDIR:-/tmp}/aspros-framework-nuget.XXXXXX")"
+BUILD_DIR="$(mktemp -d "${TMPDIR:-/tmp}/aspros-framework-consumer.XXXXXX")"
+CONSUMER_BUILD_PROPS=(-p:BaseIntermediateOutputPath="$BUILD_DIR/obj/" -p:BaseOutputPath="$BUILD_DIR/bin/")
 CONSUMER_PROJECT="$ROOT_DIR/samples/Framework.Core.Api/Framework.Core.Api.csproj"
 CONSUMER_URL="${PACKAGED_CONSUMER_URL:-http://127.0.0.1:17210}"
-CONSUMER_LOG="$PACKAGE_DIR/consumer.log"
+CONSUMER_LOG="$BUILD_DIR/consumer.log"
 CONSUMER_PID=""
 
 cleanup() {
@@ -14,7 +16,7 @@ cleanup() {
     kill "$CONSUMER_PID" 2>/dev/null || true
     wait "$CONSUMER_PID" 2>/dev/null || true
   fi
-  rm -rf "$PACKAGE_DIR" "$NUGET_PACKAGES_DIR"
+  rm -rf "$PACKAGE_DIR" "$NUGET_PACKAGES_DIR" "$BUILD_DIR"
 }
 trap cleanup EXIT
 
@@ -46,16 +48,16 @@ if ! grep -q 'Aspros.Base.Framework.Infrastructure" Version="2.0.0-rc.1"' "$CONS
   exit 1
 fi
 
-NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet restore "$CONSUMER_PROJECT" \
+NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet restore "$CONSUMER_PROJECT" "${CONSUMER_BUILD_PROPS[@]}" \
   --source "$PACKAGE_DIR" \
   --source "https://api.nuget.org/v3/index.json"
 
 echo "== Build the package-only consumer =="
-NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet build "$CONSUMER_PROJECT" -c Release --no-restore
+NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet build "$CONSUMER_PROJECT" -c Release --no-restore "${CONSUMER_BUILD_PROPS[@]}"
 
 echo "== Start the consumer and verify Framework DI =="
 NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet run --project "$CONSUMER_PROJECT" \
-  -c Release --no-build --no-restore -- --urls "$CONSUMER_URL" >"$CONSUMER_LOG" 2>&1 &
+  -c Release --no-build --no-restore "${CONSUMER_BUILD_PROPS[@]}" -- --urls "$CONSUMER_URL" >"$CONSUMER_LOG" 2>&1 &
 CONSUMER_PID=$!
 
 ready=false
