@@ -29,6 +29,8 @@
 | Aspros.Base.Framework.Infrastructure | EF Core、Dapper、UoW、Web API、gRPC、缓存、消息等基础设施 |
 | Aspros.Base.Framework.Algorithms | 通用向量/集合相似度与多路排序融合算法 |
 | Aspros.Base.Framework.ClickHouse | 可选 ClickHouse 客户端与健康检查集成 |
+| Aspros.Base.Framework.RAG | 企业知识库 RAG 核心领域模型与契约（preview） |
+| Aspros.Base.Framework.RAG.EntityFrameworkCore | RAG 关系型持久化与任务租约（preview） |
 | Aspros.Basic.Framework.Tools | 数据库迁移 .NET CLI 工具 |
 
 依赖方向：
