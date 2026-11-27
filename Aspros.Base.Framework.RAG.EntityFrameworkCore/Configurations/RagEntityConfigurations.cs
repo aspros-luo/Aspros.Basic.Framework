@@ -129,7 +129,7 @@ internal sealed class IngestionJobConfiguration : IEntityTypeConfiguration<Inges
             .WithMany()
             .HasForeignKey(x => x.DocumentVersionId)
             .OnDelete(DeleteBehavior.Restrict);
-        builder.HasIndex(x => x.IdempotencyKey).IsUnique();
+        builder.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique();
         builder.HasIndex(x => new { x.Status, x.NextAttemptAtUtc, x.CreatedAtUtc });
         builder.HasIndex(x => new { x.DocumentId, x.DocumentVersionId, x.JobType, x.Status });
     }
