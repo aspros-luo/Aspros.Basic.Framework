@@ -204,7 +204,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 - 已实现基于条件更新和 LeaseToken 的任务租约，包含领取、续租、完成、失败重试与终止失败；租约 Token 防止旧 Worker 在接管后提交完成状态。
 - IngestionJob 增加租户范围内唯一的 IdempotencyKey，避免同一请求重复创建任务。
 - UTC 时间字段通过 UTC ticks 转换存储，避免 SQLite 等 Provider 对 DateTimeOffset 范围查询的限制。
-- KnowledgeBase 以 (TenantId, Id) 建立备用键，Document、Chunk、IndexGeneration 和 IngestionJob 通过复合外键校验租户归属，防止跨租户错误关联。
+- KnowledgeBase 以 (TenantId, Id) 建立备用键；Document、Chunk、IndexGeneration 和 IngestionJob 通过复合外键校验租户与知识库归属，Chunk、IndexGeneration 和 IngestionJob 还会校验 DocumentVersion 必须属于对应 Document。
 - SQLite 集成测试覆盖关系型 Chunk 正文持久化、跨租户知识库关联拒绝、租户内任务幂等键唯一性、单活跃租约、续租、租约过期接管、旧租约失效、失败重试上限，以及最后一次尝试后 Worker 崩溃的终止恢复。
 
 待验证：
