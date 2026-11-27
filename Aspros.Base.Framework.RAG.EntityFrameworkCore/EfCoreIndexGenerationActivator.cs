@@ -5,8 +5,8 @@ namespace Aspros.Base.Framework.RAG.EntityFrameworkCore;
 
 /// <summary>
 /// Atomically switches a document to a fully built index generation.
-/// The document's current-version and active-generation columns are concurrency tokens,
-/// so only one competing activation can commit against the same observed document state.
+/// The document pointer is changed with a conditional SQL update before generation statuses
+/// are persisted, so competing activations serialize on the document row.
 /// </summary>
 public sealed class EfCoreIndexGenerationActivator<TContext>
     where TContext : DbContext
@@ -23,7 +23,7 @@ public sealed class EfCoreIndexGenerationActivator<TContext>
     /// <summary>
     /// Activates the specified building generation and retires the previous active generation
     /// in one relational transaction. Returns false when another activation or version update
-    /// won the optimistic-concurrency race.
+    /// won the compare-and-swap race.
     /// </summary>
     public async Task<bool> ActivateAsync(
         Guid documentId,
@@ -34,7 +34,7 @@ public sealed class EfCoreIndexGenerationActivator<TContext>
             await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         var document = await _dbContext.Set<Document>()
-            .SingleOrDefaultAsync(document => document.Id == documentId, cancellationToken);
+            .SingleOrDefaultAsync(item => item.Id == documentId, cancellationToken);
         var generation = await _dbContext.Set<IndexGeneration>()
             .SingleOrDefaultAsync(item =>
                 item.Id == generationId && item.DocumentId == documentId,
@@ -45,11 +45,14 @@ public sealed class EfCoreIndexGenerationActivator<TContext>
             return false;
         }
 
+        var expectedVersionId = document.CurrentVersionId;
+        var expectedActiveGenerationId = document.ActiveIndexGenerationId;
+
         IndexGeneration? previousGeneration = null;
-        if (document.ActiveIndexGenerationId is Guid previousGenerationId)
+        if (expectedActiveGenerationId is Guid previousId)
         {
             previousGeneration = await _dbContext.Set<IndexGeneration>()
-                .SingleOrDefaultAsync(item => item.Id == previousGenerationId, cancellationToken);
+                .SingleOrDefaultAsync(item => item.Id == previousId, cancellationToken);
 
             if (previousGeneration is null)
             {
@@ -59,8 +62,34 @@ public sealed class EfCoreIndexGenerationActivator<TContext>
         }
 
         var now = _timeProvider.GetUtcNow();
+
+        // Domain methods validate that the target is Building and matches the current version.
         generation.Activate(now);
         document.SetActiveIndexGeneration(generation, now);
+
+        // This is the compare-and-swap boundary. The WHERE clause includes both observed
+        // pointers; a concurrent version update or activation makes the affected row count zero.
+        var affected = await _dbContext.Set<Document>()
+            .Where(item =>
+                item.Id == documentId &&
+                item.CurrentVersionId == expectedVersionId &&
+                item.ActiveIndexGenerationId == expectedActiveGenerationId &&
+                item.Status != DocumentStatus.Deleted)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(item => item.ActiveIndexGenerationId, generationId)
+                .SetProperty(item => item.UpdatedAtUtc, now),
+                cancellationToken);
+
+        if (affected != 1)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        // ExecuteUpdate bypasses the change tracker. Detach the stale in-memory document
+        // so SaveChanges cannot overwrite the pointer or trigger a second concurrency check.
+        _dbContext.Entry(document).State = EntityState.Detached;
+
         previousGeneration?.Retire(now);
 
         try
