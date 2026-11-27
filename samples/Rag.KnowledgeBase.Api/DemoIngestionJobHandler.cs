@@ -43,6 +43,12 @@ public sealed class DemoIngestionJobHandler(
             throw new IngestionJobPermanentException("The document has been deleted.");
         }
 
+        if (document.CurrentVersionId != version.Id)
+        {
+            throw new IngestionJobPermanentException(
+                "The ingestion job targets a superseded document version.");
+        }
+
         var text = await storage.ReadTextAsync(version.SourceUri, cancellationToken);
         var chunks = SplitIntoChunks(text);
         if (chunks.Count == 0)
@@ -50,33 +56,40 @@ public sealed class DemoIngestionJobHandler(
             throw new IngestionJobPermanentException("The document contains no extractable text.");
         }
 
-        // Replacing all chunks for this version in one relational transaction makes retries
-        // safe if a worker stops after writing data but before acknowledging its lease.
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        // Reuse already persisted chunks on retry when their content is unchanged. This keeps
+        // Qdrant point IDs stable across worker restarts and avoids accumulating stale vectors.
         var existing = await dbContext.Set<DocumentChunk>()
             .Where(x => x.DocumentVersionId == version.Id)
+            .OrderBy(x => x.ChunkIndex)
             .ToListAsync(cancellationToken);
-        dbContext.RemoveRange(existing);
+        var chunksAreCurrent = existing.Count == chunks.Count &&
+            existing.Select(x => x.Content).SequenceEqual(chunks, StringComparer.Ordinal);
 
-        for (var index = 0; index < chunks.Count; index++)
+        if (!chunksAreCurrent)
         {
-            var content = chunks[index];
-            var contentHash = Convert.ToHexString(
-                System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            dbContext.RemoveRange(existing);
 
-            dbContext.Add(DocumentChunk.Create(
-                job.TenantId,
-                job.KnowledgeBaseId,
-                job.DocumentId,
-                version.Id,
-                index,
-                content,
-                contentHash,
-                sourceLocation: $"chunk:{index + 1}"));
+            for (var index = 0; index < chunks.Count; index++)
+            {
+                var content = chunks[index];
+                var contentHash = Convert.ToHexString(
+                    System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
+
+                dbContext.Add(DocumentChunk.Create(
+                    job.TenantId,
+                    job.KnowledgeBaseId,
+                    job.DocumentId,
+                    version.Id,
+                    index,
+                    content,
+                    contentHash,
+                    sourceLocation: $"chunk:{index + 1}"));
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
         // The relational database remains canonical. Vector points contain only identifiers
         // and embeddings; retrieval always resolves chunk text and active-generation state in SQL.
@@ -119,6 +132,7 @@ public sealed class DemoIngestionJobHandler(
             job.DocumentId,
             version.Id,
             generation.Id,
+            aiClient.EmbeddingModelKey,
             persistedChunks.Select(x => x.Id).ToArray(),
             vectors,
             cancellationToken);
