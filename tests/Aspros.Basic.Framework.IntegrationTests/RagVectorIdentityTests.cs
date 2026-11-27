@@ -1,4 +1,5 @@
 using Rag.KnowledgeBase.Api;
+using Xunit;
 
 namespace Aspros.Basic.Framework.IntegrationTests;
 
