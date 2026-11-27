@@ -205,11 +205,11 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 - IngestionJob 增加租户范围内唯一的 IdempotencyKey，避免同一请求重复创建任务。
 - UTC 时间字段通过 UTC ticks 转换存储，避免 SQLite 等 Provider 对 DateTimeOffset 范围查询的限制。
 - KnowledgeBase 以 (TenantId, Id) 建立备用键；Document、Chunk、IndexGeneration 和 IngestionJob 通过复合外键校验租户与知识库归属，Chunk、IndexGeneration 和 IngestionJob 还会校验 DocumentVersion 必须属于对应 Document。
-- SQLite 集成测试覆盖关系型 Chunk 正文持久化、跨租户知识库关联拒绝、旧版本索引激活拒绝、租户内任务幂等键唯一性、顺序领取时第二次领取被拒绝、续租、租约过期接管、旧租约失效、失败重试上限，以及最后一次尝试后 Worker 崩溃的终止恢复。当前测试验证的是顺序调用和新 DbContext 接管，不应将其描述为真实多 Worker 并发压力测试或完整进程重启测试。
+- SQLite 集成测试覆盖关系型 Chunk 正文持久化、跨租户知识库关联拒绝、旧版本索引激活拒绝、租户内任务幂等键唯一性、顺序领取时第二次领取被拒绝、续租、租约过期接管、旧租约的续租/失败/完成操作全部失效、失败重试上限，以及最后一次尝试后 Worker 崩溃的终止恢复。当前测试验证的是顺序调用和新 DbContext 接管，不应将其描述为真实多 Worker 并发压力测试或完整进程重启测试。
 
 本地验证（2026-11-27）：
 - `dotnet build Aspros.Base.Framework.sln --configuration Release`：成功；全 Solution 报告 185 条 warning，需单独分类治理，不影响本次编译成功结论。
-- 上一轮 `RagPersistenceTests`：9 项通过，0 失败，0 跳过，耗时约 3.4 秒。随后新增“旧版本索引不能重新激活”领域约束及回归测试，新增测试尚待本地执行验证。
+- 上一轮 `RagPersistenceTests`：9 项通过，0 失败，0 跳过，耗时约 3.4 秒。随后新增“旧版本索引不能重新激活”领域约束及回归测试，并扩展旧租约测试以验证续租、失败和完成三种过期 Worker 写操作均被拒绝；这些新增断言尚待本地执行验证。
 - RAG Core 与 EF Core 集成项目均在 `net10.0` Release 配置下成功生成。
 
 仍未实现或验证：
