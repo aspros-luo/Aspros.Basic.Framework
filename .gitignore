@@ -381,3 +381,6 @@ dev-environment/.packages/
 !.env.example
 *.pem
 *.key
+
+# Local runtime data for the RAG demo
+samples/Rag.KnowledgeBase.Api/App_Data/
