@@ -31,11 +31,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspros.Base.Framework.RAG",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspros.Base.Framework.RAG.EntityFrameworkCore", "Aspros.Base.Framework.RAG.EntityFrameworkCore\Aspros.Base.Framework.RAG.EntityFrameworkCore.csproj", "{B8E3E3F2-AD55-4C27-AC42-7F6C9A3B2002}"
 EndProject
-Global
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspros.Base.Framework.ClickHouse", "Aspros.Base.Framework.ClickHouse\Aspros.Base.Framework.ClickHouse.csproj", "{E52A37C1-8F0B-4F6C-A8E7-7B44D9B79A11}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspros.Base.Framework.Algorithms", "Aspros.Base.Framework.Algorithms\Aspros.Base.Framework.Algorithms.csproj", "{F7B9D5C3-3E14-4D6A-9A6F-2A6D4E8C1B55}"
 EndProject
+Global
 GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
