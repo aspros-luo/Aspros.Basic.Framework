@@ -15,6 +15,7 @@ public sealed class Document
     public string SourceUri { get; private set; } = string.Empty;
     public string ContentHash { get; private set; } = string.Empty;
     public int CurrentVersionNumber { get; private set; }
+    public Guid? ActiveIndexGenerationId { get; private set; }
     public DocumentStatus Status { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset UpdatedAtUtc { get; private set; }
@@ -66,6 +67,29 @@ public sealed class Document
         UpdatedAtUtc = now ?? DateTimeOffset.UtcNow;
     }
 
+    public void SetActiveIndexGeneration(IndexGeneration generation, DateTimeOffset? now = null)
+    {
+        ArgumentNullException.ThrowIfNull(generation);
+
+        if (generation.DocumentId != Id)
+        {
+            throw new InvalidOperationException("The index generation belongs to another document.");
+        }
+
+        if (generation.Status != IndexGenerationStatus.Active)
+        {
+            throw new InvalidOperationException("Only an active index generation can be selected.");
+        }
+
+        if (Status == DocumentStatus.Deleted)
+        {
+            throw new InvalidOperationException("A deleted document cannot activate an index generation.");
+        }
+
+        ActiveIndexGenerationId = generation.Id;
+        UpdatedAtUtc = now ?? DateTimeOffset.UtcNow;
+    }
+
     public void MarkDeleted(DateTimeOffset? now = null)
     {
         if (Status == DocumentStatus.Deleted)
@@ -75,6 +99,7 @@ public sealed class Document
 
         var timestamp = now ?? DateTimeOffset.UtcNow;
         Status = DocumentStatus.Deleted;
+        ActiveIndexGenerationId = null;
         DeletedAtUtc = timestamp;
         UpdatedAtUtc = timestamp;
     }
