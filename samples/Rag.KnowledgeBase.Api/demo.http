@@ -35,3 +35,21 @@ GET {{baseUrl}}/api/knowledge-bases/{{knowledgeBaseId}}/documents
 ### Read chunks
 # Replace documentId with the returned document ID.
 GET {{baseUrl}}/api/documents/{{documentId}}/chunks
+
+### Semantic search
+POST {{baseUrl}}/api/knowledge-bases/{{knowledgeBaseId}}/search
+Content-Type: application/json
+
+{
+  "query": "Where is canonical chunk content stored?",
+  "take": 5
+}
+
+### Grounded chat with citations
+POST {{baseUrl}}/api/knowledge-bases/{{knowledgeBaseId}}/chat
+Content-Type: application/json
+
+{
+  "question": "Explain how the RAG demo stores documents and vector indexes.",
+  "take": 5
+}
