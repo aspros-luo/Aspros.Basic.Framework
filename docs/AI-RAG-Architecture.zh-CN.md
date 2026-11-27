@@ -285,7 +285,7 @@ Phase 1 后续验收门槛：并发领取测试通过；在目标 MySQL Provider
 - NuGet Microsoft.Extensions.DataIngestion：<https://www.nuget.org/packages/Microsoft.Extensions.DataIngestion>
 
 
-## 10. 可运行的知识库 Demo（Phase 1）
+## 11. 可运行的知识库 Demo（Phase 1）
 
 仓库新增独立示例应用 `samples/Rag.KnowledgeBase.Api`，消费 RAG Core、EF Core 与 Worker Hosting 项目，不将示例业务代码放进 Framework 包。
 
