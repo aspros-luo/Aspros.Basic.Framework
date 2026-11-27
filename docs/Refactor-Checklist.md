@@ -31,7 +31,7 @@
 - [x] IntegrationTests: 61 passed, 0 failed, 1 skipped (62 total).
 - [x] Eight targeted HTTP resilience regressions passed.
 - [x] Category API CAP business validation passed for commit, rollback, retry and duplicate/idempotent delivery.
-- [ ] Run `bash scripts/verify-packaged-consumer.sh` and record the real result before release approval.
+- [x] Packaged consumer validation: all six RC packages packed; five library packages restored and exercised by the standalone consumer; CLI tool installed and launched successfully.
 - [ ] The standalone Framework Generic Host CAP test remains a known timeout gap; do not count it as PASS.
 - [ ] Migration regression is explicitly excluded from this release gate.
 
