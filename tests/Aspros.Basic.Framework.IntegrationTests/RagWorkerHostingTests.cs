@@ -226,6 +226,273 @@ public sealed class RagWorkerHostingTests
             inner.FailAsync(lease, error, retryAtUtc, terminal, cancellationToken);
     }
 
+
+    [Fact]
+    public async Task AddRagWorker_CancelsHandlerAndDoesNotCompleteWhenLeaseIsLost()
+    {
+        var state = new LeaseLossState();
+        using var host = new HostBuilder().ConfigureServices(services =>
+        {
+            services.AddSingleton(state);
+            services.AddSingleton<IIngestionJobQueue, LeaseLossQueue>();
+            services.AddRagWorker<LeaseLossHandler>(options =>
+            {
+                options.WorkerId = "lease-loss-test";
+                options.MaxConcurrency = 1;
+                options.LeaseDuration = TimeSpan.FromSeconds(2);
+                options.RenewalInterval = TimeSpan.FromMilliseconds(50);
+                options.PollingInterval = TimeSpan.FromMilliseconds(10);
+            });
+        }).Build();
+
+        await host.StartAsync();
+        try
+        {
+            await state.HandlerCancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.Delay(100);
+            Assert.Equal(0, state.CompleteCalls);
+            Assert.Equal(0, state.FailCalls);
+        }
+        finally
+        {
+            await host.StopAsync();
+        }
+    }
+
+    [Fact]
+    public async Task AddRagWorker_RetriesTransientFailureWithBackoff()
+    {
+        var state = new FailureState();
+        using var host = new HostBuilder().ConfigureServices(services =>
+        {
+            services.AddSingleton(state);
+            services.AddSingleton<IIngestionJobQueue, FailureQueue>();
+            services.AddRagWorker<TransientFailureHandler>(options =>
+            {
+                options.WorkerId = "retry-test";
+                options.MaxConcurrency = 1;
+                options.LeaseDuration = TimeSpan.FromSeconds(2);
+                options.RenewalInterval = TimeSpan.FromMilliseconds(50);
+                options.PollingInterval = TimeSpan.FromMilliseconds(10);
+                options.RetryDelay = TimeSpan.FromMilliseconds(150);
+                options.MaxRetryDelay = TimeSpan.FromSeconds(1);
+            });
+        }).Build();
+
+        await host.StartAsync();
+        try
+        {
+            await state.Failed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(state.Terminal);
+            Assert.NotNull(state.RetryAtUtc);
+            Assert.True(state.RetryAtUtc > DateTimeOffset.UtcNow);
+            Assert.Equal(1, state.FailCalls);
+            Assert.Equal(0, state.CompleteCalls);
+        }
+        finally
+        {
+            await host.StopAsync();
+        }
+    }
+
+    [Fact]
+    public async Task AddRagWorker_MarksPermanentHandlerFailureAsTerminal()
+    {
+        var state = new FailureState();
+        using var host = new HostBuilder().ConfigureServices(services =>
+        {
+            services.AddSingleton(state);
+            services.AddSingleton<IIngestionJobQueue, FailureQueue>();
+            services.AddRagWorker<PermanentFailureHandler>(options =>
+            {
+                options.WorkerId = "permanent-failure-test";
+                options.MaxConcurrency = 1;
+                options.LeaseDuration = TimeSpan.FromSeconds(2);
+                options.RenewalInterval = TimeSpan.FromMilliseconds(50);
+                options.PollingInterval = TimeSpan.FromMilliseconds(10);
+            });
+        }).Build();
+
+        await host.StartAsync();
+        try
+        {
+            await state.Failed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(state.Terminal);
+            Assert.Equal(1, state.FailCalls);
+            Assert.Equal(0, state.CompleteCalls);
+        }
+        finally
+        {
+            await host.StopAsync();
+        }
+    }
+
+    [Fact]
+    public async Task AddRagWorker_LeavesInFlightJobUncompletedDuringGracefulShutdown()
+    {
+        var state = new ShutdownState();
+        using var host = new HostBuilder().ConfigureServices(services =>
+        {
+            services.AddSingleton(state);
+            services.AddSingleton<IIngestionJobQueue, ShutdownQueue>();
+            services.AddRagWorker<ShutdownHandler>(options =>
+            {
+                options.WorkerId = "shutdown-test";
+                options.MaxConcurrency = 1;
+                options.LeaseDuration = TimeSpan.FromSeconds(2);
+                options.RenewalInterval = TimeSpan.FromMilliseconds(50);
+                options.PollingInterval = TimeSpan.FromMilliseconds(10);
+            });
+        }).Build();
+
+        await host.StartAsync();
+        await state.HandlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await host.StopAsync();
+
+        Assert.True(state.HandlerCancelled.Task.IsCompleted);
+        Assert.Equal(0, state.CompleteCalls);
+        Assert.Equal(0, state.FailCalls);
+    }
+
+    public sealed class LeaseLossState
+    {
+        private int _claimed;
+        public int CompleteCalls;
+        public int FailCalls;
+        public TaskCompletionSource HandlerCancelled { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool TryClaim() => Interlocked.Increment(ref _claimed) == 1;
+    }
+
+    public sealed class LeaseLossQueue(LeaseLossState state) : IIngestionJobQueue
+    {
+        public Task<IngestionJobLease?> TryAcquireNextAsync(string workerId, TimeSpan leaseDuration, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IngestionJobLease?>(state.TryClaim()
+                ? new IngestionJobLease(Guid.NewGuid(), Guid.NewGuid(), workerId, 1, DateTimeOffset.UtcNow.Add(leaseDuration))
+                : null);
+        public Task<bool> RenewAsync(IngestionJobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<bool> CompleteAsync(IngestionJobLease lease, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref state.CompleteCalls);
+            return Task.FromResult(true);
+        }
+        public Task<bool> FailAsync(IngestionJobLease lease, string error, DateTimeOffset retryAtUtc, bool terminal = false, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref state.FailCalls);
+            return Task.FromResult(true);
+        }
+    }
+
+    public sealed class LeaseLossHandler(LeaseLossState state) : IIngestionJobHandler
+    {
+        public async Task HandleAsync(IngestionJobLease lease, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                state.HandlerCancelled.TrySetResult();
+                throw;
+            }
+        }
+    }
+
+    public sealed class FailureState
+    {
+        private int _claimed;
+        public int CompleteCalls;
+        public int FailCalls;
+        public bool Terminal;
+        public DateTimeOffset? RetryAtUtc;
+        public TaskCompletionSource Failed { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool TryClaim() => Interlocked.Increment(ref _claimed) == 1;
+    }
+
+    public sealed class FailureQueue(FailureState state) : IIngestionJobQueue
+    {
+        public Task<IngestionJobLease?> TryAcquireNextAsync(string workerId, TimeSpan leaseDuration, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IngestionJobLease?>(state.TryClaim()
+                ? new IngestionJobLease(Guid.NewGuid(), Guid.NewGuid(), workerId, 2, DateTimeOffset.UtcNow.Add(leaseDuration))
+                : null);
+        public Task<bool> RenewAsync(IngestionJobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<bool> CompleteAsync(IngestionJobLease lease, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref state.CompleteCalls);
+            return Task.FromResult(true);
+        }
+        public Task<bool> FailAsync(IngestionJobLease lease, string error, DateTimeOffset retryAtUtc, bool terminal = false, CancellationToken cancellationToken = default)
+        {
+            state.Terminal = terminal;
+            state.RetryAtUtc = retryAtUtc;
+            Interlocked.Increment(ref state.FailCalls);
+            state.Failed.TrySetResult();
+            return Task.FromResult(true);
+        }
+    }
+
+    public sealed class TransientFailureHandler : IIngestionJobHandler
+    {
+        public Task HandleAsync(IngestionJobLease lease, CancellationToken cancellationToken = default) =>
+            Task.FromException(new InvalidOperationException("Transient test failure."));
+    }
+
+    public sealed class PermanentFailureHandler : IIngestionJobHandler
+    {
+        public Task HandleAsync(IngestionJobLease lease, CancellationToken cancellationToken = default) =>
+            Task.FromException(new IngestionJobPermanentException("Permanent test failure."));
+    }
+
+    public sealed class ShutdownState
+    {
+        private int _claimed;
+        public int CompleteCalls;
+        public int FailCalls;
+        public TaskCompletionSource HandlerStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource HandlerCancelled { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool TryClaim() => Interlocked.Increment(ref _claimed) == 1;
+    }
+
+    public sealed class ShutdownQueue(ShutdownState state) : IIngestionJobQueue
+    {
+        public Task<IngestionJobLease?> TryAcquireNextAsync(string workerId, TimeSpan leaseDuration, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IngestionJobLease?>(state.TryClaim()
+                ? new IngestionJobLease(Guid.NewGuid(), Guid.NewGuid(), workerId, 1, DateTimeOffset.UtcNow.Add(leaseDuration))
+                : null);
+        public Task<bool> RenewAsync(IngestionJobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<bool> CompleteAsync(IngestionJobLease lease, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref state.CompleteCalls);
+            return Task.FromResult(true);
+        }
+        public Task<bool> FailAsync(IngestionJobLease lease, string error, DateTimeOffset retryAtUtc, bool terminal = false, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref state.FailCalls);
+            return Task.FromResult(true);
+        }
+    }
+
+    public sealed class ShutdownHandler(ShutdownState state) : IIngestionJobHandler
+    {
+        public async Task HandleAsync(IngestionJobLease lease, CancellationToken cancellationToken = default)
+        {
+            state.HandlerStarted.TrySetResult();
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                state.HandlerCancelled.TrySetResult();
+                throw;
+            }
+        }
+    }
+
     public sealed class ScopedMarker
     {
         public Guid Id { get; } = Guid.NewGuid();
