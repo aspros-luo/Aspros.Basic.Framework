@@ -1,6 +1,6 @@
 # Docker Development Environment
 
-This Compose stack starts the local infrastructure and the sample HTTP/gRPC APIs. It is an API-runtime environment, not a Framework test runner.
+This Compose stack starts local infrastructure and the sample HTTP/gRPC APIs. It is an API-runtime environment, not a Framework test runner. Framework IntegrationTests are run directly on the host with `dotnet test`; the current release results are recorded in `docs/Final-Regression-Matrix.md`.
 
 ## Start the complete environment
 
@@ -61,6 +61,18 @@ docker compose -f dev-environment/docker-compose.yml --profile infra --profile a
 
 ## Verification boundary
 
-The old `framework-test`, provider-test, migration-test and full-regression Compose runners are no longer part of this environment. The Framework xUnit and migration test source remains in the repository, but is intentionally outside the current acceptance path.
+The old `framework-test`, provider-test, migration-test and full-regression Compose runners are retired and are not part of this environment. Run the current Framework IntegrationTests from the repository root:
 
-Building the API images compiles the two sample applications and their referenced Framework projects as required for deployment. It does not execute the Framework integration-test project.
+```bash
+dotnet test --project tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --configuration Release
+```
+
+External-service tests run only when their corresponding test configuration is supplied. The release result and the one known CAP Generic Host test gap are recorded in `docs/Final-Regression-Matrix.md`.
+
+The Migration Fixture is a separate executable fixture, not the IntegrationTests project, and is explicitly excluded from the current release gate. The standalone NuGet package-consumer gate is run separately with:
+
+```bash
+bash scripts/verify-packaged-consumer.sh
+```
+
+Building the API images compiles the two sample applications and their referenced Framework projects as required for deployment. It does not execute the Framework IntegrationTests project.

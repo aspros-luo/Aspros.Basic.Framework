@@ -1,6 +1,6 @@
 # Docker 开发环境
 
-该 Compose 环境负责启动本地基础设施和示例 HTTP/gRPC API。它是 API 运行环境，不再是 Framework 自动回归测试入口。
+该 Compose 环境负责启动本地基础设施和示例 HTTP/gRPC API，不承担 Framework 测试执行。Framework IntegrationTests 直接在宿主机通过 `dotnet test` 执行；当前发布结果见 `docs/Final-Regression-Matrix.zh-CN.md`。
 
 ## 启动完整环境
 
@@ -61,6 +61,16 @@ docker compose -f dev-environment/docker-compose.yml --profile infra --profile a
 
 ## 当前验证边界
 
-旧的 `framework-test`、provider-test、migration-test、full-regression Compose runner 已从当前环境中移除。Framework xUnit 和 Migration 测试源码暂时保留在仓库，但不再属于当前验收流程。
+旧的 `framework-test`、`provider-test`、`migration-test`、`full-regression` Compose runner 已从当前环境移除，不要继续使用旧命令。当前 IntegrationTests 的宿主机执行命令为：
 
-构建 API 镜像时，Docker 会编译两个示例应用及其引用的 Framework 项目，这是应用部署所需的构建步骤；不会运行 Framework IntegrationTests 测试项目。
+```bash
+dotnet test --project tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --configuration Release
+```
+
+Migration Fixture 是独立可执行项目，不属于 IntegrationTests；根据本次发布决策，Migration 回归明确排除。独立 NuGet 包消费验证单独执行：
+
+```bash
+bash scripts/verify-packaged-consumer.sh
+```
+
+构建 API 镜像时，Docker 会编译两个示例应用及其引用的 Framework 项目，不会运行 Framework IntegrationTests。

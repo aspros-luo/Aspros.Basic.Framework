@@ -1,11 +1,31 @@
-# Framework 回归测试（暂时停用）
+# Framework 回归测试
 
-Framework 的 xUnit 和 Migration 测试项目源码暂时保留，但已暂停通过 Docker 执行这些测试。
+## 当前测试入口
 
-当前不要再使用旧的 `framework-test`、`framework-provider-test`、`framework-migration-test` 或 `framework-full-regression` 命令作为环境启动或验收流程。
+xUnit v3 IntegrationTests 项目直接在宿主机执行，不通过 Docker Compose 运行。
 
-当前工作流改为先部署基础设施，再通过真实 API 进行验证。请以以下文档为准：
-- `dev-environment/README.zh-CN.md`
-- `dev-environment/README.md`
+在仓库根目录执行：
 
-测试源码没有删除。待 API 运行环境稳定后，可以单独评估是否重新启用。必须区分 Docker 容器启动状态、API 请求结果和 Framework 内部测试结果，不能互相替代。
+```bash
+dotnet test --project tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --configuration Release
+```
+
+需要 MySQL、Redis、RabbitMQ 或 Nacos 的测试由环境配置控制。只有对应服务可用时才提供相应测试配置。当前发布测试结果见[最终回归矩阵](../docs/Final-Regression-Matrix.zh-CN.md)。
+
+## 已退役的 Compose Runner
+
+旧的 `framework-test`、`framework-provider-test`、`framework-migration-test` 和 `framework-full-regression` 服务已经从 Compose 移除，不要再使用旧命令。
+
+## Migration Fixture
+
+`Aspros.Basic.Framework.MigrationFixture` 是独立可执行 Fixture，不是 xUnit 测试项目。根据本次明确的发布决策，Migration 回归不属于当前发布门槛；这不代表 Migration 已通过。
+
+## 独立 NuGet 消费者
+
+独立 NuGet 包消费验证与 IntegrationTests 分开执行：
+
+```bash
+bash scripts/verify-packaged-consumer.sh
+```
+
+当前发布门槛状态和已知缺口以[最终回归矩阵](../docs/Final-Regression-Matrix.zh-CN.md)为准。

@@ -1,11 +1,31 @@
-# Framework Regression Tests — Paused
+# Framework Regression Tests
 
-The Framework xUnit and migration test projects are retained as source, but their Docker execution path is intentionally paused.
+## Active test entry point
 
-Do not use the former `framework-test`, `framework-provider-test`, `framework-migration-test` or `framework-full-regression` commands as the current environment startup or acceptance workflow.
+The xUnit v3 IntegrationTests project is executed directly on the host; it is not run by Docker Compose.
 
-The active workflow is infrastructure deployment plus API-level verification. See:
-- `dev-environment/README.md`
-- `dev-environment/README.zh-CN.md`
+From the repository root:
 
-The test source has not been deleted. It can be reviewed or re-enabled separately after the API runtime workflow is established. Container startup and API responses must be reported separately from Framework unit/integration-test status.
+```bash
+dotnet test --project tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --configuration Release
+```
+
+Tests that require MySQL, Redis, RabbitMQ or Nacos are environment-gated. Supply the corresponding test configuration only when those services are available. The current release run is recorded in [Final Regression Matrix](../docs/Final-Regression-Matrix.md).
+
+## Retired Compose runners
+
+The former `framework-test`, `framework-provider-test`, `framework-migration-test` and `framework-full-regression` services have been removed from Compose. Do not use their former commands.
+
+## Migration fixture
+
+`Aspros.Basic.Framework.MigrationFixture` is a separate executable fixture, not an xUnit test project. Migration regression is explicitly excluded from the current release decision; this exclusion is not a PASS claim.
+
+## Packaged consumer
+
+The independent NuGet consumer gate is separate from IntegrationTests:
+
+```bash
+bash scripts/verify-packaged-consumer.sh
+```
+
+See [Final Regression Matrix](../docs/Final-Regression-Matrix.md) for the current release gate status and known gaps.

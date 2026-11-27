@@ -1,6 +1,6 @@
 # Aspros Basic Framework
 
-> **Release candidate:** `2.0.0-rc.1` targeting `.NET 10`. The current validation path is Docker infrastructure deployment plus real Core Provider/Consumer API calls. Framework xUnit and migration regression execution is paused.
+> **Release candidate:** `2.0.0-rc.1` targeting `.NET 10`. Release evidence includes successful Release builds, host-executed Framework IntegrationTests and Category API CAP validation. Docker Compose is for infrastructure and sample API runtime, not a test runner. The standalone NuGet consumer gate is required before release approval; Migration is explicitly excluded.
 
 面向 .NET 10 的轻量级业务基础框架，保持“少而够用”的工程边界。
 
