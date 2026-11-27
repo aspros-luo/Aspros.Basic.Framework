@@ -149,7 +149,7 @@ internal sealed class RagIngestionWorker : BackgroundService
             return;
         }
 
-        var failure = handlerFailure;
+        var failure = handlerFailure ?? throw new InvalidOperationException("A handler failure was expected.");
         var terminal = failure is IngestionJobPermanentException;
         var retryAtUtc = _timeProvider.GetUtcNow().Add(GetRetryDelay(lease.AttemptCount));
         var failed = await InQueueScopeAsync(
