@@ -20,7 +20,6 @@ builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddRagEntityFrameworkCore<DemoRagDbContext>();
 builder.Services.AddRagWorker<DemoIngestionJobHandler>(options =>
 {
-    options.WorkerId = $"rag-demo-{Environment.MachineName}";
     options.MaxConcurrency = 2;
     options.LeaseDuration = TimeSpan.FromMinutes(2);
     options.RenewalInterval = TimeSpan.FromSeconds(30);
