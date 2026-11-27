@@ -104,9 +104,20 @@ public sealed class RagPersistenceTests
     }
 
     [Fact]
-    public void DocumentCannotActivateAnIndexGenerationForAnOlderVersion()
+    public void DocumentKeepsPreviousActiveIndexUntilNewVersionGenerationIsActivated()
     {
         var (knowledgeBase, document, firstVersion) = CreateDocumentGraph();
+        var firstGeneration = IndexGeneration.Create(
+            "tenant-a",
+            knowledgeBase.Id,
+            document.Id,
+            firstVersion.Id,
+            "local-embedding-v1",
+            768,
+            "plain-text-v1");
+        firstGeneration.Activate();
+        document.SetActiveIndexGeneration(firstGeneration);
+
         var secondVersion = DocumentVersion.Create(
             document.Id,
             2,
@@ -115,23 +126,35 @@ public sealed class RagPersistenceTests
             document.SourceUri,
             "plain-text-v1");
         document.SetCurrentVersion(secondVersion);
-        Assert.Null(document.ActiveIndexGenerationId);
 
-        var staleGeneration = IndexGeneration.Create(
+        // A failed rebuild must not make the last known-good generation unavailable.
+        Assert.Equal(firstGeneration.Id, document.ActiveIndexGenerationId);
+        var failedGeneration = IndexGeneration.Create(
             "tenant-a",
             knowledgeBase.Id,
             document.Id,
-            firstVersion.Id,
+            secondVersion.Id,
             "local-embedding-v1",
             768,
             "plain-text-v1");
-        staleGeneration.Activate();
+        failedGeneration.MarkFailed();
+        Assert.Equal(firstGeneration.Id, document.ActiveIndexGenerationId);
 
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => document.SetActiveIndexGeneration(staleGeneration));
+        var replacementGeneration = IndexGeneration.Create(
+            "tenant-a",
+            knowledgeBase.Id,
+            document.Id,
+            secondVersion.Id,
+            "local-embedding-v1",
+            768,
+            "plain-text-v1");
+        replacementGeneration.Activate();
+        document.SetActiveIndexGeneration(replacementGeneration);
+        firstGeneration.Retire();
 
-        Assert.Contains("current document version", exception.Message);
-        Assert.Null(document.ActiveIndexGenerationId);
+        Assert.Equal(replacementGeneration.Id, document.ActiveIndexGenerationId);
+        Assert.Equal(IndexGenerationStatus.Retired, firstGeneration.Status);
+        Assert.Equal(IndexGenerationStatus.Active, replacementGeneration.Status);
     }
 
     [Fact]
