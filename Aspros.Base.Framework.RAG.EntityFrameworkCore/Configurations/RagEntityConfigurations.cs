@@ -12,6 +12,8 @@ internal sealed class KnowledgeBaseConfiguration : IEntityTypeConfiguration<Know
         builder.HasKey(x => x.Id);
         builder.Property(x => x.TenantId).HasMaxLength(128).IsRequired();
         builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.CreatedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
+        builder.Property(x => x.UpdatedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
         builder.HasIndex(x => new { x.TenantId, x.IsArchived });
     }
 }
@@ -27,6 +29,9 @@ internal sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(x => x.SourceUri).HasMaxLength(2048).IsRequired();
         builder.Property(x => x.ContentHash).HasMaxLength(128).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(x => x.CreatedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
+        builder.Property(x => x.UpdatedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
+        builder.Property(x => x.DeletedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
         builder.HasOne<KnowledgeBase>()
             .WithMany()
             .HasForeignKey(x => x.KnowledgeBaseId)
@@ -46,6 +51,7 @@ internal sealed class DocumentVersionConfiguration : IEntityTypeConfiguration<Do
         builder.Property(x => x.SourceUri).HasMaxLength(2048).IsRequired();
         builder.Property(x => x.ChunkingProfileVersion).HasMaxLength(128).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(x => x.CreatedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
         builder.HasOne<Document>()
             .WithMany()
             .HasForeignKey(x => x.DocumentId)
@@ -65,6 +71,7 @@ internal sealed class DocumentChunkConfiguration : IEntityTypeConfiguration<Docu
         builder.Property(x => x.SectionTitle).HasMaxLength(500);
         builder.Property(x => x.SourceLocation).HasMaxLength(2048);
         builder.Property(x => x.Content).IsRequired();
+        builder.Property(x => x.CreatedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
         builder.HasOne<Document>()
             .WithMany()
             .HasForeignKey(x => x.DocumentId)
@@ -88,6 +95,9 @@ internal sealed class IndexGenerationConfiguration : IEntityTypeConfiguration<In
         builder.Property(x => x.EmbeddingModelKey).HasMaxLength(256).IsRequired();
         builder.Property(x => x.ChunkingProfileVersion).HasMaxLength(128).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(x => x.CreatedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
+        builder.Property(x => x.ActivatedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
+        builder.Property(x => x.RetiredAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
         builder.HasOne<DocumentVersion>()
             .WithMany()
             .HasForeignKey(x => x.DocumentVersionId)
@@ -104,14 +114,22 @@ internal sealed class IngestionJobConfiguration : IEntityTypeConfiguration<Inges
         builder.ToTable("rag_ingestion_jobs");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.TenantId).HasMaxLength(128).IsRequired();
+        builder.Property(x => x.IdempotencyKey).HasMaxLength(256).IsRequired();
         builder.Property(x => x.JobType).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(x => x.LeaseOwner).HasMaxLength(200);
         builder.Property(x => x.LastError).HasMaxLength(4000);
+        builder.Property(x => x.NextAttemptAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
+        builder.Property(x => x.CreatedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
+        builder.Property(x => x.UpdatedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
+        builder.Property(x => x.StartedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
+        builder.Property(x => x.CompletedAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
+        builder.Property(x => x.LeaseExpiresAtUtc).HasConversion<UtcDateTimeOffsetToTicksConverter>();
         builder.HasOne<DocumentVersion>()
             .WithMany()
             .HasForeignKey(x => x.DocumentVersionId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.IdempotencyKey).IsUnique();
         builder.HasIndex(x => new { x.Status, x.NextAttemptAtUtc, x.CreatedAtUtc });
         builder.HasIndex(x => new { x.DocumentId, x.DocumentVersionId, x.JobType, x.Status });
     }
