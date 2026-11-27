@@ -54,6 +54,15 @@ public sealed class EfCoreIndexGenerationActivator<TContext>
             return true;
         }
 
+        if (document.Status == DocumentStatus.Deleted ||
+            document.CurrentVersionId != generation.DocumentVersionId)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            _dbContext.Entry(document).State = EntityState.Detached;
+            _dbContext.Entry(generation).State = EntityState.Detached;
+            return false;
+        }
+
         var expectedVersionId = document.CurrentVersionId;
         var expectedActiveGenerationId = document.ActiveIndexGenerationId;
 
