@@ -199,20 +199,21 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 
 实施范围：
 - 已建立 `Aspros.Base.Framework.RAG` 与 `Aspros.Base.Framework.RAG.EntityFrameworkCore` 两个 preview 项目。
-- 已定义 KnowledgeBase、Document、DocumentVersion、DocumentChunk、IngestionJob、IndexGeneration；Document 通过 ActiveIndexGenerationId 指向当前活动索引代次，索引代次关联文档和版本。
+- 已定义 KnowledgeBase、Document、DocumentVersion、DocumentChunk、IngestionJob、IndexGeneration；Document 通过 CurrentVersionId 明确指向当前文档版本，并通过 ActiveIndexGenerationId 指向当前活动索引代次。设置当前版本时校验版本归属与 Ready 状态；激活索引时校验索引代次属于当前版本、同一文档、租户和知识库，避免文档更新后旧版本索引被重新激活。
 - EF Core 包通过 `ModelBuilder.ApplyRagModel()` 将映射加入业务服务自有 DbContext；业务服务继续负责连接、DbContext 与 Migration。
 - 已实现基于条件更新和 LeaseToken 的任务租约，包含领取、续租、完成、失败重试与终止失败；租约 Token 防止旧 Worker 在接管后提交完成状态。
 - IngestionJob 增加租户范围内唯一的 IdempotencyKey，避免同一请求重复创建任务。
 - UTC 时间字段通过 UTC ticks 转换存储，避免 SQLite 等 Provider 对 DateTimeOffset 范围查询的限制。
 - KnowledgeBase 以 (TenantId, Id) 建立备用键；Document、Chunk、IndexGeneration 和 IngestionJob 通过复合外键校验租户与知识库归属，Chunk、IndexGeneration 和 IngestionJob 还会校验 DocumentVersion 必须属于对应 Document。
-- SQLite 集成测试覆盖关系型 Chunk 正文持久化、跨租户知识库关联拒绝、租户内任务幂等键唯一性、顺序领取时第二次领取被拒绝、续租、租约过期接管、旧租约失效、失败重试上限，以及最后一次尝试后 Worker 崩溃的终止恢复。当前测试验证的是顺序调用和新 DbContext 接管，不应将其描述为真实多 Worker 并发压力测试或完整进程重启测试。
+- SQLite 集成测试覆盖关系型 Chunk 正文持久化、跨租户知识库关联拒绝、旧版本索引激活拒绝、租户内任务幂等键唯一性、顺序领取时第二次领取被拒绝、续租、租约过期接管、旧租约失效、失败重试上限，以及最后一次尝试后 Worker 崩溃的终止恢复。当前测试验证的是顺序调用和新 DbContext 接管，不应将其描述为真实多 Worker 并发压力测试或完整进程重启测试。
 
 本地验证（2026-11-27）：
 - `dotnet build Aspros.Base.Framework.sln --configuration Release`：成功；全 Solution 报告 185 条 warning，需单独分类治理，不影响本次编译成功结论。
-- `dotnet test tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --configuration Release --filter "FullyQualifiedName~RagPersistenceTests"`：9 项通过，0 失败，0 跳过，耗时约 3.4 秒。
+- 上一轮 `RagPersistenceTests`：9 项通过，0 失败，0 跳过，耗时约 3.4 秒。随后新增“旧版本索引不能重新激活”领域约束及回归测试，新增测试尚待本地执行验证。
 - RAG Core 与 EF Core 集成项目均在 `net10.0` Release 配置下成功生成。
 
 仍未实现或验证：
+- 新增 CurrentVersionId 与活动索引版本一致性约束已提交到功能分支，但新增回归测试尚未取得本地执行结果；Document.CurrentVersionId 当前由领域方法维护，尚未配置数据库外键约束，需在真实 Provider/迁移设计中评估一致性边界。
 - 尚未接入真实业务服务 DbContext/Migration；业务服务接入示例目前只验证模型配置方式，未证明任一真实业务数据库迁移可用。
 - 尚未实现文档解析、Chunking Pipeline、Embedding、Vector Store、索引构建/切换服务或 Worker 宿主。
 - 尚未进行多进程/多实例并发领取测试，也未验证实际进程崩溃后的端到端恢复；目前通过过期租约和新 DbContext 测试了数据库层接管逻辑。
