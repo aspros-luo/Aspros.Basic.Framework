@@ -125,6 +125,26 @@ internal sealed class IndexGenerationConfiguration : IEntityTypeConfiguration<In
             .HasForeignKey(x => new { x.DocumentId, x.DocumentVersionId })
             .HasPrincipalKey(x => new { x.DocumentId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.IngestionJob)
+            .WithMany()
+            .HasForeignKey(x => new
+            {
+                x.IngestionJobId,
+                x.TenantId,
+                x.KnowledgeBaseId,
+                x.DocumentId,
+                x.DocumentVersionId
+            })
+            .HasPrincipalKey(x => new
+            {
+                x.Id,
+                x.TenantId,
+                x.KnowledgeBaseId,
+                x.DocumentId,
+                x.DocumentVersionId
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.IngestionJobId).IsUnique();
         builder.HasIndex(x => new { x.DocumentId, x.DocumentVersionId, x.Status });
         builder.HasIndex(x => new { x.TenantId, x.KnowledgeBaseId, x.Status });
     }
@@ -136,6 +156,7 @@ internal sealed class IngestionJobConfiguration : IEntityTypeConfiguration<Inges
     {
         builder.ToTable("rag_ingestion_jobs");
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.Id, x.TenantId, x.KnowledgeBaseId, x.DocumentId, x.DocumentVersionId });
         builder.Property(x => x.TenantId).HasMaxLength(128).IsRequired();
         builder.Property(x => x.IdempotencyKey).HasMaxLength(256).IsRequired();
         builder.Property(x => x.JobType).HasConversion<string>().HasMaxLength(32).IsRequired();
