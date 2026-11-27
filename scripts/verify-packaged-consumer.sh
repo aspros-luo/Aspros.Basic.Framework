@@ -7,6 +7,7 @@ NUGET_PACKAGES_DIR="$(mktemp -d "${TMPDIR:-/tmp}/aspros-framework-nuget.XXXXXX")
 BUILD_DIR="$(mktemp -d "${TMPDIR:-/tmp}/aspros-framework-consumer.XXXXXX")"
 CONSUMER_BUILD_PROPS=(-p:BaseIntermediateOutputPath="$BUILD_DIR/obj/" -p:BaseOutputPath="$BUILD_DIR/bin/")
 CONSUMER_PROJECT="$ROOT_DIR/samples/Framework.Core.Api/Framework.Core.Api.csproj"
+CONSUMER_DLL="$BUILD_DIR/bin/Release/net10.0/Framework.Core.Api.dll"
 CONSUMER_URL="${PACKAGED_CONSUMER_URL:-http://127.0.0.1:17210}"
 CONSUMER_LOG="$BUILD_DIR/consumer.log"
 CONSUMER_PID=""
@@ -54,22 +55,28 @@ NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet restore "$CONSUMER_PROJECT" "${CONSU
 
 echo "== Build the package-only consumer =="
 NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet build "$CONSUMER_PROJECT" -c Release --no-restore "${CONSUMER_BUILD_PROPS[@]}"
+[[ -s "$CONSUMER_DLL" ]] || { echo "Consumer assembly was not produced: $CONSUMER_DLL" >&2; exit 1; }
 
-echo "== Start the consumer and verify Framework DI =="
-NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet run --project "$CONSUMER_PROJECT" \
-  -c Release --no-build --no-restore "${CONSUMER_BUILD_PROPS[@]}" -- --urls "$CONSUMER_URL" >"$CONSUMER_LOG" 2>&1 &
+if curl --fail --silent "$CONSUMER_URL/health" >/dev/null; then
+  echo "The verification URL is already serving an application: $CONSUMER_URL" >&2
+  echo "Choose another port with PACKAGED_CONSUMER_URL." >&2
+  exit 1
+fi
+
+echo "== Start the package-only consumer and verify Framework DI =="
+dotnet "$CONSUMER_DLL" --urls "$CONSUMER_URL" >"$CONSUMER_LOG" 2>&1 &
 CONSUMER_PID=$!
 
 ready=false
 for _ in {1..30}; do
-  if curl --fail --silent "$CONSUMER_URL/health" >/dev/null; then
-    ready=true
-    break
-  fi
   if ! kill -0 "$CONSUMER_PID" 2>/dev/null; then
     echo "Consumer exited before becoming healthy." >&2
     cat "$CONSUMER_LOG" >&2
     exit 1
+  fi
+  if curl --fail --silent "$CONSUMER_URL/health" >/dev/null; then
+    ready=true
+    break
   fi
   sleep 1
 done
