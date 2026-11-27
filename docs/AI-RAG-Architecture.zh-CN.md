@@ -283,3 +283,22 @@ Phase 1 后续验收门槛：并发领取测试通过；在目标 MySQL Provider
 - NuGet Microsoft.Extensions.AI.Abstractions：<https://www.nuget.org/packages/Microsoft.Extensions.AI.Abstractions>
 - NuGet Microsoft.Extensions.VectorData.Abstractions：<https://www.nuget.org/packages/Microsoft.Extensions.VectorData.Abstractions>
 - NuGet Microsoft.Extensions.DataIngestion：<https://www.nuget.org/packages/Microsoft.Extensions.DataIngestion>
+
+
+## 10. 可运行的知识库 Demo（Phase 1）
+
+仓库新增独立示例应用 `samples/Rag.KnowledgeBase.Api`，消费 RAG Core、EF Core 与 Worker Hosting 项目，不将示例业务代码放进 Framework 包。
+
+当前可运行链路：创建知识库 → 上传 TXT/Markdown → 关系型数据库持久化 Document / DocumentVersion / IngestionJob → Worker 通过持久化租约领取任务 → 文本切片 → 在单个关系型事务中替换并保存规范 DocumentChunk → 查询任务状态、文档和 Chunk 内容。
+
+Demo 默认使用 SQLite 与本地文件目录，首次启动仅对示例专用数据库调用 `EnsureCreated`；这不是生产数据库初始化建议。示例固定使用 `demo-tenant`、没有身份认证或 ACL，并绑定本机地址，仅用于本地演示。生产业务仍需自行管理身份、租户授权、DbContext、Migration 和文件存储。
+
+当前 Demo 明确尚未实现 PDF/Office 解析、Embedding、向量存储、语义检索和 LLM 问答。下一阶段在此可运行闭环上接入真实模型与向量 Provider；不得用 Fake Embedding 或静态答案冒充真实 RAG。
+
+运行命令：
+
+```bash
+dotnet run --project samples/Rag.KnowledgeBase.Api/Rag.KnowledgeBase.Api.csproj
+```
+
+服务默认地址：`http://127.0.0.1:7280`。详细操作见 `samples/Rag.KnowledgeBase.Api/README.zh-CN.md`。
