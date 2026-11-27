@@ -165,14 +165,89 @@ public sealed class RagMySqlProviderTests
         Assert.Equal(Guid.Empty, persisted.LeaseToken);
     }
 
+    [Fact(
+        Skip = "A dedicated RAG MySQL test database is not configured.",
+        SkipUnless = nameof(MySqlAvailable),
+        SkipType = typeof(RagMySqlProviderTests))]
+    public async Task IndexGenerationActivator_ConcurrentSwitchesAllowOnlyOneWinner()
+    {
+        var connectionString =
+            Environment.GetEnvironmentVariable("ConnectionStrings__RagTestDatabase")!;
+        var options = new DbContextOptionsBuilder<RagMySqlTestDbContext>()
+            .UseMySql(connectionString, new MySqlServerVersion(new Version(8, 4, 0)))
+            .Options;
+
+        await using (var initialization = new RagMySqlTestDbContext(options))
+        {
+            await initialization.Database.EnsureCreatedAsync();
+            await ClearRagTablesAsync(initialization);
+        }
+
+        var (knowledgeBase, document, version) = CreateDocumentGraph();
+        var originalJob = IngestionJob.Create(
+            "tenant-a", knowledgeBase.Id, document.Id, version.Id,
+            $"mysql-original:{Guid.NewGuid():N}");
+        var originalGeneration = IndexGeneration.Create(
+            originalJob, "local-embedding-v1", 768, "plain-text-v1");
+        originalGeneration.Activate();
+        document.SetActiveIndexGeneration(originalGeneration);
+
+        var candidateJobs = Enumerable.Range(0, 2)
+            .Select(_ => IngestionJob.Create(
+                "tenant-a", knowledgeBase.Id, document.Id, version.Id,
+                $"mysql-activation:{Guid.NewGuid():N}", IngestionJobType.RebuildIndex))
+            .ToArray();
+        var candidates = candidateJobs
+            .Select(job => IndexGeneration.Create(
+                job, "local-embedding-v1", 768, "plain-text-v1"))
+            .ToArray();
+
+        await using (var seed = new RagMySqlTestDbContext(options))
+        {
+            seed.AddRange(knowledgeBase, document, version, originalGeneration);
+            seed.AddRange(candidates);
+            await seed.SaveChangesAsync();
+        }
+
+        var startGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        async Task<bool> ActivateAsync(IndexGeneration candidate)
+        {
+            await using var db = new RagMySqlTestDbContext(options);
+            var activator = new EfCoreIndexGenerationActivator<RagMySqlTestDbContext>(db);
+            await startGate.Task;
+            return await activator.ActivateAsync(document.Id, candidate.Id);
+        }
+
+        var attempts = candidates.Select(ActivateAsync).ToArray();
+        startGate.SetResult();
+        var results = await Task.WhenAll(attempts);
+
+        Assert.Single(results.Where(result => result));
+
+        await using var verification = new RagMySqlTestDbContext(options);
+        var persistedDocument = await verification.Set<Document>()
+            .AsNoTracking()
+            .SingleAsync();
+        var generations = await verification.Set<IndexGeneration>()
+            .AsNoTracking()
+            .ToListAsync();
+
+        Assert.Contains(candidates, candidate =>
+            candidate.Id == persistedDocument.ActiveIndexGenerationId);
+        Assert.Single(generations.Where(item => item.Status == IndexGenerationStatus.Active));
+        Assert.Equal(2, generations.Count(item => item.Status == IndexGenerationStatus.Retired));
+    }
+
     private static async Task ClearRagTablesAsync(DbContext db)
     {
         // Delete in FK dependency order. This database is explicitly dedicated to RAG tests.
         foreach (var table in new[]
         {
             "rag_document_chunks",
-            "rag_ingestion_jobs",
             "rag_index_generations",
+            "rag_ingestion_jobs",
             "rag_document_versions",
             "rag_documents",
             "rag_knowledge_bases"
