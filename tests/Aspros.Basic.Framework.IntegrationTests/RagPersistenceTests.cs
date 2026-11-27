@@ -158,6 +158,93 @@ public sealed class RagPersistenceTests
     }
 
     [Fact]
+    public async Task IndexGenerationSwitch_PreservesLastKnownGoodIndexUntilReplacementCommits()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        await using var db = new RagTestDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var (knowledgeBase, document, firstVersion) = CreateDocumentGraph();
+        var firstGeneration = IndexGeneration.Create(
+            "tenant-a",
+            knowledgeBase.Id,
+            document.Id,
+            firstVersion.Id,
+            "local-embedding-v1",
+            768,
+            "plain-text-v1");
+        firstGeneration.Activate();
+        document.SetActiveIndexGeneration(firstGeneration);
+
+        db.AddRange(knowledgeBase, document, firstVersion, firstGeneration);
+        await db.SaveChangesAsync();
+
+        var secondVersion = DocumentVersion.Create(
+            document.Id,
+            2,
+            "sha256:document-v2",
+            "text/markdown",
+            document.SourceUri,
+            "plain-text-v1");
+        document.SetCurrentVersion(secondVersion);
+
+        var failedGeneration = IndexGeneration.Create(
+            "tenant-a",
+            knowledgeBase.Id,
+            document.Id,
+            secondVersion.Id,
+            "local-embedding-v1",
+            768,
+            "plain-text-v1");
+        failedGeneration.MarkFailed();
+
+        db.AddRange(secondVersion, failedGeneration);
+        await db.SaveChangesAsync();
+
+        Assert.Equal(firstGeneration.Id, document.ActiveIndexGenerationId);
+        Assert.Equal(IndexGenerationStatus.Active, firstGeneration.Status);
+
+        var replacementGeneration = IndexGeneration.Create(
+            "tenant-a",
+            knowledgeBase.Id,
+            document.Id,
+            secondVersion.Id,
+            "local-embedding-v1",
+            768,
+            "plain-text-v1");
+        replacementGeneration.Activate();
+
+        await using (var transaction = await db.Database.BeginTransactionAsync())
+        {
+            document.SetActiveIndexGeneration(replacementGeneration);
+            firstGeneration.Retire();
+            db.Add(replacementGeneration);
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        var persistedDocument = await db.Set<Document>()
+            .AsNoTracking()
+            .SingleAsync();
+        var persistedGenerations = await db.Set<IndexGeneration>()
+            .AsNoTracking()
+            .OrderBy(generation => generation.CreatedAtUtc)
+            .ToListAsync();
+
+        Assert.Equal(replacementGeneration.Id, persistedDocument.ActiveIndexGenerationId);
+        Assert.Contains(persistedGenerations, generation =>
+            generation.Id == firstGeneration.Id &&
+            generation.Status == IndexGenerationStatus.Retired);
+        Assert.Contains(persistedGenerations, generation =>
+            generation.Id == failedGeneration.Id &&
+            generation.Status == IndexGenerationStatus.Failed);
+        Assert.Contains(persistedGenerations, generation =>
+            generation.Id == replacementGeneration.Id &&
+            generation.Status == IndexGenerationStatus.Active);
+    }
+
+    [Fact]
     public async Task IngestionJob_IdempotencyKeyIsUniqueWithinTenant()
     {
         await using var connection = await OpenConnectionAsync();
