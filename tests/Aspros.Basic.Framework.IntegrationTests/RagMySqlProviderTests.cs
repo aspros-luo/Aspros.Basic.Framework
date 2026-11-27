@@ -30,8 +30,7 @@ public sealed class RagMySqlProviderTests
 
         await using (var initialization = new RagMySqlTestDbContext(options))
         {
-            await initialization.Database.EnsureCreatedAsync();
-            await ClearRagTablesAsync(initialization);
+            await ResetRagSchemaAsync(initialization);
         }
 
         var (knowledgeBase, document, version) = CreateDocumentGraph();
@@ -99,8 +98,7 @@ public sealed class RagMySqlProviderTests
 
         await using (var initialization = new RagMySqlTestDbContext(options))
         {
-            await initialization.Database.EnsureCreatedAsync();
-            await ClearRagTablesAsync(initialization);
+            await ResetRagSchemaAsync(initialization);
         }
 
         var (knowledgeBase, document, version) = CreateDocumentGraph();
@@ -179,8 +177,7 @@ public sealed class RagMySqlProviderTests
 
         await using (var initialization = new RagMySqlTestDbContext(options))
         {
-            await initialization.Database.EnsureCreatedAsync();
-            await ClearRagTablesAsync(initialization);
+            await ResetRagSchemaAsync(initialization);
         }
 
         var (knowledgeBase, document, version) = CreateDocumentGraph();
@@ -240,9 +237,10 @@ public sealed class RagMySqlProviderTests
         Assert.Single(generations.Where(item => item.Status == IndexGenerationStatus.Retired));
     }
 
-    private static async Task ClearRagTablesAsync(DbContext db)
+    private static async Task ResetRagSchemaAsync(DbContext db)
     {
-        // Delete in FK dependency order. This database is explicitly dedicated to RAG tests.
+        // This dedicated RAG test database is recreated so EnsureCreated picks up model changes;
+        // EnsureCreated alone does not migrate an existing schema. Drop tables in FK order.
         foreach (var table in new[]
         {
             "rag_document_chunks",
@@ -253,8 +251,10 @@ public sealed class RagMySqlProviderTests
             "rag_knowledge_bases"
         })
         {
-            await db.Database.ExecuteSqlRawAsync($"DELETE FROM `{table}`;");
+            await db.Database.ExecuteSqlRawAsync($"DROP TABLE IF EXISTS `{table}`;");
         }
+
+        await db.Database.EnsureCreatedAsync();
     }
 
     private static (KnowledgeBase KnowledgeBase, Document Document, DocumentVersion Version)
