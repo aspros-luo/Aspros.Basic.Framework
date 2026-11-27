@@ -30,6 +30,25 @@ public sealed class EfCoreIngestionJobQueue<TContext> : IIngestionJobQueue
         ValidateLeaseDuration(leaseDuration);
 
         var now = _timeProvider.GetUtcNow();
+
+        // A worker that crashed on its final allowed attempt must not leave a job
+        // in Processing forever. Expired, exhausted leases are terminally closed first.
+        await _dbContext.Set<IngestionJob>()
+            .Where(job =>
+                job.Status == IngestionJobStatus.Processing &&
+                job.LeaseExpiresAtUtc != null &&
+                job.LeaseExpiresAtUtc <= now &&
+                job.AttemptCount >= job.MaxAttempts)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(job => job.Status, IngestionJobStatus.Failed)
+                .SetProperty(job => job.LeaseOwner, (string?)null)
+                .SetProperty(job => job.LeaseToken, Guid.Empty)
+                .SetProperty(job => job.LeaseExpiresAtUtc, (DateTimeOffset?)null)
+                .SetProperty(job => job.LastError, job => job.LastError ?? "Worker lease expired after the maximum number of attempts.")
+                .SetProperty(job => job.CompletedAtUtc, now)
+                .SetProperty(job => job.UpdatedAtUtc, now),
+                cancellationToken);
+
         var candidate = await _dbContext.Set<IngestionJob>()
             .AsNoTracking()
             .Where(job =>
@@ -166,6 +185,7 @@ public sealed class EfCoreIngestionJobQueue<TContext> : IIngestionJobQueue
                 .SetProperty(job => job.LeaseExpiresAtUtc, (DateTimeOffset?)null)
                 .SetProperty(job => job.NextAttemptAtUtc, retryAtUtc)
                 .SetProperty(job => job.LastError, error.Length <= 4000 ? error : error[..4000])
+                .SetProperty(job => job.CompletedAtUtc, job => terminal || job.AttemptCount >= job.MaxAttempts ? now : null)
                 .SetProperty(job => job.UpdatedAtUtc, now),
                 cancellationToken);
 
