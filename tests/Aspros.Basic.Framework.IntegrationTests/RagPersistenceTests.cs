@@ -222,6 +222,11 @@ public sealed class RagPersistenceTests
             Assert.NotNull(replacement);
             Assert.NotEqual(first.LeaseToken, replacement!.LeaseToken);
             Assert.Equal(2, replacement.AttemptCount);
+            Assert.False(await queue.RenewAsync(first, TimeSpan.FromMinutes(2)));
+            Assert.False(await queue.FailAsync(
+                first,
+                "stale worker must not mutate a reclaimed job",
+                DateTimeOffset.UtcNow.AddMinutes(1)));
             Assert.False(await queue.CompleteAsync(first));
             Assert.True(await queue.CompleteAsync(replacement));
         }
