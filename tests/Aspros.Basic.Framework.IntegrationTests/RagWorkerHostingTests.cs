@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Aspros.Base.Framework.RAG.Abstractions;
 using Aspros.Base.Framework.RAG.Hosting;
 using Aspros.Base.Framework.RAG.EntityFrameworkCore;
@@ -492,6 +493,163 @@ public sealed class RagWorkerHostingTests
             }
         }
     }
+
+
+    [Fact]
+    public async Task MultipleWorkerHosts_CompeteForJobsWithoutDuplicateClaims()
+    {
+        var state = new MultiHostState(6);
+        using var hostA = new HostBuilder()
+            .ConfigureServices(services => CopyWorkerServices(services, state, "multi-host-a"))
+            .Build();
+        using var hostB = new HostBuilder()
+            .ConfigureServices(services => CopyWorkerServices(services, state, "multi-host-b"))
+            .Build();
+
+        await hostA.StartAsync();
+        await hostB.StartAsync();
+        try
+        {
+            await state.AllCompleted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(6, state.CompletedJobIds.Count);
+            Assert.Equal(0, state.Failures);
+            Assert.InRange(state.MaximumConcurrency, 2, 4);
+        }
+        finally
+        {
+            await hostA.StopAsync();
+            await hostB.StopAsync();
+        }
+    }
+
+    private static void CopyWorkerServices(IServiceCollection services, MultiHostState state, string workerId)
+    {
+        services.AddSingleton(state);
+        services.AddSingleton<IIngestionJobQueue, MultiHostQueue>();
+        services.AddRagWorker<MultiHostHandler>(options =>
+        {
+            options.WorkerId = workerId;
+            options.MaxConcurrency = 2;
+            options.LeaseDuration = TimeSpan.FromSeconds(5);
+            options.RenewalInterval = TimeSpan.FromMilliseconds(250);
+            options.PollingInterval = TimeSpan.FromMilliseconds(10);
+        });
+    }
+
+    public sealed class MultiHostState
+    {
+        private int _active;
+        private int _completed;
+        public ConcurrentQueue<IngestionJobLease> Jobs { get; } = new();
+        public ConcurrentDictionary<Guid, byte> CompletedJobIds { get; } = new();
+        public int MaximumConcurrency;
+        public int Failures;
+        public TaskCompletionSource AllCompleted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public MultiHostState(int jobCount)
+        {
+            for (var i = 0; i < jobCount; i++)
+            {
+                Jobs.Enqueue(new IngestionJobLease(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    "seed-worker",
+                    1,
+                    DateTimeOffset.UtcNow.AddMinutes(1)));
+            }
+        }
+
+        public void HandlerStarted()
+        {
+            var active = Interlocked.Increment(ref _active);
+            int observed;
+            do
+            {
+                observed = Volatile.Read(ref MaximumConcurrency);
+                if (active <= observed) break;
+            } while (Interlocked.CompareExchange(ref MaximumConcurrency, active, observed) != observed);
+        }
+
+        public void HandlerStopped() => Interlocked.Decrement(ref _active);
+
+        public void Completed(Guid jobId)
+        {
+            if (!CompletedJobIds.TryAdd(jobId, 0))
+            {
+                Interlocked.Increment(ref Failures);
+            }
+
+            if (Interlocked.Increment(ref _completed) == 6)
+            {
+                AllCompleted.TrySetResult();
+            }
+        }
+    }
+
+    public sealed class MultiHostQueue(MultiHostState state) : IIngestionJobQueue
+    {
+        public Task<IngestionJobLease?> TryAcquireNextAsync(
+            string workerId,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!state.Jobs.TryDequeue(out var candidate))
+            {
+                return Task.FromResult<IngestionJobLease?>(null);
+            }
+
+            return Task.FromResult<IngestionJobLease?>(candidate with
+            {
+                WorkerId = workerId,
+                LeaseExpiresAtUtc = DateTimeOffset.UtcNow.Add(leaseDuration)
+            });
+        }
+
+        public Task<bool> RenewAsync(
+            IngestionJobLease lease,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task<bool> CompleteAsync(
+            IngestionJobLease lease,
+            CancellationToken cancellationToken = default)
+        {
+            state.Completed(lease.JobId);
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> FailAsync(
+            IngestionJobLease lease,
+            string error,
+            DateTimeOffset retryAtUtc,
+            bool terminal = false,
+            CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref state.Failures);
+            return Task.FromResult(true);
+        }
+    }
+
+    public sealed class MultiHostHandler(MultiHostState state) : IIngestionJobHandler
+    {
+        public async Task HandleAsync(
+            IngestionJobLease lease,
+            CancellationToken cancellationToken = default)
+        {
+            state.HandlerStarted();
+            try
+            {
+                await Task.Delay(100, cancellationToken);
+            }
+            finally
+            {
+                state.HandlerStopped();
+            }
+        }
+    }
+
 
     public sealed class ScopedMarker
     {
