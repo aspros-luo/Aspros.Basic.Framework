@@ -114,6 +114,7 @@ grep -q '"clickHouseAssembly":"Aspros.Base.Framework.ClickHouse"' <<<"$framework
 echo "== Install and smoke-test the Aspros CLI tool package =="
 NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet tool install Aspros.Basic.Framework.Tools \
   --version 2.0.0-rc.1 \
+  --prerelease \
   --tool-path "$TOOL_PATH" \
   --add-source "$PACKAGE_DIR" \
   --add-source "https://api.nuget.org/v3/index.json"
