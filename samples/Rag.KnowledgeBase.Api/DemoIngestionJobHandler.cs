@@ -99,13 +99,55 @@ public sealed class DemoIngestionJobHandler(
             .OrderBy(x => x.ChunkIndex)
             .ToListAsync(cancellationToken);
 
+        var generation = await dbContext.Set<IndexGeneration>()
+            .SingleOrDefaultAsync(x => x.IngestionJobId == job.Id, cancellationToken);
+
+        if (generation?.Status == IndexGenerationStatus.Retired)
+        {
+            // A later generation has already replaced this one. Replaying this old job must
+            // not try to reactivate an obsolete index.
+            return;
+        }
+
+        if (generation?.Status == IndexGenerationStatus.Active)
+        {
+            if (document.ActiveIndexGenerationId == generation.Id)
+            {
+                // The worker may have crashed after the CAS activation but before acknowledging
+                // the queue lease. The already-active generation is a completed idempotent result.
+                return;
+            }
+
+            throw new IngestionJobPermanentException(
+                "The generation is marked active but is not the document's active generation.");
+        }
+
+        if (generation?.Status == IndexGenerationStatus.Failed)
+        {
+            throw new IngestionJobPermanentException("The index generation has already failed.");
+        }
+
+        if (generation is not null && generation.EmbeddingModelKey != aiClient.EmbeddingModelKey)
+        {
+            generation.MarkFailed();
+            await dbContext.SaveChangesAsync(cancellationToken);
+            throw new IngestionJobPermanentException(
+                "The embedding model changed while this ingestion job was being retried. Create a new ingestion job to rebuild the index.");
+        }
+
         var vectors = await aiClient.GenerateEmbeddingsAsync(
             persistedChunks.Select(x => x.Content).ToArray(),
             cancellationToken);
         var dimension = vectors[0].Length;
 
-        var generation = await dbContext.Set<IndexGeneration>()
-            .SingleOrDefaultAsync(x => x.IngestionJobId == job.Id, cancellationToken);
+        if (generation is not null && generation.EmbeddingDimension != dimension)
+        {
+            generation.MarkFailed();
+            await dbContext.SaveChangesAsync(cancellationToken);
+            throw new IngestionJobPermanentException(
+                "The embedding dimension changed while this ingestion job was being retried. Create a new ingestion job to rebuild the index.");
+        }
+
         if (generation is null)
         {
             generation = IndexGeneration.Create(
@@ -118,12 +160,6 @@ public sealed class DemoIngestionJobHandler(
             dbContext.Attach(job);
             dbContext.Add(generation);
             await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        else if (generation.EmbeddingModelKey != aiClient.EmbeddingModelKey ||
-                 generation.EmbeddingDimension != dimension)
-        {
-            throw new IngestionJobPermanentException(
-                "The embedding model changed while this ingestion job was being retried. Create a new ingestion job to rebuild the index.");
         }
 
         await vectorStore.UpsertAsync(
