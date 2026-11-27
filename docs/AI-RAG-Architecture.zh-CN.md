@@ -216,7 +216,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 本地验证（2026-11-27）：
 - `dotnet build Aspros.Base.Framework.sln --configuration Release`：成功；全 Solution 报告 187 条 warning，需单独分类治理，不影响本次编译成功结论。
 - 用户本轮本地执行 `RagPersistenceTests`：15 项通过，0 失败，0 跳过；包含 EF Core DI 注册、8 个独立 DbContext/连接并发领取竞争，以及蓝绿索引切换和关系型事务持久化测试。
-- 新增 `RagMySqlProviderTests`：通过独立的 `ConnectionStrings__RagTestDatabase` 环境变量启用，使用专用 RAG 测试数据库验证 8 个独立 DbContext 并发领取同一任务仅有一个租约；另增加租约过期接管测试，模拟 Worker 进程失联后由新 Worker 重新领取，并验证旧 LeaseToken 无法续租、失败或完成任务。未配置该变量时自动 Skip；不使用或清理共享的 `ConnectionStrings__TestDatabase`，避免破坏 Framework/Category 测试数据。用户本地两项 MySQL Provider 测试均已通过（2/2，0 失败，0 跳过）。
+- 新增 `RagMySqlProviderTests`：通过独立的 `ConnectionStrings__RagTestDatabase` 环境变量启用，使用专用 RAG 测试数据库验证 8 个独立 DbContext 并发领取同一任务仅有一个租约；另增加租约过期接管测试，模拟 Worker 进程失联后由新 Worker 重新领取，并验证旧 LeaseToken 无法续租、失败或完成任务。未配置该变量时自动 Skip；不使用或清理共享的 `ConnectionStrings__TestDatabase`，避免破坏 Framework/Category 测试数据。用户本地三项 MySQL Provider 测试均已通过（3/3，0 失败，0 跳过）。
 - MySQL Provider 测试建议先创建独立数据库 `aspros_framework_rag_test`，并将 `ConnectionStrings__RagTestDatabase` 指向该库；例如：`Server=127.0.0.1;Port=13306;Database=aspros_framework_rag_test;User=framework;Password=framework_password;`。该账号需要该独立数据库的建表、删表权限（测试会重建专用 RAG 表结构）。运行命令：`dotnet test --project tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --configuration Release --filter "FullyQualifiedName~RagMySqlProviderTests"`。
 - RAG Core 与 EF Core 集成项目均在 `net10.0` Release 配置下成功生成。
 
