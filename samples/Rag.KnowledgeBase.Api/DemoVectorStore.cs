@@ -54,7 +54,11 @@ public sealed class DemoVectorStore(QdrantClient client)
         {
             points.Add(new PointStruct
             {
-                Id = chunkIds[index],
+                // A chunk can be indexed by multiple generations at the same time during a
+                // blue-green rebuild. Point identity must therefore include the generation;
+                // otherwise a new generation overwrites the last-known-good vector before
+                // the SQL active-generation pointer is switched.
+                Id = CreatePointId(indexGenerationId, chunkIds[index]),
                 Vectors = vectors[index],
                 Payload =
                 {
@@ -116,6 +120,28 @@ public sealed class DemoVectorStore(QdrantClient client)
         }
 
         return matches;
+    }
+
+    /// <summary>
+    /// Creates a stable Qdrant point ID scoped to one index generation.
+    /// Replaying the same generation/chunk pair is idempotent, while rebuilding the
+    /// same chunk into another generation produces an independent point.
+    /// </summary>
+    public static Guid CreatePointId(Guid indexGenerationId, Guid chunkId)
+    {
+        if (indexGenerationId == Guid.Empty)
+        {
+            throw new ArgumentException("Index generation ID cannot be empty.", nameof(indexGenerationId));
+        }
+
+        if (chunkId == Guid.Empty)
+        {
+            throw new ArgumentException("Chunk ID cannot be empty.", nameof(chunkId));
+        }
+
+        var identity = Encoding.UTF8.GetBytes($"{indexGenerationId:D}:{chunkId:D}");
+        var hash = SHA256.HashData(identity);
+        return new Guid(hash.AsSpan(0, 16));
     }
 
     private static string GetCollectionName(string embeddingModelKey, int dimension)
