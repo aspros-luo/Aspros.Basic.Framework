@@ -305,7 +305,7 @@ Phase 1 后续验收门槛：并发领取测试通过；在目标 MySQL Provider
 - Demo 通过 OpenAI-compatible API 调用 Embedding 与 Chat，配置彼此独立。
 - 默认模型指向本地 Ollama；可通过环境变量分别切换到云端兼容 API。
 - Demo 使用 Qdrant.Client，Qdrant 仅保存向量与关联标识，不保存规范 Chunk 正文。
-- Embedding 维度来自真实 Provider 响应；Demo 按维度隔离 Qdrant collection。
+- Embedding 维度来自真实 Provider 响应；Demo 按 Embedding 模型标识和维度隔离 Qdrant collection。当前模型配置是应用级配置，一个知识库应统一使用同一 Embedding Profile；更换模型需要全量重建该知识库索引，Demo 尚未实现多 Profile 并行查询与渐进迁移。
 - 新代索引完成向量写入后，调用已有 EF Core CAS 激活器切换活动指针；查询结果再由 SQL 校验当前版本和活动代次。
 - 该 Demo 是验证 Provider 与链路的最小实现，不代表已具备生产级 ACL、向量清理、备份、高可用或监控。
 
