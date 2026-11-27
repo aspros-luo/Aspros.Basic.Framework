@@ -250,7 +250,7 @@ public sealed class RagPersistenceTests
         var rebuildGeneration = IndexGeneration.Create(
             rebuildJob, "local-embedding-v1", 768, "plain-text-v1");
         db.ChangeTracker.Clear();
-        db.AddRange(knowledgeBase, document, version, firstGeneration, rebuildGeneration);
+        db.Add(rebuildGeneration);
         await db.SaveChangesAsync();
 
         Assert.Equal(2, await db.Set<IndexGeneration>().CountAsync());
