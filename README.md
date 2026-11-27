@@ -38,7 +38,21 @@
     Abstractions <- Domain <- Infrastructure
 
 业务服务再依赖 Domain / Infrastructure；Domain 不再反向依赖 Infrastructure。
-Algorithms 与 ClickHouse 是可选的独立能力项目，不加入 Domain / Infrastructure 的核心依赖链；业务服务按需显式引用。RAG 两个项目目前仅在 feature 分支以 `2.1.0-preview.1` 开发，不属于 `2.0.0-rc.1` 六包发布集合，也不应随当前 RC 打包发布。
+Algorithms 与 ClickHouse 是可选的独立能力项目，不加入 Domain / Infrastructure 的核心依赖链；业务服务按需显式引用。RAG 两个项目目前仅在 feature 分支以 `2.1.0-preview.1` 开发，不属于 `2.0.0-rc.1` 六包发布集合，也不应随当前 RC 打包发布。RAG 核心不依赖 Infrastructure；RAG.EntityFrameworkCore 通过 ModelBuilder 扩展接入业务服务自有 DbContext。
+
+RAG 服务接入示例（preview）：
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    base.OnModelCreating(modelBuilder);
+    modelBuilder.ApplyRagModel();
+}
+
+builder.Services.AddRagEntityFrameworkCore<ApplicationDbContext>();
+```
+
+业务服务仍负责数据库连接、Migration 和文档/用户权限策略。
 
 ## gRPC
 
