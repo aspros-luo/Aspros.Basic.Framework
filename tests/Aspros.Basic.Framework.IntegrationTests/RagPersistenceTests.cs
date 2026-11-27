@@ -191,7 +191,6 @@ public sealed class RagPersistenceTests
         {
             DataSource = databasePath,
             Mode = SqliteOpenMode.ReadWriteCreate,
-            Cache = SqliteCacheMode.Shared,
             Pooling = false,
             DefaultTimeout = 30
         }.ToString();
