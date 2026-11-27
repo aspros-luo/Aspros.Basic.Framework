@@ -1,6 +1,7 @@
 using Aspros.Base.Framework.RAG.Abstractions;
 using Aspros.Base.Framework.RAG.Hosting;
 using Aspros.Base.Framework.RAG.Models;
+using Aspros.Base.Framework.RAG.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Rag.KnowledgeBase.Api;
@@ -8,6 +9,9 @@ namespace Rag.KnowledgeBase.Api;
 public sealed class DemoIngestionJobHandler(
     DemoRagDbContext dbContext,
     DemoDocumentStorage storage,
+    DemoAiClient aiClient,
+    DemoVectorStore vectorStore,
+    EfCoreIndexGenerationActivator<DemoRagDbContext> generationActivator,
     ILogger<DemoIngestionJobHandler> logger) : IIngestionJobHandler
 {
     private const int MaxChunkCharacters = 1200;
@@ -74,11 +78,66 @@ public sealed class DemoIngestionJobHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
+        // The relational database remains canonical. Vector points contain only identifiers
+        // and embeddings; retrieval always resolves chunk text and active-generation state in SQL.
+        var persistedChunks = await dbContext.Set<DocumentChunk>()
+            .AsNoTracking()
+            .Where(x => x.DocumentVersionId == version.Id)
+            .OrderBy(x => x.ChunkIndex)
+            .ToListAsync(cancellationToken);
+
+        var vectors = await aiClient.GenerateEmbeddingsAsync(
+            persistedChunks.Select(x => x.Content).ToArray(),
+            cancellationToken);
+        var dimension = vectors[0].Length;
+
+        var generation = await dbContext.Set<IndexGeneration>()
+            .SingleOrDefaultAsync(x => x.IngestionJobId == job.Id, cancellationToken);
+        if (generation is null)
+        {
+            generation = IndexGeneration.Create(
+                job,
+                aiClient.EmbeddingModelKey,
+                dimension,
+                version.ChunkingProfileVersion);
+            dbContext.Add(generation);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        else if (generation.EmbeddingModelKey != aiClient.EmbeddingModelKey ||
+                 generation.EmbeddingDimension != dimension)
+        {
+            throw new IngestionJobPermanentException(
+                "The embedding model changed while this ingestion job was being retried. Create a new ingestion job to rebuild the index.");
+        }
+
+        await vectorStore.UpsertAsync(
+            job.TenantId,
+            job.KnowledgeBaseId,
+            job.DocumentId,
+            version.Id,
+            generation.Id,
+            persistedChunks.Select(x => x.Id).ToArray(),
+            vectors,
+            cancellationToken);
+
+        var activated = await generationActivator.ActivateAsync(
+            document.Id,
+            generation.Id,
+            cancellationToken);
+        if (!activated)
+        {
+            throw new InvalidOperationException(
+                "The index generation could not be activated because the document changed concurrently. The worker can retry safely.");
+        }
+
         logger.LogInformation(
-            "Ingested document {DocumentId}, version {VersionNumber}: persisted {ChunkCount} text chunks. Embedding/indexing is not enabled in this demo phase.",
+            "Indexed document {DocumentId}, version {VersionNumber}: persisted {ChunkCount} chunks and activated generation {GenerationId} using {EmbeddingModel} ({Dimensions} dimensions).",
             document.Id,
             version.VersionNumber,
-            chunks.Count);
+            persistedChunks.Count,
+            generation.Id,
+            generation.EmbeddingModelKey,
+            generation.EmbeddingDimension);
     }
 
     private static List<string> SplitIntoChunks(string source)
