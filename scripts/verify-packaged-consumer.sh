@@ -118,15 +118,12 @@ NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet tool install Aspros.Basic.Framework.
   --add-source "$PACKAGE_DIR" \
   --add-source "https://api.nuget.org/v3/index.json"
 
-set +e
-tool_output="$("$TOOL_PATH/aspros" 2>&1)"
-tool_exit_code=$?
-set -e
-printf '%s\n' "$tool_output"
-if [[ "$tool_exit_code" -ne 2 ]]; then
-  echo "Expected the CLI to print usage and exit with code 2 when invoked without arguments; got $tool_exit_code." >&2
+if ! tool_output="$("$TOOL_PATH/aspros" db migration --help 2>&1)"; then
+  printf '%s\n' "$tool_output" >&2
+  echo "The installed CLI did not handle 'aspros db migration --help' successfully." >&2
   exit 1
 fi
+printf '%s\n' "$tool_output"
 grep -q "Aspros Basic Framework database migration tool" <<<"$tool_output"
 
 echo "== PASS: all six RC packages packed; five libraries restored and exercised by a standalone consumer; CLI tool installed and launched =="

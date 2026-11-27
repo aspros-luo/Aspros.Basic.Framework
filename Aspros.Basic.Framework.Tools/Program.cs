@@ -6,6 +6,14 @@ internal static class AsprosTool
 {
     public static async Task<int> RunAsync(string[] args)
     {
+        if (args.Length == 0 || args.Any(argument =>
+            string.Equals(argument, "-h", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(argument, "--help", StringComparison.OrdinalIgnoreCase)))
+        {
+            PrintUsage();
+            return 0;
+        }
+
         if (args.Length < 3 || !string.Equals(args[0], "db", StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(args[1], "migration", StringComparison.OrdinalIgnoreCase))
         {

@@ -29,6 +29,7 @@
 | Aspros.Base.Framework.Infrastructure | EF Core、Dapper、UoW、Web API、gRPC、缓存、消息等基础设施 |
 | Aspros.Base.Framework.Algorithms | 通用向量/集合相似度与多路排序融合算法 |
 | Aspros.Base.Framework.ClickHouse | 可选 ClickHouse 客户端与健康检查集成 |
+| Aspros.Basic.Framework.Tools | 数据库迁移 .NET CLI 工具 |
 
 依赖方向：
 
@@ -268,15 +269,17 @@ Database schema generation follows the standard EF Core Code First path: Entity/
 
 数据库生成遵循标准 EF Core Code First：Entity/Aggregate → 显式 Mapping → DbContext → Migration → SQL。
 
-The optional CLI is packaged as `Aspros.Basic.Framework.Tools` (the commands below assume the `2.0.0-rc.1` tool package has been published or packed locally):
+The optional CLI is packaged as `Aspros.Basic.Framework.Tools`. After the stable package is published, install it with:
 
-    # After the release candidate is published to NuGet:
-    dotnet tool install --global Aspros.Basic.Framework.Tools --version 2.0.0-rc.1 --prerelease
+    dotnet tool install --global Aspros.Basic.Framework.Tools --version 2.0.0
 
-    aspros db migration add InitialCreate --project ./Xr.Trade.Infrastructure --startup-project ./Xr.Trade.Api --context TradeDbContext
-    aspros db migration script --project ./Xr.Trade.Infrastructure --startup-project ./Xr.Trade.Api --context TradeDbContext --idempotent
+The command supports `aspros db migration --help`, `add`, `script` and guarded `update` operations. `update` requires explicit `--allow-update` and is intended for development/test databases. Production should normally use a reviewed SQL script or migration bundle.
 
-`update` requires explicit `--allow-update` and is intended for development/test databases. Production should normally use a reviewed SQL script or migration bundle. See `docs/Database-CodeFirst-Migration-Roadmap.md` and its Chinese counterpart.
+For the current RC, validate packing, installation and command startup from the local package feed with:
+
+    bash scripts/verify-packaged-consumer.sh
+
+See `docs/Database-CodeFirst-Migration-Roadmap.md` and its Chinese counterpart.
 
 ## Docker API Environment
 
@@ -291,7 +294,7 @@ Then call the HTTP APIs:
 
 The complete port map, credentials, logs and shutdown commands are maintained in dev-environment/README.zh-CN.md and dev-environment/README.md.
 
-Framework xUnit and migration test sources remain in tests/, but their Docker execution is intentionally paused and is not a current release or environment-startup gate.
+Framework IntegrationTests run directly on the host with `dotnet test`; Docker Compose only starts infrastructure and sample APIs. The retired Docker test runners are not part of the current workflow. Migration regression is explicitly excluded from this release decision. Current evidence is maintained in `docs/Final-Regression-Matrix.md`.
 
 ## 2.0.0-rc.1 Migration note
 
