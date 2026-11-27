@@ -37,7 +37,7 @@ Category API CAP 验证是另一条独立且成功的真实业务路径。结果
 bash scripts/verify-packaged-consumer.sh
 ```
 
-该脚本会打包三个 RC NuGet 包，使用隔离 NuGet 缓存从本地包源还原独立的 `Framework.Core.Api`，然后编译、启动，并验证健康检查和 Framework DI 解析。只有真实执行成功后，才能将独立包消费门槛从“待执行”改为 PASS。
+该脚本会打包全部五个 RC NuGet 包（Abstractions、Domain、Infrastructure、Algorithms、ClickHouse），使用隔离 NuGet 缓存从本地包源还原独立的 `Framework.Core.Api`，然后编译、启动，并验证健康检查、Framework DI 解析、排序算法调用和 ClickHouse 包程序集加载。只有真实执行成功后，才能将独立包消费门槛从“待执行”改为 PASS。
 
 ## 环境边界
 

@@ -45,7 +45,7 @@ bash scripts/verify-packaged-consumer.sh
 ```
 
 脚本会依次：
-1. 以 Release 配置打包 Abstractions、Domain、Infrastructure 三个 NuGet 包。
+1. 以 Release 配置打包全部五个 NuGet 包：Abstractions、Domain、Infrastructure、Algorithms 和 ClickHouse。
 2. 检查 `Framework.Core.Api` 使用的是 `PackageReference`，而不是 `ProjectReference`。
 3. 使用本地刚生成的包和 nuget.org 还原依赖，并使用全新的隔离 NuGet 全局缓存。
 4. 编译独立 API 消费者。
@@ -69,7 +69,7 @@ PACKAGED_CONSUMER_URL=http://127.0.0.1:17211 bash scripts/verify-packaged-consum
 
 ## 兼容性说明
 
-公共类型 `BasicEntity.Status` 的枚举已迁移到 `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`。引用旧根命名空间枚举的消费者需要调整类型引用。.NET 10 是破坏性升级版本线；消费者应成组升级三个 Framework 包，并使用兼容 EF Core / ASP.NET Core 10 的依赖。
+公共类型 `BasicEntity.Status` 的枚举已迁移到 `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`。引用旧根命名空间枚举的消费者需要调整类型引用。.NET 10 是破坏性升级版本线；消费者应将核心 Abstractions、Domain、Infrastructure 三个包成组升级，并使用兼容 EF Core / ASP.NET Core 10 的依赖。Algorithms 和 ClickHouse 是独立可选包，按需引用。
 
 ## 明确排除项
 

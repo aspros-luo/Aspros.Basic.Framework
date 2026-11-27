@@ -23,7 +23,7 @@
 - [x] Framework, samples and test projects target net10.0.
 - [x] Framework NuGet packages use version 2.0.0-rc.1.
 - [x] Microsoft EF Core / ASP.NET Core dependencies are aligned to 10.0.15; CAP packages are aligned to 10.0.2.
-- [x] A standalone Core API sample consumes Infrastructure through NuGet PackageReference.
+- [x] A standalone Core API sample consumes all five Framework packages through NuGet PackageReference.
 - [x] Docker Compose is an infrastructure and sample API runtime environment; it is not the Framework xUnit runner.
 - [x] Framework solution Release build succeeded.
 - [x] Category API Release build succeeded.

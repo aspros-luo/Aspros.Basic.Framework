@@ -24,31 +24,43 @@ trap cleanup EXIT
 command -v dotnet >/dev/null || { echo "dotnet SDK is required." >&2; exit 1; }
 command -v curl >/dev/null || { echo "curl is required." >&2; exit 1; }
 
-echo "== Pack the three release-candidate packages =="
+echo "== Pack all five release-candidate packages =="
 dotnet pack "$ROOT_DIR/Aspros.Base.Framework.Abstractions/Aspros.Base.Framework.Abstractions.csproj" -c Release -o "$PACKAGE_DIR"
 dotnet pack "$ROOT_DIR/Aspros.Base.Framework.Domain/Aspros.Base.Framework.Domain.csproj" -c Release -o "$PACKAGE_DIR"
 dotnet pack "$ROOT_DIR/Aspros.Base.Framework.Infrastructure/Aspros.Base.Framework.Infrastructure.csproj" -c Release -o "$PACKAGE_DIR"
+dotnet pack "$ROOT_DIR/Aspros.Base.Framework.Algorithms/Aspros.Base.Framework.Algorithms.csproj" -c Release -o "$PACKAGE_DIR"
+dotnet pack "$ROOT_DIR/Aspros.Base.Framework.ClickHouse/Aspros.Base.Framework.ClickHouse.csproj" -c Release -o "$PACKAGE_DIR"
 
 for package in \
   "Aspros.Base.Framework.Abstractions.2.0.0-rc.1.nupkg" \
   "Aspros.Base.Framework.Domain.2.0.0-rc.1.nupkg" \
-  "Aspros.Base.Framework.Infrastructure.2.0.0-rc.1.nupkg"; do
+  "Aspros.Base.Framework.Infrastructure.2.0.0-rc.1.nupkg" \
+  "Aspros.Base.Framework.Algorithms.2.0.0-rc.1.nupkg" \
+  "Aspros.Base.Framework.ClickHouse.2.0.0-rc.1.nupkg"; do
   [[ -s "$PACKAGE_DIR/$package" ]] || {
     echo "Expected package was not produced: $package" >&2
     exit 1
   }
 done
 
-echo "== Restore the standalone consumer from the local package feed =="
+echo "== Verify the consumer references all five packages through NuGet =="
 if grep -q '<ProjectReference' "$CONSUMER_PROJECT"; then
   echo "The package-consumer project must not contain ProjectReference." >&2
   exit 1
 fi
-if ! grep -q 'Aspros.Base.Framework.Infrastructure" Version="2.0.0-rc.1"' "$CONSUMER_PROJECT"; then
-  echo "The consumer must reference Infrastructure 2.0.0-rc.1 through PackageReference." >&2
-  exit 1
-fi
+for package in \
+  Aspros.Base.Framework.Abstractions \
+  Aspros.Base.Framework.Domain \
+  Aspros.Base.Framework.Infrastructure \
+  Aspros.Base.Framework.Algorithms \
+  Aspros.Base.Framework.ClickHouse; do
+  if ! grep -q "<PackageReference Include=\"$package\" Version=\"2.0.0-rc.1\"" "$CONSUMER_PROJECT"; then
+    echo "Missing PackageReference for $package 2.0.0-rc.1." >&2
+    exit 1
+  fi
+done
 
+echo "== Restore the standalone consumer from the local package feed =="
 NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet restore "$CONSUMER_PROJECT" "${CONSUMER_BUILD_PROPS[@]}" \
   --source "$PACKAGE_DIR" \
   --source "https://api.nuget.org/v3/index.json"
@@ -63,7 +75,7 @@ if curl --fail --silent "$CONSUMER_URL/health" >/dev/null; then
   exit 1
 fi
 
-echo "== Start the package-only consumer and verify Framework DI =="
+echo "== Start the package-only consumer and verify Framework APIs =="
 dotnet "$CONSUMER_DLL" --urls "$CONSUMER_URL" >"$CONSUMER_LOG" 2>&1 &
 CONSUMER_PID=$!
 
@@ -95,5 +107,7 @@ printf '%s\n' "$framework_response"
 grep -q '"status":"ok"' <<<"$health_response"
 grep -q '"framework":"Aspros.Basic.Framework"' <<<"$health_response"
 grep -q '"canResolveWorkContext":true' <<<"$framework_response"
+grep -q '"algorithmRank":1' <<<"$framework_response"
+grep -q '"clickHouseAssembly":"Aspros.Base.Framework.ClickHouse"' <<<"$framework_response"
 
-echo "== PASS: all three RC packages restored by an isolated PackageReference consumer, built, started and resolved Framework DI =="
+echo "== PASS: all five RC packages restored by an isolated PackageReference consumer, built, started and resolved Framework APIs =="

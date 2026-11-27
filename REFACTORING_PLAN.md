@@ -45,7 +45,7 @@ bash scripts/verify-packaged-consumer.sh
 ```
 
 The script:
-1. Packs Abstractions, Domain and Infrastructure as Release NuGet packages.
+1. Packs all five Release NuGet packages: Abstractions, Domain, Infrastructure, Algorithms and ClickHouse.
 2. Checks that `Framework.Core.Api` uses `PackageReference`, not `ProjectReference`.
 3. Restores using the locally produced packages and nuget.org, with a fresh isolated global package cache.
 4. Builds the standalone API.
