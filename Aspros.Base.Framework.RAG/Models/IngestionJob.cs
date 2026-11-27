@@ -9,6 +9,7 @@ public sealed class IngestionJob
     public Guid KnowledgeBaseId { get; private set; }
     public Guid DocumentId { get; private set; }
     public Guid DocumentVersionId { get; private set; }
+    public string IdempotencyKey { get; private set; } = string.Empty;
     public IngestionJobType JobType { get; private set; }
     public IngestionJobStatus Status { get; private set; }
     public int AttemptCount { get; private set; }
@@ -28,14 +29,22 @@ public sealed class IngestionJob
         Guid knowledgeBaseId,
         Guid documentId,
         Guid documentVersionId,
+        string idempotencyKey,
         IngestionJobType jobType = IngestionJobType.IngestDocument,
         int maxAttempts = 5,
         DateTimeOffset? now = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
         if (maxAttempts < 1)
         {
             throw new ArgumentOutOfRangeException(nameof(maxAttempts));
+        }
+
+        if (knowledgeBaseId == Guid.Empty || documentId == Guid.Empty || documentVersionId == Guid.Empty)
+        {
+            throw new ArgumentException("Knowledge base, document, and document version IDs are required.");
         }
 
         var timestamp = now ?? DateTimeOffset.UtcNow;
@@ -46,6 +55,7 @@ public sealed class IngestionJob
             KnowledgeBaseId = knowledgeBaseId,
             DocumentId = documentId,
             DocumentVersionId = documentVersionId,
+            IdempotencyKey = idempotencyKey.Trim(),
             JobType = jobType,
             Status = IngestionJobStatus.Pending,
             MaxAttempts = maxAttempts,
