@@ -199,7 +199,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 
 实施范围：
 - 已建立 `Aspros.Base.Framework.RAG` 与 `Aspros.Base.Framework.RAG.EntityFrameworkCore` 两个 preview 项目。
-- 已定义 KnowledgeBase、Document、DocumentVersion、DocumentChunk、IngestionJob、IndexGeneration。
+- 已定义 KnowledgeBase、Document、DocumentVersion、DocumentChunk、IngestionJob、IndexGeneration；Document 通过 ActiveIndexGenerationId 指向当前活动索引代次，索引代次关联文档和版本。
 - EF Core 包通过 `ModelBuilder.ApplyRagModel()` 将映射加入业务服务自有 DbContext；业务服务继续负责连接、DbContext 与 Migration。
 - 已实现基于条件更新和 LeaseToken 的任务租约，包含领取、续租、完成、失败重试与终止失败；租约 Token 防止旧 Worker 在接管后提交完成状态。
 - IngestionJob 增加租户范围内唯一的 IdempotencyKey，避免同一请求重复创建任务。
