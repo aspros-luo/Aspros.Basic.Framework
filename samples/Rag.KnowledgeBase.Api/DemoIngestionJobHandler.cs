@@ -23,7 +23,7 @@ public sealed class DemoIngestionJobHandler(
             .SingleOrDefaultAsync(x => x.Id == lease.JobId, cancellationToken)
             ?? throw new IngestionJobPermanentException("The ingestion job no longer exists.");
 
-        if (job.JobType != IngestionJobType.IngestDocument)
+        if (job.JobType is not IngestionJobType.IngestDocument and not IngestionJobType.RebuildIndex)
         {
             throw new IngestionJobPermanentException($"Unsupported demo job type: {job.JobType}.");
         }
