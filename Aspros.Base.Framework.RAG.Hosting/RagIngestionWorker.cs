@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Aspros.Base.Framework.RAG.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -150,12 +149,13 @@ internal sealed class RagIngestionWorker : BackgroundService
             return;
         }
 
-        var terminal = handlerFailure is IngestionJobPermanentException;
+        var failure = handlerFailure;
+        var terminal = failure is IngestionJobPermanentException;
         var retryAtUtc = _timeProvider.GetUtcNow().Add(GetRetryDelay(lease.AttemptCount));
         var failed = await InQueueScopeAsync(
             (queue, token) => queue.FailAsync(
                 lease,
-                handlerFailure.ToString(),
+                failure.ToString(),
                 retryAtUtc,
                 terminal,
                 token),
@@ -172,14 +172,14 @@ internal sealed class RagIngestionWorker : BackgroundService
         if (terminal)
         {
             _logger.LogError(
-                handlerFailure,
+                failure,
                 "Ingestion job {JobId} failed permanently.",
                 lease.JobId);
         }
         else
         {
             _logger.LogWarning(
-                handlerFailure,
+                failure,
                 "Ingestion job {JobId} failed on attempt {AttemptCount}; it will be retried when eligible.",
                 lease.JobId,
                 lease.AttemptCount);
