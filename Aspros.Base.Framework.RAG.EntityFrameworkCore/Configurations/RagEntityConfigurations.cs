@@ -10,6 +10,7 @@ internal sealed class KnowledgeBaseConfiguration : IEntityTypeConfiguration<Know
     {
         builder.ToTable("rag_knowledge_bases");
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.TenantId, x.Id });
         builder.Property(x => x.TenantId).HasMaxLength(128).IsRequired();
         builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
         builder.Property(x => x.CreatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
@@ -35,7 +36,8 @@ internal sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(x => x.DeletedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.HasOne<KnowledgeBase>()
             .WithMany()
-            .HasForeignKey(x => x.KnowledgeBaseId)
+            .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(x => new { x.TenantId, x.KnowledgeBaseId, x.Status });
     }
@@ -73,6 +75,16 @@ internal sealed class DocumentChunkConfiguration : IEntityTypeConfiguration<Docu
         builder.Property(x => x.SourceLocation).HasMaxLength(2048);
         builder.Property(x => x.Content).IsRequired();
         builder.Property(x => x.CreatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
+        builder.HasOne<KnowledgeBase>()
+            .WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<KnowledgeBase>()
+            .WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Document>()
             .WithMany()
             .HasForeignKey(x => x.DocumentId)
@@ -130,6 +142,11 @@ internal sealed class IngestionJobConfiguration : IEntityTypeConfiguration<Inges
         builder.Property(x => x.StartedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.CompletedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.LeaseExpiresAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
+        builder.HasOne<KnowledgeBase>()
+            .WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<DocumentVersion>()
             .WithMany()
             .HasForeignKey(x => x.DocumentVersionId)
