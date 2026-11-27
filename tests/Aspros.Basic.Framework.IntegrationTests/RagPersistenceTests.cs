@@ -60,6 +60,26 @@ public sealed class RagPersistenceTests
     }
 
     [Fact]
+    public async Task DocumentCannotBePersistedUnderAnotherTenantsKnowledgeBase()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        await using var db = new RagTestDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var knowledgeBase = KnowledgeBase.Create("tenant-a", "private");
+        var crossTenantDocument = Document.Create(
+            "tenant-b",
+            knowledgeBase.Id,
+            "forbidden",
+            "file:///forbidden.md",
+            "sha256:forbidden");
+
+        db.AddRange(knowledgeBase, crossTenantDocument);
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+    }
+
+    [Fact]
     public async Task IngestionJob_IdempotencyKeyIsUniqueWithinTenant()
     {
         await using var connection = await OpenConnectionAsync();
