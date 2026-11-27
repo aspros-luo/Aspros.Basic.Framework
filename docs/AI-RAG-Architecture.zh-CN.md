@@ -205,7 +205,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 - 任务轮询在确有“最后一次尝试已过期”的任务时才执行终止恢复写入；无待恢复任务时只执行存在性查询，避免每个 Worker 的空更新在高频轮询时制造不必要的数据库写锁竞争。
 - IngestionJob 增加租户范围内唯一的 IdempotencyKey，避免同一请求重复创建任务。
 - 每个 IndexGeneration 必须关联一个 IngestionJob；通过 IngestionJobId 唯一索引保证一个任务最多产生一个索引代次，并通过包含 Tenant/KnowledgeBase/Document/DocumentVersion 的复合外键保证任务归属一致。相同文档版本与索引配置下，显式重新索引必须创建新任务，因此允许创建新代次，不会被错误的“配置唯一键”拦截。
-- 新增 EF Core 索引代次激活器：在关系型事务内先按 DocumentId + 观察到的 CurrentVersionId + ActiveIndexGenerationId 执行条件更新（CAS），只有成功取得文档行更新权的执行者才能切换活动指针；随后保存新代 Activate 与旧代 Retire。并发竞争失败返回 false，事务回滚，不会把未获胜代次标为 Active。
+- 新增 EF Core 索引代次激活器：在关系型事务内先按 DocumentId + 观察到的 CurrentVersionId + ActiveIndexGenerationId 执行条件更新（CAS），只有成功取得文档行更新权的执行者才能切换活动指针；随后保存新代 Activate 与旧代 Retire。并发竞争失败返回 false，事务回滚，不会把未获胜代次标为 Active；如果 Worker 在指针切换后、任务完成前崩溃，重试激活同一代次会幂等返回成功。
 - UTC 时间字段通过 UTC ticks 转换存储，避免 SQLite 等 Provider 对 DateTimeOffset 范围查询的限制。
 - KnowledgeBase 以 (TenantId, Id) 建立备用键；Document、Chunk、IndexGeneration 和 IngestionJob 通过复合外键校验租户与知识库归属，Chunk、IndexGeneration 和 IngestionJob 还会校验 DocumentVersion 必须属于对应 Document。
 - SQLite 集成测试覆盖关系型 Chunk 正文持久化、跨租户知识库关联拒绝、蓝绿索引切换及失败时保留旧活动指针、关系型事务持久化切换、租户内任务幂等键唯一性、顺序领取、8 个独立 DbContext/连接并发竞争同一任务且仅一个获得租约、续租、租约过期接管、旧租约的续租/失败/完成操作全部失效、失败重试上限，以及最后一次尝试后 Worker 崩溃的终止恢复。SQLite 并发测试使用文件数据库和独立连接。
@@ -214,7 +214,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 - `dotnet build Aspros.Base.Framework.sln --configuration Release`：成功；全 Solution 报告 187 条 warning，需单独分类治理，不影响本次编译成功结论。
 - 用户本轮本地执行 `RagPersistenceTests`：12 项通过，0 失败，0 跳过；包含 8 个独立 DbContext/连接并发领取竞争，以及蓝绿索引切换和关系型事务持久化测试。
 - 新增 `RagMySqlProviderTests`：通过独立的 `ConnectionStrings__RagTestDatabase` 环境变量启用，使用专用 RAG 测试数据库验证 8 个独立 DbContext 并发领取同一任务仅有一个租约；另增加租约过期接管测试，模拟 Worker 进程失联后由新 Worker 重新领取，并验证旧 LeaseToken 无法续租、失败或完成任务。未配置该变量时自动 Skip；不使用或清理共享的 `ConnectionStrings__TestDatabase`，避免破坏 Framework/Category 测试数据。用户本地两项 MySQL Provider 测试均已通过（2/2，0 失败，0 跳过）。
-- MySQL Provider 测试建议先创建独立数据库 `aspros_framework_rag_test`，并将 `ConnectionStrings__RagTestDatabase` 指向该库；例如：`Server=127.0.0.1;Port=13306;Database=aspros_framework_rag_test;User=framework;Password=framework_password;`。该账号需要该独立数据库的建表/删行权限。运行命令：`dotnet test --project tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --configuration Release --filter "FullyQualifiedName~RagMySqlProviderTests"`。
+- MySQL Provider 测试建议先创建独立数据库 `aspros_framework_rag_test`，并将 `ConnectionStrings__RagTestDatabase` 指向该库；例如：`Server=127.0.0.1;Port=13306;Database=aspros_framework_rag_test;User=framework;Password=framework_password;`。该账号需要该独立数据库的建表、删表权限（测试会重建专用 RAG 表结构）。运行命令：`dotnet test --project tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --configuration Release --filter "FullyQualifiedName~RagMySqlProviderTests"`。
 - RAG Core 与 EF Core 集成项目均在 `net10.0` Release 配置下成功生成。
 
 仍未实现或验证：
