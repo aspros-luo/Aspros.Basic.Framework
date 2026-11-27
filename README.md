@@ -1,6 +1,6 @@
 # Aspros Basic Framework
 
- > **Release candidate:** `2.0.0-rc.1` targeting `.NET 10`. Release evidence includes successful Release builds, host-executed Framework IntegrationTests, Category API CAP validation and standalone NuGet package-consumer validation (five libraries plus the CLI tool). Docker Compose is for infrastructure and sample API runtime, not a test runner. The standalone Framework Generic Host CAP test remains a known gap; Migration is explicitly excluded.
+> **Release candidate:** `2.0.0-rc.1` targeting `.NET 10`. Release evidence includes successful Release builds, host-executed Framework IntegrationTests, Category API CAP validation and standalone NuGet package-consumer validation (five libraries plus the CLI tool). Docker Compose is for infrastructure and sample API runtime, not a test runner. The standalone Framework Generic Host CAP test remains a known gap; Migration is explicitly excluded.
 
 面向 .NET 10 的轻量级业务基础框架，保持“少而够用”的工程边界。
 
