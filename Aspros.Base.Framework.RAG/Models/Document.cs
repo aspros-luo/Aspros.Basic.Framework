@@ -72,6 +72,9 @@ public sealed class Document
         CurrentVersionId = version.Id;
         CurrentVersionNumber = version.VersionNumber;
         ContentHash = version.ContentHash;
+        // The previous generation belongs to the previous version. The caller must
+        // publish the version and its validated generation in one relational transaction.
+        ActiveIndexGenerationId = null;
         UpdatedAtUtc = now ?? DateTimeOffset.UtcNow;
     }
 
