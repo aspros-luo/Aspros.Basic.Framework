@@ -222,8 +222,8 @@ public sealed class RagPersistenceTests
             var leases = await Task.WhenAll(acquisitions);
 
             var winners = leases.Where(lease => lease is not null).ToArray();
-            var winner = Assert.Single(winners);
-            Assert.Equal(jobId, winner!.JobId);
+            var winner = Assert.Single(winners)!;
+            Assert.Equal(jobId, winner.JobId);
             Assert.Equal(1, winner.AttemptCount);
 
             await using var verificationDb = new RagTestDbContext(options);
