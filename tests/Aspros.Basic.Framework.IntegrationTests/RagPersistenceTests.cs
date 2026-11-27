@@ -115,6 +115,7 @@ public sealed class RagPersistenceTests
             document.SourceUri,
             "plain-text-v1");
         document.SetCurrentVersion(secondVersion);
+        Assert.Null(document.ActiveIndexGenerationId);
 
         var staleGeneration = IndexGeneration.Create(
             "tenant-a",
