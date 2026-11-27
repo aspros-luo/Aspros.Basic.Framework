@@ -27,7 +27,7 @@ app.MapGet("/framework", (IWorkContext workContext) => Results.Ok(new
     service = "framework-core-api",
     canResolveWorkContext = workContext is not null,
     algorithmRank = rankingProbe.Single().Rank,
-    clickHouseAssembly = typeof(ClickHouseServiceCollectionExtensions).Assembly.GetName().Name
+    clickHouseAssembly = typeof(Aspros.Base.Framework.ClickHouse.ClickHouseServiceCollectionExtensions).Assembly.GetName().Name
 }));
 
 app.Run();
