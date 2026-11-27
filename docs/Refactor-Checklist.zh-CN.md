@@ -31,7 +31,7 @@
 - [x] IntegrationTests：61 通过、0 失败、1 跳过（共 62 项）。
 - [x] 8 项 HTTP resilience 定向回归通过。
 - [x] Category API CAP 业务验证通过，覆盖提交、回滚、重试和重复 / 幂等投递。
-- [ ] 发布批准前执行 `bash scripts/verify-packaged-consumer.sh`，并记录真实结果。
+- [x] 独立包消费者验收：六个 RC 包打包成功；五个类库由独立消费者还原并实际调用；CLI 工具安装及启动成功。
 - [ ] Framework 独立 Generic Host CAP 测试仍有超时缺口，不得计为 PASS。
 - [ ] Migration 回归按本次发布决策明确排除。
 
