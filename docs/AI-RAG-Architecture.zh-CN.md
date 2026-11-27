@@ -223,7 +223,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 仍未实现或验证：
 - Document.CurrentVersionId 与 ActiveIndexGenerationId 是有意分离的状态：新版本发布后旧活动代次继续服务，直到新代验证成功并在事务内切换指针。当前 SQLite 与 MySQL 回归测试覆盖重建失败保留旧指针、成功后切换新代并退役旧代，以及两个独立 DbContext 并发激活时单一 CAS 获胜；更广泛的并发读写快照和生产负载行为仍待验证。CurrentVersionId 当前由领域方法维护，尚未配置数据库外键约束，需在真实 Provider/迁移设计中评估一致性边界。
 - 尚未接入真实业务服务 DbContext/Migration；业务服务接入示例目前只验证模型配置方式，未证明任一真实业务数据库迁移可用。
-- Worker Hosting 已有两项集成测试：Fake Queue 测试验证领取、handler、心跳与完成操作使用独立 DI Scope；SQLite + 真实 EF Core 队列测试验证 Worker 能读取规范任务元数据、续租并完成持久化任务。尚未验证租约丢失后的 handler 取消、失败退避、宿主关闭恢复、真实进程崩溃和多实例端到端行为。文档解析、Chunking Pipeline、Embedding、Vector Store 与索引构建编排仍未实现。
+- Worker Hosting 已新增六项集成测试：独立 DI Scope、SQLite + EF Core 队列领取/续租/完成、租约丢失时取消 handler 且不回写、瞬时异常重试退避、永久异常终止失败、宿主优雅关闭时不错误完成任务。以上新增测试尚待用户本地执行；真实进程崩溃和多实例端到端行为仍未验证。文档解析、Chunking Pipeline、Embedding、Vector Store 与索引构建编排仍未实现。
 - 尚未进行独立 Worker 进程/多实例端到端测试，也未验证真实进程崩溃后的自动恢复；目前通过过期租约、独立 DbContext 和模拟时钟验证了数据库层接管逻辑。
 - 已在 MySQL 8.4 上验证任务租约领取、过期接管和并发索引激活/CAS。新增 Worker Hosting 后尚未进行 Release build/test；代码需由用户本地验证。UTC ticks 转换、复合外键在当前测试路径中已随 MySQL 模型创建/写入经过基础验证，但尚未覆盖全部关系与查询组合。
 
