@@ -13,6 +13,8 @@ public sealed class IndexGeneration
     public Guid KnowledgeBaseId { get; private set; }
     public Guid DocumentId { get; private set; }
     public Guid DocumentVersionId { get; private set; }
+    public Guid IngestionJobId { get; private set; }
+    public IngestionJob IngestionJob { get; private set; } = null!;
     public string EmbeddingModelKey { get; private set; } = string.Empty;
     public int EmbeddingDimension { get; private set; }
     public string ChunkingProfileVersion { get; private set; } = string.Empty;
@@ -22,16 +24,13 @@ public sealed class IndexGeneration
     public DateTimeOffset? RetiredAtUtc { get; private set; }
 
     public static IndexGeneration Create(
-        string tenantId,
-        Guid knowledgeBaseId,
-        Guid documentId,
-        Guid documentVersionId,
+        IngestionJob ingestionJob,
         string embeddingModelKey,
         int embeddingDimension,
         string chunkingProfileVersion,
         DateTimeOffset? now = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentNullException.ThrowIfNull(ingestionJob);
         ArgumentException.ThrowIfNullOrWhiteSpace(embeddingModelKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(chunkingProfileVersion);
 
@@ -43,10 +42,12 @@ public sealed class IndexGeneration
         return new IndexGeneration
         {
             Id = Guid.NewGuid(),
-            TenantId = tenantId.Trim(),
-            KnowledgeBaseId = knowledgeBaseId,
-            DocumentId = documentId,
-            DocumentVersionId = documentVersionId,
+            TenantId = ingestionJob.TenantId,
+            KnowledgeBaseId = ingestionJob.KnowledgeBaseId,
+            DocumentId = ingestionJob.DocumentId,
+            DocumentVersionId = ingestionJob.DocumentVersionId,
+            IngestionJobId = ingestionJob.Id,
+            IngestionJob = ingestionJob,
             EmbeddingModelKey = embeddingModelKey.Trim(),
             EmbeddingDimension = embeddingDimension,
             ChunkingProfileVersion = chunkingProfileVersion.Trim(),
