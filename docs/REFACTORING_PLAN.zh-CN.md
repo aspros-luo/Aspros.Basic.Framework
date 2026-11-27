@@ -31,7 +31,7 @@
 | Category API CAP 业务链路 | PASS | 真实 API 链路验证了事务提交、事务回滚、消息重试、重复投递和幂等收据，使用 RabbitMQ、MySQL 与 CAP EF Storage。 |
 | HTTP resilience 回归 | PASS | 8 项重试、熔断和权限中间件针对性测试通过。 |
 | Framework 独立 Generic Host CAP 回归 | 已知缺口 | 显式启用后等待 Subscriber 投递超时，不计为通过。上面的 Category API 业务验证覆盖实际应用路径，但不能证明所有 Generic Host 注册方式均正常。 |
-| 独立 NuGet 消费者验证 | 待执行 | 发布前必须执行 `bash scripts/verify-packaged-consumer.sh`。 |
+| 独立 NuGet 消费者验证 | PASS | 六个 RC 包打包成功；五个类库由独立消费者还原并实际调用；CLI 工具安装及启动成功。 |
 | Migration 回归 | 按发布决策排除 | 本次明确不作为发布门槛；这不代表 Migration 已通过。 |
 
 只有真实执行并成功的命令或业务链路才可以标记为 PASS。静态检查、Docker 容器健康，以及使用 ProjectReference 的示例构建，都不能替代独立 NuGet 包消费验证。
@@ -62,7 +62,7 @@ PACKAGED_CONSUMER_URL=http://127.0.0.1:17211 bash scripts/verify-packaged-consum
 
 ## 发布流程
 
-1. 完成独立 NuGet 消费者验证，并记录真实执行结果。
+1. 独立 NuGet 消费者验收已成功；保留用户确认的完整执行输出作为发布证据。
 2. 再次核对 RC 分支 HEAD、用户本地工作区 / 未提交修改、Release 构建、IntegrationTests 摘要和已知缺口。
 3. 确保最终回归矩阵与发布说明中的验收状态一致。
 4. 只有获得用户明确授权后，才将已验收 RC 提升到 `master`，并创建稳定版 `2.0.0` 发布 / 包发布；不得把 RC 包冒充稳定包发布。
