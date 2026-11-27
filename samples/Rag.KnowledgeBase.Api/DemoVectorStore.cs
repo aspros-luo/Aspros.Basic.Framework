@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Grpc.Core;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
 using static Qdrant.Client.Grpc.Conditions;
@@ -35,10 +36,17 @@ public sealed class DemoVectorStore(QdrantClient client)
         var collection = GetCollectionName(embeddingModelKey, dimension);
         if (!await client.CollectionExistsAsync(collection, cancellationToken))
         {
-            await client.CreateCollectionAsync(
-                collection,
-                new VectorParams { Size = (ulong)dimension, Distance = Distance.Cosine },
-                cancellationToken: cancellationToken);
+            try
+            {
+                await client.CreateCollectionAsync(
+                    collection,
+                    new VectorParams { Size = (ulong)dimension, Distance = Distance.Cosine },
+                    cancellationToken: cancellationToken);
+            }
+            catch (RpcException exception) when (exception.StatusCode == StatusCode.AlreadyExists)
+            {
+                // Another worker created the same model/dimension collection concurrently.
+            }
         }
 
         var points = new List<PointStruct>(vectors.Count);
