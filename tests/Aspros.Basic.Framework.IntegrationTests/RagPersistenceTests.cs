@@ -280,6 +280,8 @@ public sealed class RagPersistenceTests
 
         var activator = new EfCoreIndexGenerationActivator<RagTestDbContext>(db);
         Assert.True(await activator.ActivateAsync(document.Id, replacementGeneration.Id));
+        // Retry after a worker crash between activation and job completion is safe.
+        Assert.True(await activator.ActivateAsync(document.Id, replacementGeneration.Id));
 
         var persistedDocument = await db.Set<Document>()
             .AsNoTracking()
