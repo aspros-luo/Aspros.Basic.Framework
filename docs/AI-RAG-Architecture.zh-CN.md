@@ -1,6 +1,6 @@
 # 企业知识库 RAG 架构决策
 
-> 状态：Accepted（Phase 1 持久化基础与索引代次幂等/切换实现已提交；本轮新增测试待用户本地 Release 验证。仅在 feature/enterprise-rag-foundation 开发，不改变 2.0.0 RC / master）
+> 状态：Accepted（截至 2026-11-27，Phase 1 关系型持久化、任务租约、索引代次幂等与原子切换已通过用户本地 Release 定向测试；Worker 宿主和端到端摄取流程仍未实现。仅在 feature/enterprise-rag-foundation 开发，不改变 2.0.0 RC / master）
 >
 > 适用范围：Aspros.Basic.Framework，目标框架 .NET 10。
 >
@@ -218,11 +218,11 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 - RAG Core 与 EF Core 集成项目均在 `net10.0` Release 配置下成功生成。
 
 仍未实现或验证：
-- Document.CurrentVersionId 与 ActiveIndexGenerationId 是有意分离的状态：新版本发布后旧活动代次继续服务，直到新代验证成功并在事务内切换指针。当前领域回归测试覆盖重建失败保留旧指针、成功后切换新代并退役旧代；但端到端关系型事务、并发读写快照及真实 Provider 行为仍待验证。CurrentVersionId 当前由领域方法维护，尚未配置数据库外键约束，需在真实 Provider/迁移设计中评估一致性边界。
+- Document.CurrentVersionId 与 ActiveIndexGenerationId 是有意分离的状态：新版本发布后旧活动代次继续服务，直到新代验证成功并在事务内切换指针。当前 SQLite 与 MySQL 回归测试覆盖重建失败保留旧指针、成功后切换新代并退役旧代，以及两个独立 DbContext 并发激活时单一 CAS 获胜；更广泛的并发读写快照和生产负载行为仍待验证。CurrentVersionId 当前由领域方法维护，尚未配置数据库外键约束，需在真实 Provider/迁移设计中评估一致性边界。
 - 尚未接入真实业务服务 DbContext/Migration；业务服务接入示例目前只验证模型配置方式，未证明任一真实业务数据库迁移可用。
 - 尚未实现文档解析、Chunking Pipeline、Embedding、Vector Store、索引构建/切换服务或 Worker 宿主。
-- 尚未进行多进程/多实例并发领取测试，也未验证实际进程崩溃后的端到端恢复；目前通过过期租约和新 DbContext 测试了数据库层接管逻辑。
-- 已在 MySQL 8.4 上验证任务租约领取与过期接管；本轮新增的 MySQL 并发索引激活/CAS 测试仍待运行。UTC ticks 转换、复合外键在当前测试路径中已随 MySQL Job 模型创建/写入经过基础验证，但尚未覆盖全部关系与查询组合。
+- 尚未进行独立 Worker 进程/多实例端到端测试，也未验证真实进程崩溃后的自动恢复；目前通过过期租约、独立 DbContext 和模拟时钟验证了数据库层接管逻辑。
+- 已在 MySQL 8.4 上验证任务租约领取、过期接管和并发索引激活/CAS。UTC ticks 转换、复合外键在当前测试路径中已随 MySQL 模型创建/写入经过基础验证，但尚未覆盖全部关系与查询组合。
 
 Phase 1 后续验收门槛：并发领取测试通过；在目标 MySQL Provider 上验证多 Worker 并发下同一任务只有一个有效租约；真实 Worker 重启后任务可恢复；同一 IngestionJob 不会创建重复索引代次；相同配置的显式重建可创建新代次；MySQL 多 Worker 并发激活时仅一个 CAS 获胜且只有一个 Active 代次；关系型规范数据可用于完整重建向量索引。
 
