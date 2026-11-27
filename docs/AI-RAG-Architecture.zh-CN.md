@@ -209,7 +209,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 - SQLite 集成测试覆盖关系型 Chunk 正文持久化、跨租户知识库关联拒绝、旧版本索引激活拒绝、租户内任务幂等键唯一性、顺序领取、8 个独立 DbContext/连接并发竞争同一任务且仅一个获得租约、续租、租约过期接管、旧租约的续租/失败/完成操作全部失效、失败重试上限，以及最后一次尝试后 Worker 崩溃的终止恢复。并发测试使用 SQLite 文件数据库和独立连接，不再只是同一 DbContext 的顺序调用；但它仍不是 MySQL Provider 或多进程部署验证。
 
 本地验证（2026-11-27）：
-- `dotnet build Aspros.Base.Framework.sln --configuration Release`：成功；全 Solution 报告 185 条 warning，需单独分类治理，不影响本次编译成功结论。
+- `dotnet build Aspros.Base.Framework.sln --configuration Release`：成功；全 Solution 报告 187 条 warning，需单独分类治理，不影响本次编译成功结论。
 - 用户本轮本地执行 `RagPersistenceTests`：10 项通过，0 失败，0 跳过，耗时 3.074 秒；随后新增 8 个独立 DbContext/连接的并发领取竞争测试，尚待本地执行验证。
 - RAG Core 与 EF Core 集成项目均在 `net10.0` Release 配置下成功生成。
 
