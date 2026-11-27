@@ -24,7 +24,7 @@ public sealed class DemoRetrievalService(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(query);
 
-        var knowledgeBaseExists = await dbContext.Set<KnowledgeBase>()
+        var knowledgeBaseExists = await dbContext.Set<Aspros.Base.Framework.RAG.Models.KnowledgeBase>()
             .AnyAsync(x => x.Id == knowledgeBaseId &&
                            x.TenantId == "demo-tenant" &&
                            !x.IsArchived,
