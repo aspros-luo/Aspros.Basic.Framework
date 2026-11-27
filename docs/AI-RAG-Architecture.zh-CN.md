@@ -199,7 +199,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 
 实施范围：
 - 已建立 `Aspros.Base.Framework.RAG` 与 `Aspros.Base.Framework.RAG.EntityFrameworkCore` 两个 preview 项目。
-- 已定义 KnowledgeBase、Document、DocumentVersion、DocumentChunk、IngestionJob、IndexGeneration；Document 通过 CurrentVersionId 明确指向当前文档版本，并通过 ActiveIndexGenerationId 指向当前活动索引代次。设置当前版本时校验版本归属与 Ready 状态，并清除旧活动索引指针；激活索引时校验索引代次属于当前版本、同一文档、租户和知识库。应用层必须在同一关系型事务中发布新版本与其已验证的索引代次，避免出现旧版本指针或版本/索引切换中间态。
+- 已定义 KnowledgeBase、Document、DocumentVersion、DocumentChunk、IngestionJob、IndexGeneration；Document 通过 CurrentVersionId 指向最新已就绪文档版本，通过 ActiveIndexGenerationId 独立指向当前可检索的活动索引代次。设置新版本时不清空旧活动索引指针，因此重建失败或进行中时旧索引仍可用；只有新代索引构建并验证成功后，应用层才在同一关系型事务中切换 ActiveIndexGenerationId，并将旧代标记为 Retired。激活索引时校验其属于当前最新版本、同一文档、租户和知识库。查询必须以 ActiveIndexGenerationId 对应的代次为准，不能简单要求活动索引版本始终等于最新文档版本。
 - EF Core 包通过 `ModelBuilder.ApplyRagModel()` 将映射加入业务服务自有 DbContext；业务服务继续负责连接、DbContext 与 Migration。
 - 已实现基于条件更新和 LeaseToken 的任务租约，包含领取、续租、完成、失败重试与终止失败；租约 Token 防止旧 Worker 在接管后提交完成状态。
 - 任务轮询在确有“最后一次尝试已过期”的任务时才执行终止恢复写入；无待恢复任务时只执行存在性查询，避免每个 Worker 的空更新在高频轮询时制造不必要的数据库写锁竞争。
@@ -210,11 +210,11 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 
 本地验证（2026-11-27）：
 - `dotnet build Aspros.Base.Framework.sln --configuration Release`：成功；全 Solution 报告 187 条 warning，需单独分类治理，不影响本次编译成功结论。
-- 用户本轮本地执行 `RagPersistenceTests`：10 项通过，0 失败，0 跳过，耗时 3.074 秒；随后新增 8 个独立 DbContext/连接的并发领取竞争测试，尚待本地执行验证。
+- 用户本轮本地执行 `RagPersistenceTests`：11 项通过，0 失败，0 跳过，耗时 3.180 秒，包含 8 个独立 DbContext/连接并发领取竞争测试。随后提交了蓝绿索引代次切换回归测试替换原旧版本拒绝测试，尚待本地再次执行验证。
 - RAG Core 与 EF Core 集成项目均在 `net10.0` Release 配置下成功生成。
 
 仍未实现或验证：
-- 新增 CurrentVersionId 与活动索引版本一致性约束已提交到功能分支，但新增回归测试尚未取得本地执行结果；Document.CurrentVersionId 当前由领域方法维护，尚未配置数据库外键约束，需在真实 Provider/迁移设计中评估一致性边界。应用层必须将 SetCurrentVersion 与 SetActiveIndexGeneration 放在同一关系型事务中执行。
+- Document.CurrentVersionId 与 ActiveIndexGenerationId 是有意分离的状态：新版本发布后旧活动代次继续服务，直到新代验证成功并在事务内切换指针。当前领域回归测试覆盖重建失败保留旧指针、成功后切换新代并退役旧代；但端到端关系型事务、并发读写快照及真实 Provider 行为仍待验证。CurrentVersionId 当前由领域方法维护，尚未配置数据库外键约束，需在真实 Provider/迁移设计中评估一致性边界。
 - 尚未接入真实业务服务 DbContext/Migration；业务服务接入示例目前只验证模型配置方式，未证明任一真实业务数据库迁移可用。
 - 尚未实现文档解析、Chunking Pipeline、Embedding、Vector Store、索引构建/切换服务或 Worker 宿主。
 - 尚未进行多进程/多实例并发领取测试，也未验证实际进程崩溃后的端到端恢复；目前通过过期租约和新 DbContext 测试了数据库层接管逻辑。
