@@ -16,6 +16,7 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         services.AddScoped<IIngestionJobQueue, EfCoreIngestionJobQueue<TContext>>();
+        services.AddScoped<EfCoreIndexGenerationActivator<TContext>>();
         return services;
     }
 }
