@@ -312,4 +312,4 @@ app.Run();
 
 public sealed record CreateKnowledgeBaseRequest(string Name);
 
-public partial class Program;
+public partial class Program { }
