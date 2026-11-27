@@ -100,6 +100,34 @@ public sealed class RagPersistenceTests
     }
 
     [Fact]
+    public async Task ExpiredLeaseOnFinalAttempt_IsMarkedFailedInsteadOfRemainingProcessingForever()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        await SeedJobAsync(options, maxAttempts: 1);
+
+        await using (var db = new RagTestDbContext(options))
+        {
+            var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
+            var lease = await queue.TryAcquireNextAsync("worker-crash", TimeSpan.FromMilliseconds(1));
+            Assert.NotNull(lease);
+        }
+
+        await Task.Delay(25);
+
+        await using (var db = new RagTestDbContext(options))
+        {
+            var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
+            Assert.Null(await queue.TryAcquireNextAsync("recovery-worker", TimeSpan.FromMinutes(1)));
+
+            var persisted = await db.Set<IngestionJob>().AsNoTracking().SingleAsync();
+            Assert.Equal(IngestionJobStatus.Failed, persisted.Status);
+            Assert.Null(persisted.LeaseOwner);
+            Assert.Contains("maximum number of attempts", persisted.LastError);
+        }
+    }
+
+    [Fact]
     public async Task FailAsync_RequeuesRetryableJob_AndHonorsAttemptLimit()
     {
         await using var connection = await OpenConnectionAsync();
@@ -145,6 +173,7 @@ public sealed class RagPersistenceTests
             knowledgeBase.Id,
             document.Id,
             version.Id,
+            $"ingest:{document.Id:N}:{version.Id:N}",
             maxAttempts: maxAttempts);
 
         db.AddRange(knowledgeBase, document, version, job);
