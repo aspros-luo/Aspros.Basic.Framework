@@ -29,6 +29,7 @@ internal sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(x => x.SourceUri).HasMaxLength(2048).IsRequired();
         builder.Property(x => x.ContentHash).HasMaxLength(128).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.HasIndex(x => x.ActiveIndexGenerationId);
         builder.Property(x => x.CreatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.UpdatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.DeletedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
@@ -98,6 +99,10 @@ internal sealed class IndexGenerationConfiguration : IEntityTypeConfiguration<In
         builder.Property(x => x.CreatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.ActivatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.RetiredAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
+        builder.HasOne<Document>()
+            .WithMany()
+            .HasForeignKey(x => x.DocumentId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<DocumentVersion>()
             .WithMany()
             .HasForeignKey(x => x.DocumentVersionId)
