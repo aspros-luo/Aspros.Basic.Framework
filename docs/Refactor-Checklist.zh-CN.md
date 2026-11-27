@@ -23,7 +23,8 @@
 - [x] Framework、示例和测试项目使用 net10.0。
 - [x] Framework NuGet 包版本为 2.0.0-rc.1。
 - [x] Microsoft EF Core / ASP.NET Core 依赖对齐到 10.0.15，CAP 包对齐到 10.0.2。
-- [x] 独立 Core API 示例通过 NuGet PackageReference 消费全部五个 Framework 包。
+- [x] 独立 Core API 示例通过 NuGet PackageReference 消费全部五个 Framework 类库包。
+- [x] `Aspros.Basic.Framework.Tools` CLI 已配置为对应 RC 版本的 .NET Tool 包。
 - [x] Docker Compose 只负责基础设施和示例 API 运行，不承担 Framework xUnit 测试执行。
 - [x] Framework Solution Release 构建成功。
 - [x] Category API Release 构建成功。

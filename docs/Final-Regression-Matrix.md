@@ -37,7 +37,7 @@ The Category API CAP validation is a separate and successful real application-pa
 bash scripts/verify-packaged-consumer.sh
 ```
 
-This packs all five RC packages (Abstractions, Domain, Infrastructure, Algorithms and ClickHouse), restores the standalone `Framework.Core.Api` from the local package feed with an isolated NuGet cache, builds it, starts it, and verifies health, Framework DI resolution, a ranking-algorithm call and ClickHouse package assembly loading. Only a successful execution changes the packaged-consumer gate from PENDING to PASS.
+This packs all six RC NuGet artifacts (five libraries plus the CLI tool), restores the standalone `Framework.Core.Api` from the local package feed with an isolated NuGet cache, builds and starts it, verifies Framework DI / Algorithms / ClickHouse package use, then installs the CLI tool to a temporary tool path and checks its command entry point. Only a successful execution changes the package-consumer gate from PENDING to PASS.
 
 ## Environment boundary
 

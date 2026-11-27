@@ -45,7 +45,7 @@ bash scripts/verify-packaged-consumer.sh
 ```
 
 The script:
-1. Packs all five Release NuGet packages: Abstractions, Domain, Infrastructure, Algorithms and ClickHouse.
+1. Packs all six RC NuGet artifacts: the five libraries (Abstractions, Domain, Infrastructure, Algorithms and ClickHouse) plus the `Aspros.Basic.Framework.Tools` CLI tool.
 2. Checks that `Framework.Core.Api` uses `PackageReference`, not `ProjectReference`.
 3. Restores using the locally produced packages and nuget.org, with a fresh isolated global package cache.
 4. Builds the standalone API.
@@ -57,7 +57,7 @@ If the default local port is occupied, set `PACKAGED_CONSUMER_URL`, for example:
 PACKAGED_CONSUMER_URL=http://127.0.0.1:17211 bash scripts/verify-packaged-consumer.sh
 ```
 
-The script requires the .NET 10 SDK, curl and access to nuget.org for third-party dependencies. Its temporary package feed and isolated NuGet cache are removed on exit.
+The script requires the .NET 10 SDK, curl and access to nuget.org for third-party dependencies. Its temporary package feed, isolated NuGet cache, build outputs and tool installation are removed on exit.
 
 ## Release procedure
 

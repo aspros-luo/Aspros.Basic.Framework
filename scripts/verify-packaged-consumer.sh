@@ -10,6 +10,7 @@ CONSUMER_PROJECT="$ROOT_DIR/samples/Framework.Core.Api/Framework.Core.Api.csproj
 CONSUMER_DLL="$BUILD_DIR/bin/Release/net10.0/Framework.Core.Api.dll"
 CONSUMER_URL="${PACKAGED_CONSUMER_URL:-http://127.0.0.1:17210}"
 CONSUMER_LOG="$BUILD_DIR/consumer.log"
+TOOL_PATH="$BUILD_DIR/tools"
 CONSUMER_PID=""
 
 cleanup() {
@@ -24,26 +25,28 @@ trap cleanup EXIT
 command -v dotnet >/dev/null || { echo "dotnet SDK is required." >&2; exit 1; }
 command -v curl >/dev/null || { echo "curl is required." >&2; exit 1; }
 
-echo "== Pack all five release-candidate packages =="
+echo "== Pack all six release-candidate NuGet artifacts =="
 dotnet pack "$ROOT_DIR/Aspros.Base.Framework.Abstractions/Aspros.Base.Framework.Abstractions.csproj" -c Release -o "$PACKAGE_DIR"
 dotnet pack "$ROOT_DIR/Aspros.Base.Framework.Domain/Aspros.Base.Framework.Domain.csproj" -c Release -o "$PACKAGE_DIR"
 dotnet pack "$ROOT_DIR/Aspros.Base.Framework.Infrastructure/Aspros.Base.Framework.Infrastructure.csproj" -c Release -o "$PACKAGE_DIR"
 dotnet pack "$ROOT_DIR/Aspros.Base.Framework.Algorithms/Aspros.Base.Framework.Algorithms.csproj" -c Release -o "$PACKAGE_DIR"
 dotnet pack "$ROOT_DIR/Aspros.Base.Framework.ClickHouse/Aspros.Base.Framework.ClickHouse.csproj" -c Release -o "$PACKAGE_DIR"
+dotnet pack "$ROOT_DIR/Aspros.Basic.Framework.Tools/Aspros.Basic.Framework.Tools.csproj" -c Release -o "$PACKAGE_DIR"
 
 for package in \
   "Aspros.Base.Framework.Abstractions.2.0.0-rc.1.nupkg" \
   "Aspros.Base.Framework.Domain.2.0.0-rc.1.nupkg" \
   "Aspros.Base.Framework.Infrastructure.2.0.0-rc.1.nupkg" \
   "Aspros.Base.Framework.Algorithms.2.0.0-rc.1.nupkg" \
-  "Aspros.Base.Framework.ClickHouse.2.0.0-rc.1.nupkg"; do
+  "Aspros.Base.Framework.ClickHouse.2.0.0-rc.1.nupkg" \
+  "Aspros.Basic.Framework.Tools.2.0.0-rc.1.nupkg"; do
   [[ -s "$PACKAGE_DIR/$package" ]] || {
     echo "Expected package was not produced: $package" >&2
     exit 1
   }
 done
 
-echo "== Verify the consumer references all five packages through NuGet =="
+echo "== Verify the consumer references all five Framework libraries through NuGet =="
 if grep -q '<ProjectReference' "$CONSUMER_PROJECT"; then
   echo "The package-consumer project must not contain ProjectReference." >&2
   exit 1
@@ -60,12 +63,10 @@ for package in \
   fi
 done
 
-echo "== Restore the standalone consumer from the local package feed =="
+echo "== Restore and build the standalone library consumer =="
 NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet restore "$CONSUMER_PROJECT" "${CONSUMER_BUILD_PROPS[@]}" \
   --source "$PACKAGE_DIR" \
   --source "https://api.nuget.org/v3/index.json"
-
-echo "== Build the package-only consumer =="
 NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet build "$CONSUMER_PROJECT" -c Release --no-restore "${CONSUMER_BUILD_PROPS[@]}"
 [[ -s "$CONSUMER_DLL" ]] || { echo "Consumer assembly was not produced: $CONSUMER_DLL" >&2; exit 1; }
 
@@ -110,4 +111,22 @@ grep -q '"canResolveWorkContext":true' <<<"$framework_response"
 grep -q '"algorithmRank":1' <<<"$framework_response"
 grep -q '"clickHouseAssembly":"Aspros.Base.Framework.ClickHouse"' <<<"$framework_response"
 
-echo "== PASS: all five RC packages restored by an isolated PackageReference consumer, built, started and resolved Framework APIs =="
+echo "== Install and smoke-test the Aspros CLI tool package =="
+NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet tool install Aspros.Basic.Framework.Tools \
+  --version 2.0.0-rc.1 \
+  --tool-path "$TOOL_PATH" \
+  --add-source "$PACKAGE_DIR" \
+  --add-source "https://api.nuget.org/v3/index.json"
+
+set +e
+tool_output="$("$TOOL_PATH/aspros" 2>&1)"
+tool_exit_code=$?
+set -e
+printf '%s\n' "$tool_output"
+if [[ "$tool_exit_code" -ne 2 ]]; then
+  echo "Expected the CLI to print usage and exit with code 2 when invoked without arguments; got $tool_exit_code." >&2
+  exit 1
+fi
+grep -q "Aspros Basic Framework database migration tool" <<<"$tool_output"
+
+echo "== PASS: all six RC packages packed; five libraries restored and exercised by a standalone consumer; CLI tool installed and launched =="

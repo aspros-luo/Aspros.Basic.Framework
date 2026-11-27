@@ -45,11 +45,12 @@ bash scripts/verify-packaged-consumer.sh
 ```
 
 脚本会依次：
-1. 以 Release 配置打包全部五个 NuGet 包：Abstractions、Domain、Infrastructure、Algorithms 和 ClickHouse。
+1. 以 Release 配置打包全部六个 RC NuGet 产物：五个类库（Abstractions、Domain、Infrastructure、Algorithms、ClickHouse）以及 `Aspros.Basic.Framework.Tools` CLI 工具包。
 2. 检查 `Framework.Core.Api` 使用的是 `PackageReference`，而不是 `ProjectReference`。
 3. 使用本地刚生成的包和 nuget.org 还原依赖，并使用全新的隔离 NuGet 全局缓存。
 4. 编译独立 API 消费者。
 5. 启动 API，检查 `/health` 和 `/framework`，验证 Framework DI、Algorithms 排序算法调用以及 ClickHouse 包程序集加载。
+6. 将 CLI 工具包安装到临时 tool path，并验证命令入口能输出预期帮助信息。
 
 如果默认本地端口被占用，可以指定：
 
@@ -57,7 +58,7 @@ bash scripts/verify-packaged-consumer.sh
 PACKAGED_CONSUMER_URL=http://127.0.0.1:17211 bash scripts/verify-packaged-consumer.sh
 ```
 
-需要 .NET 10 SDK、curl，以及访问 nuget.org 下载第三方依赖的网络。脚本退出时会清理临时包目录和隔离 NuGet 缓存。
+需要 .NET 10 SDK、curl，以及访问 nuget.org 下载第三方依赖的网络。脚本退出时会清理临时包目录、隔离 NuGet 缓存、构建输出和临时工具安装目录。
 
 ## 发布流程
 
