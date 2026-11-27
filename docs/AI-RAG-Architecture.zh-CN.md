@@ -202,6 +202,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 - 已定义 KnowledgeBase、Document、DocumentVersion、DocumentChunk、IngestionJob、IndexGeneration；Document 通过 CurrentVersionId 明确指向当前文档版本，并通过 ActiveIndexGenerationId 指向当前活动索引代次。设置当前版本时校验版本归属与 Ready 状态，并清除旧活动索引指针；激活索引时校验索引代次属于当前版本、同一文档、租户和知识库。应用层必须在同一关系型事务中发布新版本与其已验证的索引代次，避免出现旧版本指针或版本/索引切换中间态。
 - EF Core 包通过 `ModelBuilder.ApplyRagModel()` 将映射加入业务服务自有 DbContext；业务服务继续负责连接、DbContext 与 Migration。
 - 已实现基于条件更新和 LeaseToken 的任务租约，包含领取、续租、完成、失败重试与终止失败；租约 Token 防止旧 Worker 在接管后提交完成状态。
+- 任务轮询在确有“最后一次尝试已过期”的任务时才执行终止恢复写入；无待恢复任务时只执行存在性查询，避免每个 Worker 的空更新在高频轮询时制造不必要的数据库写锁竞争。
 - IngestionJob 增加租户范围内唯一的 IdempotencyKey，避免同一请求重复创建任务。
 - UTC 时间字段通过 UTC ticks 转换存储，避免 SQLite 等 Provider 对 DateTimeOffset 范围查询的限制。
 - KnowledgeBase 以 (TenantId, Id) 建立备用键；Document、Chunk、IndexGeneration 和 IngestionJob 通过复合外键校验租户与知识库归属，Chunk、IndexGeneration 和 IngestionJob 还会校验 DocumentVersion 必须属于对应 Document。
