@@ -84,6 +84,87 @@ public sealed class RagMySqlProviderTests
         Assert.Equal(winner.LeaseToken, persisted.LeaseToken);
     }
 
+    [Fact(
+        Skip = "A dedicated RAG MySQL test database is not configured.",
+        SkipUnless = nameof(MySqlAvailable),
+        SkipType = typeof(RagMySqlProviderTests))]
+    public async Task ExpiredLease_CanBeReclaimed_AndStaleWorkerCannotMutateIt()
+    {
+        var connectionString =
+            Environment.GetEnvironmentVariable("ConnectionStrings__RagTestDatabase")!;
+        var options = new DbContextOptionsBuilder<RagMySqlTestDbContext>()
+            .UseMySql(connectionString, new MySqlServerVersion(new Version(8, 4, 0)))
+            .Options;
+        var clock = new MutableTimeProvider(DateTimeOffset.UtcNow.AddSeconds(1));
+
+        await using (var initialization = new RagMySqlTestDbContext(options))
+        {
+            await initialization.Database.EnsureCreatedAsync();
+            await ClearRagTablesAsync(initialization);
+        }
+
+        var (knowledgeBase, document, version) = CreateDocumentGraph();
+        var job = IngestionJob.Create(
+            "tenant-a",
+            knowledgeBase.Id,
+            document.Id,
+            version.Id,
+            $"mysql-lease-recovery:{Guid.NewGuid():N}",
+            maxAttempts: 3,
+            now: clock.GetUtcNow());
+
+        await using (var seed = new RagMySqlTestDbContext(options))
+        {
+            seed.AddRange(knowledgeBase, document, version, job);
+            await seed.SaveChangesAsync();
+        }
+
+        IngestionJobLease firstLease;
+        await using (var crashedWorkerDb = new RagMySqlTestDbContext(options))
+        {
+            var crashedWorkerQueue =
+                new EfCoreIngestionJobQueue<RagMySqlTestDbContext>(crashedWorkerDb, clock);
+            firstLease = (await crashedWorkerQueue.TryAcquireNextAsync(
+                "mysql-worker-before-crash",
+                TimeSpan.FromMinutes(1)))!;
+            Assert.NotNull(firstLease);
+        }
+
+        // Simulate process loss: no heartbeat or completion arrives before the lease expires.
+        clock.Advance(TimeSpan.FromMinutes(2));
+
+        await using (var recoveryWorkerDb = new RagMySqlTestDbContext(options))
+        {
+            var recoveryQueue =
+                new EfCoreIngestionJobQueue<RagMySqlTestDbContext>(recoveryWorkerDb, clock);
+            var replacementLease = await recoveryQueue.TryAcquireNextAsync(
+                "mysql-recovery-worker",
+                TimeSpan.FromMinutes(1));
+
+            Assert.NotNull(replacementLease);
+            Assert.NotEqual(firstLease.LeaseToken, replacementLease!.LeaseToken);
+            Assert.Equal(2, replacementLease.AttemptCount);
+
+            Assert.False(await recoveryQueue.RenewAsync(firstLease, TimeSpan.FromMinutes(1)));
+            Assert.False(await recoveryQueue.FailAsync(
+                firstLease,
+                "stale worker must not mutate a reclaimed job",
+                clock.GetUtcNow().AddMinutes(1)));
+            Assert.False(await recoveryQueue.CompleteAsync(firstLease));
+            Assert.True(await recoveryQueue.CompleteAsync(replacementLease));
+        }
+
+        await using var verification = new RagMySqlTestDbContext(options);
+        var persisted = await verification.Set<IngestionJob>()
+            .AsNoTracking()
+            .SingleAsync();
+
+        Assert.Equal(IngestionJobStatus.Succeeded, persisted.Status);
+        Assert.Equal(2, persisted.AttemptCount);
+        Assert.Null(persisted.LeaseOwner);
+        Assert.Equal(Guid.Empty, persisted.LeaseToken);
+    }
+
     private static async Task ClearRagTablesAsync(DbContext db)
     {
         // Delete in FK dependency order. This database is explicitly dedicated to RAG tests.
@@ -121,6 +202,15 @@ public sealed class RagMySqlProviderTests
         document.SetCurrentVersion(version);
 
         return (knowledgeBase, document, version);
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        private DateTimeOffset _utcNow = utcNow;
+
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+
+        public void Advance(TimeSpan duration) => _utcNow = _utcNow.Add(duration);
     }
 
     private sealed class RagMySqlTestDbContext(
