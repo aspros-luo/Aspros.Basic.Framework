@@ -104,6 +104,36 @@ public sealed class RagPersistenceTests
     }
 
     [Fact]
+    public void DocumentCannotActivateAnIndexGenerationForAnOlderVersion()
+    {
+        var (knowledgeBase, document, firstVersion) = CreateDocumentGraph();
+        var secondVersion = DocumentVersion.Create(
+            document.Id,
+            2,
+            "sha256:document-v2",
+            "text/markdown",
+            document.SourceUri,
+            "plain-text-v1");
+        document.SetCurrentVersion(secondVersion);
+
+        var staleGeneration = IndexGeneration.Create(
+            "tenant-a",
+            knowledgeBase.Id,
+            document.Id,
+            firstVersion.Id,
+            "local-embedding-v1",
+            768,
+            "plain-text-v1");
+        staleGeneration.Activate();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => document.SetActiveIndexGeneration(staleGeneration));
+
+        Assert.Contains("current document version", exception.Message);
+        Assert.Null(document.ActiveIndexGenerationId);
+    }
+
+    [Fact]
     public async Task IngestionJob_IdempotencyKeyIsUniqueWithinTenant()
     {
         await using var connection = await OpenConnectionAsync();
@@ -288,8 +318,6 @@ public sealed class RagPersistenceTests
             "Architecture notes",
             "file:///knowledge/architecture.md",
             "sha256:document-v1");
-        document.SetCurrentVersion(1, "sha256:document-v1");
-
         var version = DocumentVersion.Create(
             document.Id,
             1,
@@ -297,6 +325,7 @@ public sealed class RagPersistenceTests
             "text/markdown",
             document.SourceUri,
             "plain-text-v1");
+        document.SetCurrentVersion(version);
 
         return (knowledgeBase, document, version);
     }
