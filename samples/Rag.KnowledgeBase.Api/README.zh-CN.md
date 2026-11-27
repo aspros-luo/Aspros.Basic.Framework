@@ -71,7 +71,7 @@ dotnet run --project samples/Rag.KnowledgeBase.Api/Rag.KnowledgeBase.Api.csproj
 
 将 Chat 切换到云端时，设置 Ai__Chat__BaseUrl、Ai__Chat__ApiKey 和 Ai__Chat__Model。如果云服务商提供 OpenAI-compatible 接口，只需修改对应 BaseUrl 和模型名。不要把真实 API Key 写入仓库配置文件。
 
-切换 Embedding 模型或向量维度后，Demo 会根据向量维度使用独立 Qdrant collection；现有活动索引不会自动迁移，需要重新摄取文档建立新代索引。
+切换 Embedding 模型或向量维度后，Demo 会按模型标识和向量维度使用独立 Qdrant collection。注意：当前 Demo 的一个知识库应统一使用同一 Embedding Profile；切换模型属于全量索引迁移，必须重新摄取该知识库全部文档。迁移完成前，未重建的旧模型索引不会出现在新模型的查询结果中。演示时建议为不同 Embedding 模型分别创建知识库。生产系统应把 Embedding Profile 固化在知识库/索引代次配置中，并支持按 Profile 路由查询。
 
 ## 快速体验
 
