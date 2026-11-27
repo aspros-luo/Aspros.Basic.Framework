@@ -1,6 +1,6 @@
 # 企业知识库 RAG 架构决策
 
-> 状态：Accepted（截至 2026-11-27，Phase 1 关系型持久化、任务租约、索引代次幂等与原子切换已通过用户本地 Release 定向测试；可选 Worker Hosting 基础已实现，端到端摄取流程仍未实现。仅在 feature/enterprise-rag-foundation 开发，不改变 2.0.0 RC / master）
+> 状态：Accepted（截至 2026-11-27，Phase 1 关系型持久化与 Worker Hosting 已实现；Phase 2 已在独立 Demo 接入 OpenAI-compatible Embedding/Chat、Qdrant、索引代次激活、语义检索和带来源问答。新增代码尚待用户本地 Release 编译与真实模型端到端验证。仅在 feature/enterprise-rag-foundation 开发，不改变 2.0.0 RC / master）
 >
 > 适用范围：Aspros.Basic.Framework，目标框架 .NET 10。
 >
@@ -223,7 +223,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 仍未实现或验证：
 - Document.CurrentVersionId 与 ActiveIndexGenerationId 是有意分离的状态：新版本发布后旧活动代次继续服务，直到新代验证成功并在事务内切换指针。当前 SQLite 与 MySQL 回归测试覆盖重建失败保留旧指针、成功后切换新代并退役旧代，以及两个独立 DbContext 并发激活时单一 CAS 获胜；更广泛的并发读写快照和生产负载行为仍待验证。CurrentVersionId 当前由领域方法维护，尚未配置数据库外键约束，需在真实 Provider/迁移设计中评估一致性边界。
 - 尚未接入真实业务服务 DbContext/Migration；业务服务接入示例目前只验证模型配置方式，未证明任一真实业务数据库迁移可用。
-- Worker Hosting 已新增七项集成测试：独立 DI Scope、SQLite + EF Core 队列领取/续租/完成、租约丢失时取消 handler 且不回写、瞬时异常重试退避、永久异常终止失败、宿主优雅关闭时不错误完成任务、两个 Worker Host 并发消费多个任务且不重复完成。以上新增测试尚待用户本地执行；真实进程崩溃与真实关系型数据库上的多 Host 端到端竞争仍需验证。文档解析、Chunking Pipeline、Embedding、Vector Store 与索引构建编排仍未实现。
+- Worker Hosting 已新增七项集成测试：独立 DI Scope、SQLite + EF Core 队列领取/续租/完成、租约丢失时取消 handler 且不回写、瞬时异常重试退避、永久异常终止失败、宿主优雅关闭时不错误完成任务、两个 Worker Host 并发消费多个任务且不重复完成。以上新增测试尚待用户本地执行；真实进程崩溃与真实关系型数据库上的多 Host 端到端竞争仍需验证。PDF/Office 文档解析、生产级 Chunking Pipeline 与更完整的索引清理仍未实现。Demo 已加入真实 Embedding、Qdrant 向量写入、索引代次激活、语义检索与带来源 Chat，但尚待用户本地编译和真实模型端到端验证。
 - 尚未进行独立 Worker 进程/多实例端到端测试，也未验证真实进程崩溃后的自动恢复；目前通过过期租约、独立 DbContext 和模拟时钟验证了数据库层接管逻辑。
 - 已在 MySQL 8.4 上验证任务租约领取、过期接管和并发索引激活/CAS。新增 Worker Hosting 后尚未进行 Release build/test；代码需由用户本地验证。UTC ticks 转换、复合外键在当前测试路径中已随 MySQL 模型创建/写入经过基础验证，但尚未覆盖全部关系与查询组合。
 
@@ -231,13 +231,20 @@ Phase 1 后续验收门槛：并发领取测试通过；在目标 MySQL Provider
 
 ### Phase 2：模型与向量索引
 
-- 接入一个云端 Chat/Embedding Provider。
-- 接入一个本地 Chat/Embedding Provider。
-- 接入一个经过契约验证的 Vector Store Provider。
-- 建立模型/维度/索引代次校验。
-- 实现新代索引构建和原子切换。
+已在独立 Demo 完成第一轮可运行实现（待本地验证）：
+- Embedding 与 Chat 分别通过 OpenAI-compatible API 配置，默认指向本地 Ollama；可独立切换到云端兼容服务。
+- 使用 Qdrant.Client 作为 Demo Vector Store Provider；Qdrant 依赖不进入 RAG Core。
+- Embedding 维度由真实模型响应检测，不在 RAG Core 或配置中固定；Qdrant collection 按维度隔离。
+- 每个 IngestionJob 关联一个 IndexGeneration；后台任务执行切片、Embedding、Qdrant Upsert，再调用既有 EF Core CAS 激活器。
+- 语义检索先由 Qdrant 召回候选，再回到 SQL 校验当前 DocumentVersion、活动 IndexGeneration 和删除状态，Chunk 正文始终从 SQL 读取。
+- 增加 Search API 与带来源上下文的 Chat API。
 
-验收：切换云端/本地模型不改变 RAG 业务逻辑；模型维度不匹配时拒绝写入；索引重建期间旧索引仍可查询。
+仍需完成：
+- 用户本地 Release 编译与真实 Ollama / 云端 API + Qdrant 端到端验证。
+- 对模型切换、Embedding 维度变化、索引重建失败和旧代索引保留进行回归测试。
+- 为 Qdrant 增加失败恢复、旧代向量清理、健康检查与更完整的 Provider 契约测试。
+
+验收：切换云端/本地模型不改变 RAG 业务逻辑；模型维度不匹配时拒绝写入；索引重建期间旧索引仍可查询；向量候选必须经过 SQL 活动代次与当前版本校验。
 
 ### Phase 3：安全检索与引用
 
@@ -285,20 +292,48 @@ Phase 1 后续验收门槛：并发领取测试通过；在目标 MySQL Provider
 - NuGet Microsoft.Extensions.DataIngestion：<https://www.nuget.org/packages/Microsoft.Extensions.DataIngestion>
 
 
-## 11. 可运行的知识库 Demo（Phase 1）
+## 11. 可运行的知识库 RAG Demo（Phase 1-2）
 
 仓库新增独立示例应用 `samples/Rag.KnowledgeBase.Api`，消费 RAG Core、EF Core 与 Worker Hosting 项目，不将示例业务代码放进 Framework 包。
 
-当前可运行链路：创建知识库 → 上传 TXT/Markdown → 关系型数据库持久化 Document / DocumentVersion / IngestionJob → Worker 通过持久化租约领取任务 → 文本切片 → 在单个关系型事务中替换并保存规范 DocumentChunk → 查询任务状态、文档和 Chunk 内容。
+### 当前链路
 
-Demo 默认使用 SQLite 与本地文件目录，首次启动仅对示例专用数据库调用 `EnsureCreated`；这不是生产数据库初始化建议。示例固定使用 `demo-tenant`、没有身份认证或 ACL，并绑定本机地址，仅用于本地演示。生产业务仍需自行管理身份、租户授权、DbContext、Migration 和文件存储。
+创建知识库 → 上传 TXT/Markdown → SQLite 持久化 Document / DocumentVersion / IngestionJob → Worker 通过持久化租约领取任务 → 文本切片 → 生成真实 Embedding → 写入 Qdrant → 激活 IndexGeneration → Qdrant 召回 → SQL 校验当前版本与活动代次 → SQL 回读 Chunk 正文 → Chat 模型基于来源上下文回答。
 
-当前 Demo 明确尚未实现 PDF/Office 解析、Embedding、向量存储、语义检索和 LLM 问答。下一阶段在此可运行闭环上接入真实模型与向量 Provider；不得用 Fake Embedding 或静态答案冒充真实 RAG。
+### 模型与向量存储
 
-运行命令：
+- Demo 通过 OpenAI-compatible API 调用 Embedding 与 Chat，配置彼此独立。
+- 默认模型指向本地 Ollama；可通过环境变量分别切换到云端兼容 API。
+- Demo 使用 Qdrant.Client，Qdrant 仅保存向量与关联标识，不保存规范 Chunk 正文。
+- Embedding 维度来自真实 Provider 响应；Demo 按维度隔离 Qdrant collection。
+- 新代索引完成向量写入后，调用已有 EF Core CAS 激活器切换活动指针；查询结果再由 SQL 校验当前版本和活动代次。
+- 该 Demo 是验证 Provider 与链路的最小实现，不代表已具备生产级 ACL、向量清理、备份、高可用或监控。
+
+### 本地运行
+
+先启动 Qdrant：
+
+```bash
+docker compose -f samples/Rag.KnowledgeBase.Api/docker-compose.yml up -d
+```
+
+默认本地模型需要 Ollama，并拉取：
+
+```bash
+ollama pull nomic-embed-text
+ollama pull qwen2.5:7b
+```
+
+启动 API：
 
 ```bash
 dotnet run --project samples/Rag.KnowledgeBase.Api/Rag.KnowledgeBase.Api.csproj
 ```
 
-服务默认地址：`http://127.0.0.1:7280`。详细操作见 `samples/Rag.KnowledgeBase.Api/README.zh-CN.md`。
+默认地址：`http://127.0.0.1:7280`。完整上传、任务查询、语义检索和带来源问答命令见 `samples/Rag.KnowledgeBase.Api/README.zh-CN.md`。
+
+### 明确限制
+
+Demo 固定使用 `demo-tenant`，没有用户认证/ACL，并绑定本机地址，仅用于本地演示。首次启动仅对示例专用 SQLite 数据库调用 `EnsureCreated`；生产业务仍需自行管理身份、租户授权、DbContext、Migration 和文件存储。
+
+本阶段尚未实现 PDF/Office 解析、关键词混合检索、RRF 融合、Reranker、完整 ACL、生产级索引清理与运维。不得将当前 Demo 宣称为生产级 RAG。
