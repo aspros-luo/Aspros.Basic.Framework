@@ -422,6 +422,11 @@ public sealed class RagPersistenceTests
             .UseSqlite(connection)
             .Options;
 
+    private static DbContextOptions<RagTestDbContext> CreateFileOptions(string connectionString) =>
+        new DbContextOptionsBuilder<RagTestDbContext>()
+            .UseSqlite(connectionString)
+            .Options;
+
     private sealed class RagTestDbContext(DbContextOptions<RagTestDbContext> options)
         : DbContext(options)
     {
