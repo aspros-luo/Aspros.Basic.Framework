@@ -33,7 +33,7 @@ public sealed class RagWorkerHostingTests
                 });
             });
 
-        await using var host = builder.Build();
+        using var host = builder.Build();
         await host.StartAsync();
 
         try
@@ -117,7 +117,7 @@ public sealed class RagWorkerHostingTests
                 });
             });
 
-        await using var host = builder.Build();
+        using var host = builder.Build();
         await host.StartAsync();
 
         try
