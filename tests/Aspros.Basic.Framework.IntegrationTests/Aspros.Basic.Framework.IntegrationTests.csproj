@@ -37,5 +37,6 @@
     <ProjectReference Include="../../Aspros.Base.Framework.Algorithms/Aspros.Base.Framework.Algorithms.csproj" />
     <ProjectReference Include="../../Aspros.Base.Framework.RAG/Aspros.Base.Framework.RAG.csproj" />
     <ProjectReference Include="../../Aspros.Base.Framework.RAG.EntityFrameworkCore/Aspros.Base.Framework.RAG.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="../../Aspros.Base.Framework.RAG.Hosting/Aspros.Base.Framework.RAG.Hosting.csproj" />
   </ItemGroup>
 </Project>
