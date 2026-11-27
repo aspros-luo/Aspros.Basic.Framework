@@ -30,8 +30,18 @@ public sealed class RagPersistenceTests
                 "sha256:chunk-1",
                 pageNumber: 1,
                 sectionTitle: "Persistence");
+            var generation = IndexGeneration.Create(
+                "tenant-a",
+                knowledgeBase.Id,
+                document.Id,
+                version.Id,
+                "local-embedding-v1",
+                768,
+                "plain-text-v1");
+            generation.Activate();
+            document.SetActiveIndexGeneration(generation);
 
-            db.AddRange(knowledgeBase, document, version, chunk);
+            db.AddRange(knowledgeBase, document, version, chunk, generation);
             await db.SaveChangesAsync();
         }
 
@@ -41,6 +51,11 @@ public sealed class RagPersistenceTests
             Assert.Equal("The canonical text remains in the relational database.", chunk.Content);
             Assert.Equal(1, chunk.PageNumber);
             Assert.Equal("tenant-a", chunk.TenantId);
+
+            var document = await db.Set<Document>().SingleAsync();
+            var generation = await db.Set<IndexGeneration>().SingleAsync();
+            Assert.Equal(generation.Id, document.ActiveIndexGenerationId);
+            Assert.Equal(IndexGenerationStatus.Active, generation.Status);
         }
     }
 
