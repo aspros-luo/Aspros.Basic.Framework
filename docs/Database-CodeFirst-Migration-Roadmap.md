@@ -21,6 +21,10 @@ This is intentionally not a reflection-based Entity-to-SQL generator.
 
 Target: Aspros.Basic.Framework.Tools
 
+The tool delegates to `dotnet ef`; install a compatible EF Core CLI tool (10.0.15 for this RC) and ensure the startup project references `Microsoft.EntityFrameworkCore.Design`:
+
+    dotnet tool install --global dotnet-ef --version 10.0.15
+
 Responsibilities:
 - locate the application project;
 - locate the DbContext;

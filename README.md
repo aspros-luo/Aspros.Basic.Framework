@@ -273,7 +273,11 @@ The optional CLI is packaged as `Aspros.Basic.Framework.Tools`. After the stable
 
     dotnet tool install --global Aspros.Basic.Framework.Tools --version 2.0.0
 
-The command supports `aspros db migration --help`, `add`, `script` and guarded `update` operations. `update` requires explicit `--allow-update` and is intended for development/test databases. Production should normally use a reviewed SQL script or migration bundle.
+The CLI delegates migration execution to EF Core. Install the matching EF Core command-line tool as well:
+
+    dotnet tool install --global dotnet-ef --version 10.0.15
+
+The startup project must also provide the EF Core design-time package and a resolvable DbContext. The command supports `aspros db migration --help`, `add`, `script` and guarded `update` operations. `update` requires explicit `--allow-update` and is intended for development/test databases. Production should normally use a reviewed SQL script or migration bundle.
 
 For the current RC, validate packing, installation and command startup from the local package feed with:
 

@@ -13,7 +13,11 @@ DDD Entity/Aggregate → 显式 EF Mapping → DbContext Model → EF Core Migra
 - `aspros db migration add`
 - `aspros db migration script`
 - `aspros db migration update`
-- CLI 最终委托给 `dotnet ef`，避免 Framework 自己重新实现 EF Migration 引擎。
+- CLI 最终委托给 `dotnet ef`，避免 Framework 自己重新实现 EF Migration 引擎。RC 对应的 EF Core CLI 版本为 10.0.15，需单独安装；启动项目还应引用 `Microsoft.EntityFrameworkCore.Design`：
+
+```bash
+dotnet tool install --global dotnet-ef --version 10.0.15
+```
 - `update` 默认拒绝，必须显式增加 `--allow-update`，用于提醒开发者它会真正修改数据库。
 - 生产环境推荐生成 SQL 后审核/部署，而不是应用启动时自动执行 Migration。
 
