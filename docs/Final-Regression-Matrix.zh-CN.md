@@ -13,7 +13,7 @@
 | Category API CAP 业务验证 | PASS | 通过真实 API 使用 RabbitMQ、MySQL 和 CAP EF Storage，验证提交、回滚、重试、重复投递和幂等收据。 |
 | HTTP resilience 针对性回归 | PASS | 8 项针对性测试通过。 |
 | Framework 独立 Generic Host CAP 测试 | 已知缺口 | 显式启用后等待 Subscriber 投递超时，不计为 PASS。 |
-| 独立 NuGet 消费者 | 待执行 — 必需 | 执行 `bash scripts/verify-packaged-consumer.sh`。 |
+| 独立 NuGet 消费者 | PASS | 六个 RC 包全部打包；五个类库由独立消费者还原并实际调用；CLI 工具安装及启动成功。 |
 | Migration 回归 | 排除 | 按明确发布决策排除，不宣称通过。 |
 
 ## IntegrationTests 结果
@@ -31,13 +31,9 @@
 
 Category API CAP 验证是另一条独立且成功的真实业务路径。结果为：提交业务记录 1 条、回滚业务记录 0 条；重试投递 2 次、收据 1 条；重复投递 2 次、收据 1 条；回滚消息没有产生收据。CAP 提供至少一次投递，业务幂等由应用负责。该结果不能证明 Framework 所有 Generic Host 注册方式都正常。
 
-## 下一条必需命令
+## 独立 NuGet 消费者验收
 
-```bash
-bash scripts/verify-packaged-consumer.sh
-```
-
-该脚本会打包全部六个 RC NuGet 产物（五个类库及 CLI 工具包），使用隔离 NuGet 缓存从本地包源还原独立的 `Framework.Core.Api`，编译并启动它，验证 Framework DI、Algorithms 和 ClickHouse 包实际可用；随后将 CLI 工具安装到临时目录并检查命令入口。只有真实执行成功后，才能将包消费门槛从“待执行”改为 PASS。
+用户已确认执行 `bash scripts/verify-packaged-consumer.sh` 并完整成功。六个 `2.0.0-rc.1` 包全部打包。独立 `Framework.Core.Api` 从本地包源还原五个类库包并成功构建，启动后 `/health` 与 `/framework` 均返回预期结果；后者验证了 `IWorkContext` DI 解析、Algorithms 调用和 ClickHouse 程序集加载。`Aspros.Basic.Framework.Tools` 成功安装为 .NET Tool，`aspros db migration --help` 正常启动并输出帮助文本。独立包消费者门槛标记为 PASS。
 
 ## 环境边界
 
