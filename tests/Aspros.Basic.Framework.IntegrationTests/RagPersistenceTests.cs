@@ -182,6 +182,81 @@ public sealed class RagPersistenceTests
     }
 
     [Fact]
+    public async Task TryAcquireNextAsync_ConcurrentWorkersGrantOnlyOneLeaseAcrossIndependentDbContexts()
+    {
+        var databasePath = Path.Combine(
+            Path.GetTempPath(),
+            $"aspros-rag-concurrency-{Guid.NewGuid():N}.db");
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Cache = SqliteCacheMode.Shared,
+            Pooling = false,
+            DefaultTimeout = 30
+        }.ToString();
+        var options = CreateFileOptions(connectionString);
+
+        try
+        {
+            var jobId = await SeedJobAsync(options);
+            const int workerCount = 8;
+            var startGate = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            async Task<IngestionJobLease?> AcquireAsync(int workerNumber)
+            {
+                await using var db = new RagTestDbContext(options);
+                var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
+                await startGate.Task;
+                return await queue.TryAcquireNextAsync(
+                    $"concurrent-worker-{workerNumber}",
+                    TimeSpan.FromMinutes(2));
+            }
+
+            var acquisitions = Enumerable.Range(1, workerCount)
+                .Select(AcquireAsync)
+                .ToArray();
+
+            startGate.SetResult();
+            var leases = await Task.WhenAll(acquisitions);
+
+            var winners = leases.Where(lease => lease is not null).ToArray();
+            var winner = Assert.Single(winners);
+            Assert.Equal(jobId, winner!.JobId);
+            Assert.Equal(1, winner.AttemptCount);
+
+            await using var verificationDb = new RagTestDbContext(options);
+            var persisted = await verificationDb.Set<IngestionJob>()
+                .AsNoTracking()
+                .SingleAsync();
+
+            Assert.Equal(IngestionJobStatus.Processing, persisted.Status);
+            Assert.Equal(1, persisted.AttemptCount);
+            Assert.Equal(winner.WorkerId, persisted.LeaseOwner);
+            Assert.Equal(winner.LeaseToken, persisted.LeaseToken);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(databasePath))
+            {
+                File.Delete(databasePath);
+            }
+
+            if (File.Exists($"{databasePath}-shm"))
+            {
+                File.Delete($"{databasePath}-shm");
+            }
+
+            if (File.Exists($"{databasePath}-wal"))
+            {
+                File.Delete($"{databasePath}-wal");
+            }
+        }
+    }
+
+    [Fact]
     public async Task RenewAsync_ExtendsAnOwnedLease()
     {
         await using var connection = await OpenConnectionAsync();
