@@ -49,7 +49,7 @@ The script:
 2. Checks that `Framework.Core.Api` uses `PackageReference`, not `ProjectReference`.
 3. Restores using the locally produced packages and nuget.org, with a fresh isolated global package cache.
 4. Builds the standalone API.
-5. Starts it and verifies both `/health` and `/framework` (Framework DI resolution).
+5. Starts it and verifies `/health`, Framework DI resolution, an Algorithms ranking call and ClickHouse package assembly loading through `/framework`.
 
 If the default local port is occupied, set `PACKAGED_CONSUMER_URL`, for example:
 
@@ -69,7 +69,7 @@ The script requires the .NET 10 SDK, curl and access to nuget.org for third-part
 
 ## Compatibility notes
 
-The public `BasicEntity.Status` enum moved to `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`. Consumers referencing the old root-namespace enum must update that type reference. The .NET 10 target is a breaking package line; consumers should upgrade the three Framework packages together and use EF Core / ASP.NET Core 10-compatible dependencies.
+The public `BasicEntity.Status` enum moved to `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`. Consumers referencing the old root-namespace enum must update that type reference. The .NET 10 target is a breaking package line; consumers should upgrade the core Abstractions, Domain and Infrastructure packages together and use EF Core / ASP.NET Core 10-compatible dependencies. Algorithms and ClickHouse are optional independent packages and can be added when those capabilities are needed.
 
 ## Explicitly out of scope
 

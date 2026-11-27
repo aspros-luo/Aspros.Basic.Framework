@@ -49,7 +49,7 @@ bash scripts/verify-packaged-consumer.sh
 2. 检查 `Framework.Core.Api` 使用的是 `PackageReference`，而不是 `ProjectReference`。
 3. 使用本地刚生成的包和 nuget.org 还原依赖，并使用全新的隔离 NuGet 全局缓存。
 4. 编译独立 API 消费者。
-5. 启动 API，检查 `/health` 和 `/framework`，后者验证 Framework DI 能否解析。
+5. 启动 API，检查 `/health` 和 `/framework`，验证 Framework DI、Algorithms 排序算法调用以及 ClickHouse 包程序集加载。
 
 如果默认本地端口被占用，可以指定：
 
