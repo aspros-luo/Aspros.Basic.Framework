@@ -15,6 +15,7 @@ public sealed class Document
     public string SourceUri { get; private set; } = string.Empty;
     public string ContentHash { get; private set; } = string.Empty;
     public int CurrentVersionNumber { get; private set; }
+    public Guid? CurrentVersionId { get; private set; }
     public Guid? ActiveIndexGenerationId { get; private set; }
     public DocumentStatus Status { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -49,21 +50,28 @@ public sealed class Document
         };
     }
 
-    public void SetCurrentVersion(int versionNumber, string contentHash, DateTimeOffset? now = null)
+    public void SetCurrentVersion(DocumentVersion version, DateTimeOffset? now = null)
     {
-        if (versionNumber < 1)
+        ArgumentNullException.ThrowIfNull(version);
+
+        if (version.DocumentId != Id)
         {
-            throw new ArgumentOutOfRangeException(nameof(versionNumber));
+            throw new InvalidOperationException("The document version belongs to another document.");
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(contentHash);
         if (Status == DocumentStatus.Deleted)
         {
             throw new InvalidOperationException("A deleted document cannot be updated.");
         }
 
-        CurrentVersionNumber = versionNumber;
-        ContentHash = contentHash.Trim();
+        if (version.Status != DocumentVersionStatus.Ready)
+        {
+            throw new InvalidOperationException("Only a ready document version can become current.");
+        }
+
+        CurrentVersionId = version.Id;
+        CurrentVersionNumber = version.VersionNumber;
+        ContentHash = version.ContentHash;
         UpdatedAtUtc = now ?? DateTimeOffset.UtcNow;
     }
 
@@ -79,6 +87,16 @@ public sealed class Document
         if (generation.Status != IndexGenerationStatus.Active)
         {
             throw new InvalidOperationException("Only an active index generation can be selected.");
+        }
+
+        if (CurrentVersionId is null || generation.DocumentVersionId != CurrentVersionId.Value)
+        {
+            throw new InvalidOperationException("The index generation does not belong to the current document version.");
+        }
+
+        if (generation.TenantId != TenantId || generation.KnowledgeBaseId != KnowledgeBaseId)
+        {
+            throw new InvalidOperationException("The index generation belongs to another tenant or knowledge base.");
         }
 
         if (Status == DocumentStatus.Deleted)
