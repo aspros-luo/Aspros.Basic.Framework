@@ -34,11 +34,11 @@ public sealed class RagWorkerOptions
             throw new ArgumentOutOfRangeException(nameof(LeaseDuration));
         }
 
-        if (RenewalInterval <= TimeSpan.Zero || RenewalInterval >= LeaseDuration)
+        if (RenewalInterval <= TimeSpan.Zero || RenewalInterval > TimeSpan.FromTicks(LeaseDuration.Ticks / 2))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(RenewalInterval),
-                "Renewal interval must be greater than zero and shorter than the lease duration.");
+                "Renewal interval must be greater than zero and no longer than half the lease duration.");
         }
 
         if (PollingInterval <= TimeSpan.Zero)
