@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
 using static Qdrant.Client.Grpc.Conditions;
@@ -14,6 +16,7 @@ public sealed class DemoVectorStore(QdrantClient client)
         Guid documentId,
         Guid documentVersionId,
         Guid indexGenerationId,
+        string embeddingModelKey,
         IReadOnlyList<Guid> chunkIds,
         IReadOnlyList<float[]> vectors,
         CancellationToken cancellationToken)
@@ -29,7 +32,7 @@ public sealed class DemoVectorStore(QdrantClient client)
             throw new ArgumentException("All vectors in a batch must have the same dimension.");
         }
 
-        var collection = GetCollectionName(dimension);
+        var collection = GetCollectionName(embeddingModelKey, dimension);
         if (!await client.CollectionExistsAsync(collection, cancellationToken))
         {
             await client.CreateCollectionAsync(
@@ -63,11 +66,12 @@ public sealed class DemoVectorStore(QdrantClient client)
     public async Task<IReadOnlyList<DemoVectorMatch>> SearchAsync(
         string tenantId,
         Guid knowledgeBaseId,
+        string embeddingModelKey,
         float[] vector,
         int take,
         CancellationToken cancellationToken)
     {
-        var collection = GetCollectionName(vector.Length);
+        var collection = GetCollectionName(embeddingModelKey, vector.Length);
         if (!await client.CollectionExistsAsync(collection, cancellationToken))
         {
             return [];
@@ -106,5 +110,10 @@ public sealed class DemoVectorStore(QdrantClient client)
         return matches;
     }
 
-    private static string GetCollectionName(int dimension) => $"aspros_rag_demo_{dimension}";
+    private static string GetCollectionName(string embeddingModelKey, int dimension)
+    {
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(embeddingModelKey)))[..12]
+            .ToLowerInvariant();
+        return $"aspros_rag_{dimension}_{hash}";
+    }
 }
