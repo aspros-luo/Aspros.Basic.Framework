@@ -1,135 +1,45 @@
 # Refactor Checklist
 
-## Completed
+> This checklist records completed engineering work. It is not the release-acceptance source; use [Final-Regression-Matrix.md](Final-Regression-Matrix.md) for current evidence.
 
-- [x] Removed the Domain -> Infrastructure project dependency.
-- [x] Added an Abstractions project for DI markers and in-process event contracts.
-- [x] Added type forwarding for legacy Infrastructure-qualified marker/event types.
-- [x] Changed the repository base to depend on the Domain-side IEntitySetProvider abstraction.
-- [x] Kept existing EF repository constructors source-compatible through IDbContext implementing IEntitySetProvider.
-- [x] Made UnitOfWork stage changes and persist them only from CommitAsync.
-- [x] Made explicit transactions opt-in.
-- [x] Stopped UnitOfWork from disposing EF Core's DbConnection.
-- [x] Made rollback clear and dispose the current transaction.
-- [x] Fixed soft-delete audit handling for batch operations.
-- [x] Replaced ServiceLocator-based event dispatch with DI and multi-handler dispatch.
-- [x] Explicitly documented that IEvent is in-process only, not a durable integration event.
-- [x] Improved AutoInject with explicit assembly scanning and TryAdd semantics.
-- [x] Added ReflectionTypeLoadException handling to assembly scanning.
-- [x] Added framework-level gRPC hosting and typed client registration.
-- [x] Added optional Bearer Authorization forwarding for outgoing gRPC calls.
-- [x] Added a lightweight Dapper executor that can reuse the current UnitOfWork transaction.
-- [x] Made WorkContext claim-first and removed its Redis cache dependency.
-- [x] Fixed permission middleware so failed permission checks do not pass through.
-- [x] Removed the Framework-owned Polly policy helpers; outbound HTTP resilience is provided by the Microsoft standard pipeline.
-- [x] Added Core Provider / Consumer gRPC samples.
-- [x] Added HTTP smoke tests.
-- [x] Added Chinese and English documentation.
+## Completed engineering work
 
-## Completion Criteria
+- [x] Separated Abstractions, Domain and Infrastructure; Domain has no direct Infrastructure dependency.
+- [x] Kept repository, UnitOfWork and DbContext contracts aligned; Register stages changes and Commit persists them.
+- [x] Kept explicit transactions opt-in and ensured rollback clears tracked state.
+- [x] Replaced ServiceLocator-based event dispatch with DI and multi-handler dispatch; documented that IEvent is in-process only.
+- [x] Improved AutoInject assembly scanning and TryAdd semantics.
+- [x] Added gRPC hosting and typed-client registration helpers; business services own protobuf contracts.
+- [x] Added Dapper execution support that can reuse the active UnitOfWork connection and transaction.
+- [x] Added opt-in service discovery, CAP, HTTP resilience, rate limiting and health-check capabilities.
+- [x] Kept optional infrastructure integrations out of the default AddAsprosFramework registration.
+- [x] Migrated permission middleware to IHttpClientFactory and the Microsoft standard HTTP resilience pipeline; removed Framework-owned Polly helpers and direct Polly / Flurl references.
+- [x] Added Core Provider / Consumer samples and bilingual usage documentation.
+- [x] Added Category reference API, generic algorithms and ClickHouse integration to the RC line.
+- [x] Preserved xUnit v3 because conditional test skipping relies on v3 SkipUnless / SkipType.
 
-The refactor is complete when the required engineering and compatibility gates below are satisfied. Future enhancements are not completion blockers.
+## .NET 10 / 2.0.0-rc.1
 
-### Required
+- [x] Framework, samples and test projects target net10.0.
+- [x] Framework NuGet packages use version 2.0.0-rc.1.
+- [x] Microsoft EF Core / ASP.NET Core dependencies are aligned to 10.0.15; CAP packages are aligned to 10.0.2.
+- [x] A standalone Core API sample consumes Infrastructure through NuGet PackageReference.
+- [x] Docker Compose is an infrastructure and sample API runtime environment; it is not the Framework xUnit runner.
+- [x] Framework solution Release build succeeded.
+- [x] Category API Release build succeeded.
+- [x] IntegrationTests: 61 passed, 0 failed, 1 skipped (62 total).
+- [x] Eight targeted HTTP resilience regressions passed.
+- [x] Category API CAP business validation passed for commit, rollback, retry and duplicate/idempotent delivery.
+- [ ] Run `bash scripts/verify-packaged-consumer.sh` and record the real result before release approval.
+- [ ] The standalone Framework Generic Host CAP test remains a known timeout gap; do not count it as PASS.
+- [ ] Migration regression is explicitly excluded from this release gate.
 
-- [x] Domain has no direct Infrastructure dependency.
-- [x] Repository, UnitOfWork and DbContext contracts match their implementations.
-- [x] UnitOfWork Register/Commit semantics are explicit and transactions remain opt-in.
-- [x] A runnable gRPC Provider/Consumer smoke-test sample exists.
-- [x] Nacos is exposed through the framework ServiceDiscovery abstraction.
-- [x] Permission denial returns 403 and dependency failure returns 503.
-- [x] Existing Xr.User / Xr.Category Framework usage has been checked for compatibility.
-- [x] Chinese and English documentation describe the current API direction.
-- [x] No GitHub Actions/workflows are added or triggered by this refactor.
+## Design rules
 
-### .NET 10 migration status
-
-- [x] Move Framework, CLI, sample, integration-test, and migration-fixture projects to `net10.0` on the upgrade branch.
-- [x] Align Microsoft EF Core / ASP.NET Core references to 10.0.12 and CAP packages to 10.0.2.
-- [x] Add a standalone `net10.0` Core API that consumes Framework 2.0.0 through NuGet `PackageReference`.
-- [x] Add a disposable .NET 10 Docker environment and explicit regression commands.
-- [ ] Execute the build, integration, migration, gRPC, and package-consumer regressions in a real .NET 10 runtime.
-
-### Real-environment gates still required
-
-- [ ] Run a full solution build with an available .NET 10 SDK.
-- [ ] Start the gRPC Provider/Consumer and execute SmokeTests.http.
-- [ ] Run a minimal regression against the real Xr.User / Xr.Category services.
-- [ ] Fix only issues exposed by those real builds/tests.
-
-### Future evolution; not a completion blocker
-
-- [ ] Migrate all external HTTP calls to typed/IHttpClientFactory clients.
-- [ ] Standardize richer gRPC error codes and metadata.
-- [ ] Eventually remove the ServiceLocator compatibility shim.
-- [x] Replace Framework-owned Polly policy helpers with the Microsoft standard HTTP resilience pipeline.
-- [ ] Publish NuGet 2.0.0 only after the .NET 10 runtime and consumer compatibility gates pass. The current upgrade intentionally targets `net10.0` rather than introducing a multi-target package matrix.
-- [ ] Expand the unit/integration test matrix.
-
-## Design rule
-
-Keep the framework small.
-
-Default business flow:
+Keep the framework small. Default business flow remains:
 
     Controller -> Service/Application -> Repository -> DB
 
-Use explicit transactions only for business operations that need multiple changes to commit atomically.
+Use explicit transactions only when multiple changes must commit atomically. Use durable messaging for cross-service eventual consistency. Do not add CQRS, DDD infrastructure, Event Sourcing, transactions or messaging abstractions merely for architectural completeness.
 
-Use durable messaging for cross-service eventual consistency.
-
-Do not add CQRS, DDD infrastructure, Event Sourcing, transactions, or messaging abstractions merely for architectural completeness.
-
-- [x] Added IServiceDiscovery / ServiceEndpoint with Nacos as the default adapter.
-- [x] Permission validation now resolves the permission service through the discovery abstraction.
-- [x] Permission service name, group and validation path are configurable options.
-
-- [x] Added AddAsprosFramework for one-line registration of common runtime services.
-
-- [x] Hardened pagination for invalid page numbers/page sizes and zero totals.
-- [x] Hardened string conversion helpers for null and empty inputs.
-- [x] Made DisposableAction idempotent.
-- [x] Added range validation to Snowflake worker/datacenter/sequence inputs.
-- [x] Prevented duplicate successful API envelopes and preserved error results.
-- [x] Added a framework-native permission middleware entry point.
-
-- [x] Added RollbackAsync and aligned sync/async rollback behavior.
-- [x] Rollback clears EF ChangeTracker state to prevent accidental persistence after rollback.
-- [x] Moved permission middleware implementation into the framework namespace; the legacy SaaS type is now only a compatibility wrapper.
-- [x] Added opt-in gRPC deadline/cancellation context propagation.
-
-
-## Reverse-extraction audit
-
-- [x] Audited real Framework consumers beyond the core Framework project.
-- [x] Extracted reusable EF Core entity-mapping assembly discovery into Infrastructure.
-- [x] Extracted reusable global QueryFilter expression composition into Infrastructure.
-- [x] Kept business DbContext, entities, Mapping classes and tenant rules inside each business service.
-- [x] Added bilingual documentation explaining the extraction boundary and usage.
-- [ ] Full .NET build/runtime smoke test remains a local-environment gate because this execution environment does not provide the .NET SDK.
-
-- [x] Extracted the repeated AddDbContext + AddScoped<IDbContext> registration into an opt-in EF Core helper while keeping provider configuration in the business service.
-
-- [x] Final static audit found no `BuildServiceProvider()`, raw `new HttpClient`, `TODO`, or `NotImplementedException` in Framework code; legacy `ServiceLocator` remains only as a compatibility API where required by existing consumers.
-- [x] Confirmed no GitHub Actions workflow was introduced.
-- [x] Confirmed optional infrastructure remains opt-in rather than being forced through the base registration method.
-
-## Microservice reliability foundation
-
-- [x] Added opt-in CAP registration bound to the business DbContext.
-- [x] Added opt-in standard HTTP resilience registration.
-- [x] Added opt-in ASP.NET Core rate limiting registration.
-- [x] Added liveness/readiness health-check helpers.
-- [x] Documented distributed transaction boundaries: local transaction + durable message, not cross-service 2PC.
-- [x] Documented idempotency, distributed lock, cascading-failure and Saga/compensation boundaries.
-- [x] Kept reliability capabilities out of the default AddAsprosFramework registration.
-
-
-### Resilience migration validation (verified 2026-11-26)
-
-- [x] Permission allow/deny/dependency-unavailable/non-success/timeout/caller-cancellation regressions passed.
-- [x] HTTP transient GET retry, unsafe-method no-retry and circuit-breaker regressions passed.
-- [x] Release solution build succeeded (148 warnings); dependency inspection confirmed Polly is transitive through Microsoft.Extensions.Http.Resilience.
-- [x] Source/project scan found no remaining PollyExtend, `using Polly`, Flurl or direct Polly package references.
-
-The 8 targeted regressions and Release build passed; this does not claim the full integration suite passed.
+Do not add or trigger GitHub Actions for this release. Do not promote the RC to master or publish stable 2.0.0 until the required packaged-consumer gate passes and the user explicitly authorizes promotion.

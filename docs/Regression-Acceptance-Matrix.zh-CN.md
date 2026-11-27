@@ -1,11 +1,12 @@
-# 旧版回归验收矩阵（Legacy）
+# 旧版回归验收矩阵（历史归档）
 
-> Framework 已升级到 .NET 10 / 2.0.0。新的唯一验收入口是 `docs/Final-Regression-Matrix.zh-CN.md`。
->
-> 本文件保留历史记录用途，不再作为当前版本的验收基准。
+> 本文档仅保留历史记录。当前有效的发布证据统一维护在 [Final-Regression-Matrix.zh-CN.md](Final-Regression-Matrix.zh-CN.md)。
 
-请使用：
+此前 Docker `full-regression` profile 及其包消费者 Runner 已在 Compose 环境收敛为基础设施和示例 API 运行环境时有意退役。旧命令在当前仓库中不可执行，不得继续使用。
 
-`cd dev-environment && docker compose --profile infra --profile full-regression run --rm framework-full-regression`
+当前发布门槛、验收结果和可执行命令见：
 
-当前 Runtime 验证状态仍以最终矩阵为准；本环境未安装 .NET SDK / Docker，因此不能把静态检查冒充为真实运行结果。
+- [最终回归矩阵](Final-Regression-Matrix.zh-CN.md)
+- [发布 / 重构计划](REFACTORING_PLAN.zh-CN.md)
+
+本文档仅保留旧验收矩阵的位置和历史用途，不代表当前运行时 PASS。

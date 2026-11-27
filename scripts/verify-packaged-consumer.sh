@@ -55,7 +55,7 @@ NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet build "$CONSUMER_PROJECT" -c Release
 
 echo "== Start the consumer and verify Framework DI =="
 NUGET_PACKAGES="$NUGET_PACKAGES_DIR" dotnet run --project "$CONSUMER_PROJECT" \
-  -c Release --no-build --no-restore --urls "$CONSUMER_URL" >"$CONSUMER_LOG" 2>&1 &
+  -c Release --no-build --no-restore -- --urls "$CONSUMER_URL" >"$CONSUMER_LOG" 2>&1 &
 CONSUMER_PID=$!
 
 ready=false

@@ -1,11 +1,12 @@
 # Legacy Regression Acceptance Matrix
 
-> The framework is now on .NET 10 / 2.0.0. The single current acceptance source is `docs/Final-Regression-Matrix.md`.
->
-> This file is retained for historical reference and is no longer the acceptance baseline.
+> Historical record only. The active release evidence is maintained in [Final-Regression-Matrix.md](Final-Regression-Matrix.md).
 
-Use:
+The former Docker `full-regression` profile and its package-consumer runner were intentionally retired when the Compose environment was reduced to infrastructure and sample API runtime services. The old commands are not executable in the current repository and must not be used.
 
-`cd dev-environment && docker compose --profile infra --profile full-regression run --rm framework-full-regression`
+For the current release gates, results and exact commands, see:
 
-Runtime status is tracked in the final matrix. This execution environment has no .NET SDK or Docker, so static inspection must not be reported as runtime PASS.
+- [Final Regression Matrix](Final-Regression-Matrix.md)
+- [Release / Refactoring Plan](../REFACTORING_PLAN.md)
+
+This file is retained only to preserve the location of the historical acceptance matrix. It is not an active checklist and makes no current runtime PASS claim.

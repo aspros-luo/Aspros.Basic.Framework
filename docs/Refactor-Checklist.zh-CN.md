@@ -1,130 +1,45 @@
 # Framework 重构清单
 
-## 已完成
+> 本清单记录已经完成的工程改造，不再作为发布验收依据。当前验收证据统一见[最终回归矩阵](Final-Regression-Matrix.zh-CN.md)。
 
-- [x] Domain 不再引用 Infrastructure。
-- [x] 增加 Abstractions 层，承载 DI 标记与进程内事件最小契约。
-- [x] 保留旧 Infrastructure 命名空间的类型转发，降低已有业务代码迁移成本。
-- [x] Repository 基类改为依赖 Domain 的 IEntitySetProvider。
-- [x] IDbContext 适配 IEntitySetProvider，保持现有 EF Repository 构造方式可用。
-- [x] UnitOfWork 改为“Register 只跟踪变更、Commit 才持久化”。
-- [x] 显式事务只在业务需要时开启。
-- [x] 不再由 UnitOfWork 主动关闭或 Dispose EF Core 的 DbConnection。
-- [x] Rollback 会释放并清理当前事务。
-- [x] 软删除批量操作补齐审计字段。
-- [x] EventBus 改为依赖注入，支持多个 Handler。
-- [x] 明确 IEvent 只表示进程内事件，不承担 MQ 的可靠投递职责。
-- [x] AutoInject 支持显式程序集扫描，并使用 TryAdd 避免覆盖已有注册。
-- [x] AutoInject 对 ReflectionTypeLoadException 做兼容处理。
-- [x] 增加 gRPC Server Hosting 与 ClientFactory 注册能力。
-- [x] 增加 DapperExecutor，复杂 SQL 可以复用当前 UoW 连接与事务。
-- [x] WorkContext 优先从已认证 Claims 读取 user_id、sub、tenant_id。
-- [x] 增加 Core Provider / Consumer gRPC 示例。
-- [x] 增加 HTTP smoke test 入口。
-- [x] README 更新为当前架构说明。
+## 已完成的工程改造
 
-## 完成判定
+- [x] 拆分 Abstractions、Domain 和 Infrastructure；Domain 不直接依赖 Infrastructure。
+- [x] Repository、UnitOfWork 和 DbContext 契约保持一致；Register 暂存变更，Commit 负责持久化。
+- [x] 显式事务按需开启；Rollback 清理 EF 跟踪状态。
+- [x] 使用 DI 和多 Handler 分发替代基于 ServiceLocator 的事件分发；明确 IEvent 仅用于进程内事件。
+- [x] 改进 AutoInject 程序集扫描与 TryAdd 注册语义。
+- [x] 增加 gRPC Hosting 和 typed client 注册辅助能力；protobuf 契约归业务服务所有。
+- [x] 增加可复用当前 UnitOfWork 连接和事务的 Dapper 执行能力。
+- [x] 增加按需启用的服务发现、CAP、HTTP resilience、限流和健康检查能力。
+- [x] 可选基础设施集成不强制塞入 AddAsprosFramework 默认注册。
+- [x] 权限中间件迁移到 IHttpClientFactory 和 Microsoft 标准 HTTP resilience pipeline；移除 Framework 自有 Polly 工具及直接 Polly / Flurl 引用。
+- [x] 增加 Core Provider / Consumer 示例与中英文使用文档。
+- [x] 将 Category 参考 API、通用算法和 ClickHouse 集成纳入 RC。
+- [x] 保留 xUnit v3：条件跳过测试依赖 v3 的 SkipUnless / SkipType。
 
-本次重构不以“所有未来增强都完成”为结束条件，而以以下验收标准为准：
+## .NET 10 / 2.0.0-rc.1 状态
 
-### 必须满足
+- [x] Framework、示例和测试项目使用 net10.0。
+- [x] Framework NuGet 包版本为 2.0.0-rc.1。
+- [x] Microsoft EF Core / ASP.NET Core 依赖对齐到 10.0.15，CAP 包对齐到 10.0.2。
+- [x] 独立 Core API 示例通过 NuGet PackageReference 消费 Infrastructure。
+- [x] Docker Compose 只负责基础设施和示例 API 运行，不承担 Framework xUnit 测试执行。
+- [x] Framework Solution Release 构建成功。
+- [x] Category API Release 构建成功。
+- [x] IntegrationTests：61 通过、0 失败、1 跳过（共 62 项）。
+- [x] 8 项 HTTP resilience 定向回归通过。
+- [x] Category API CAP 业务验证通过，覆盖提交、回滚、重试和重复 / 幂等投递。
+- [ ] 发布批准前执行 `bash scripts/verify-packaged-consumer.sh`，并记录真实结果。
+- [ ] Framework 独立 Generic Host CAP 测试仍有超时缺口，不得计为 PASS。
+- [ ] Migration 回归按本次发布决策明确排除。
 
-- [x] Domain 不直接依赖 Infrastructure。
-- [x] Repository / UnitOfWork / DbContext 的接口与实现契约一致。
-- [x] UnitOfWork 的 Register 与 Commit 语义明确；显式事务保持按需开启。
-- [x] gRPC Provider / Consumer 最小链路已经有真实可运行示例。
-- [x] Nacos 服务发现已经抽象为 Framework ServiceDiscovery 契约。
-- [x] Permission 依赖服务故障能够返回 503，权限不足返回 403。
-- [x] 现有 Xr.User / Xr.Category 的 Framework 使用方式不会因为本轮重构而被静默破坏。
-- [x] 中文、英文 README / Usage / Migration / Checklist 与当前 API 方向一致。
-- [x] 不增加 GitHub Actions，不依赖 CI 作为本轮验收手段。
+## 设计原则
 
-### .NET 10 升级状态
-
-- [x] 在升级分支将 Framework、CLI、示例、集成测试和 Migration Fixture 项目切换为 `net10.0`。
-- [x] 将 Microsoft EF Core / ASP.NET Core 依赖对齐到 10.0.12，CAP 包对齐到 10.0.2。
-- [x] 新增独立 `net10.0` Core API，通过 NuGet `PackageReference` 消费 Framework 2.0.0。
-- [x] 增加 .NET 10 Docker 临时环境和明确的回归命令。
-- [ ] 在真实 .NET 10 Runtime 执行 build、集成测试、迁移、gRPC 与包消费者回归。
-
-### 仍需要真实环境完成
-
-- [ ] 在本地使用可用的 .NET 10 SDK 执行完整 solution build。
-- [ ] 启动 gRPC Provider / Consumer，执行 SmokeTests.http。
-- [ ] 在真实 Xr.User / Xr.Category 环境运行最小 API 回归。
-- [ ] 如果本地 build 暴露问题，再针对实际错误修正。
-
-### 明确属于后续演进，不阻塞本次重构
-
-- [ ] 将所有外部 HTTP 调用统一迁移到 typed client。
-- [ ] 更完整的 gRPC error-code / metadata 标准化。
-- [ ] ServiceLocator 的最终移除。
-- [x] 移除 Framework 自有 Polly 策略工具，统一使用 Microsoft 标准 HTTP Resilience Pipeline。
-- [ ] 仅在 .NET 10 Runtime 与消费者兼容验收通过后发布 NuGet 2.0.0。本次升级明确以 `net10.0` 为目标，不额外引入多目标框架矩阵。
-- [ ] 更完整的单元测试 / 集成测试矩阵。
-
-这些项目只有在实际业务需要时再做，不为了“框架看起来完整”而增加复杂度。
-
-## 原则
-
-保持轻量，不为了“像完整框架”而增加 CQRS、DDD、Event Sourcing、事务或消息抽象。
-
-正常业务仍优先：
+保持框架轻量。默认业务链路仍然是：
 
     Controller -> Service/Application -> Repository -> DB
 
-只有实际业务存在异步最终一致性需求时才使用持久化 MQ。
+只有多个变更必须原子提交时才显式开启事务。跨服务最终一致性使用可靠消息。不要为了架构完整而强行增加 CQRS、DDD 基础设施、Event Sourcing、事务或消息抽象。
 
-- [x] 增加 IServiceDiscovery / ServiceEndpoint，并将 Nacos 作为默认实现。
-- [x] 权限校验改为通过服务发现抽象定位权限服务。
-- [x] 权限服务名称、Group 和路径改为 Options 配置。
-
-- [x] 增加 AddAsprosFramework，一次性注册常用基础运行时能力。
-
-- [x] 修复分页的 0 页码、0 页大小和总页数计算边界。
-- [x] 修复字符串转换工具的空值与逐字符处理问题。
-- [x] 修复 DisposableAction 重复 Dispose 重复执行 action 的问题。
-- [x] 为 Snowflake worker/datacenter/sequence 增加范围校验。
-- [x] 防止 API Result Filter 二次包装成功响应并保留错误响应。
-- [x] 为权限中间件增加框架原生命名空间入口。
-
-- [x] 增加 RollbackAsync，并让同步/异步回滚行为一致。
-- [x] 回滚时清理 EF ChangeTracker，避免回滚后的 tracked entity 被再次持久化。
-- [x] 将权限中间件实现迁移到框架原生命名空间，旧 SaaS 类型仅作为兼容包装。
-- [x] 增加 gRPC deadline/cancellation 上下文的显式传播能力。
-
-
-## 真实消费者反向提炼审计
-
-- [x] 不再只检查 Framework 自身，同时检查真实业务消费者的基础设施实现。
-- [x] 将 EF Core 实体 Mapping 程序集自动发现提炼到 Framework Infrastructure。
-- [x] 将全局 QueryFilter 的表达式组合机制提炼到 Framework Infrastructure。
-- [x] 业务 DbContext、实体、Mapping 类以及租户规则继续留在业务服务中。
-- [x] 增加中英文 EF Core 模型约定说明。
-- [ ] 完整 .NET build/runtime smoke test 仍需要在具备 .NET SDK 的环境中完成；当前执行环境没有可用 dotnet SDK。
-
-- [x] 将重复的 AddDbContext + AddScoped<IDbContext> 注册提炼为按需 EF Core 辅助方法，同时保留业务服务自己的数据库 Provider 配置。
-
-- [x] 最终静态审计未发现 Framework 内存在 `BuildServiceProvider()`、裸 `new HttpClient`、`TODO` 或 `NotImplementedException`；旧 `ServiceLocator` 仅作为现有消费者兼容 API 保留。
-- [x] 确认没有新增 GitHub Actions workflow。
-- [x] 确认可选基础设施仍保持按需启用，没有全部强制塞进基础注册方法。
-
-## 微服务可靠性基础能力
-
-- [x] 增加按需 CAP 注册入口，并绑定业务 DbContext。
-- [x] 增加按需 HTTP 标准弹性能力入口。
-- [x] 增加按需 ASP.NET Core 限流入口。
-- [x] 增加独立 Liveness / Readiness 健康检查入口。
-- [x] 明确分布式事务边界：本地事务 + 可靠消息，不做跨服务 2PC。
-- [x] 明确幂等、分布式锁、级联故障以及 Saga/补偿的设计边界。
-- [x] 可靠性能力不强制塞入 AddAsprosFramework 默认注册。
-
-
-### Resilience 迁移验收（2026-11-26 已验证）
-
-- [x] 权限放行、拒绝、依赖不可用、非成功状态、超时和调用方取消回归测试通过。
-- [x] HTTP 瞬时 GET 重试、不安全方法不重试和熔断器回归测试通过。
-- [x] Release 构建成功（148 条警告）；依赖树确认 Polly 仅作为 Microsoft.Extensions.Http.Resilience 的传递实现依赖。
-- [x] 源码和项目文件扫描未发现 PollyExtend、`using Polly`、Flurl 或直接 Polly 包引用。
-
-本次通过的是 8 项定向回归测试和 Release 构建，不代表完整集成测试套件全部通过。
+本次发布不新增、不触发 GitHub Actions。独立包消费者门槛通过并获得用户明确授权之前，不得将 RC 提升到 master，也不得发布稳定版 2.0.0。
