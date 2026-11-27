@@ -31,7 +31,7 @@ The RC includes the Framework packages, integration infrastructure, generic algo
 | Category API CAP business flow | PASS | Real API flow verified commit, rollback, retry, duplicate delivery and idempotent receipt behavior using RabbitMQ, MySQL and CAP EF Storage. |
 | HTTP resilience regression | PASS | Eight targeted retry, circuit-breaker and permission-middleware tests passed. |
 | Standalone Framework Generic Host CAP regression | KNOWN GAP | The opt-in test timed out while awaiting subscriber delivery. It is not counted as passed. The Category API business flow above validates its actual application path but does not prove every Generic Host registration shape. |
-| Packaged NuGet consumer | PENDING | Run `bash scripts/verify-packaged-consumer.sh`; this gate is required before release approval. |
+| Packaged NuGet consumer | PASS | All six RC packages packed; five libraries restored and exercised by a standalone consumer; CLI tool installed and launched successfully. |
 | Migration regression | EXCLUDED BY RELEASE DECISION | Deliberately excluded from this release gate; this is not a claim that migration behavior passed. |
 
 A PASS means the command or business flow actually ran and succeeded. Static inspection, a Docker container being healthy, or a ProjectReference sample build is not a substitute for the packaged-consumer gate.
@@ -61,7 +61,7 @@ The script requires the .NET 10 SDK, curl and access to nuget.org for third-part
 
 ## Release procedure
 
-1. Complete the required packaged-consumer gate and record its actual result.
+1. Packaged-consumer gate completed successfully; retain its user-confirmed output as release evidence.
 2. Re-check the RC branch head, working tree / user-local changes, Release builds, IntegrationTests summary and known gaps.
 3. Review the final regression matrix and release notes for consistency with the evidence above.
 4. Only after explicit user approval, promote the accepted RC to `master` and create the stable `2.0.0` release / package publication. Do not publish the RC packages as stable.
