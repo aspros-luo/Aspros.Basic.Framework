@@ -94,9 +94,9 @@ public sealed class DemoVectorStore(QdrantClient client)
             }
         };
 
-        var points = await client.SearchAsync(
-            collection,
-            vector,
+        var points = await client.QueryAsync(
+            collectionName: collection,
+            query: vector,
             filter: filter,
             limit: (ulong)Math.Clamp(take, 1, 50),
             cancellationToken: cancellationToken);
