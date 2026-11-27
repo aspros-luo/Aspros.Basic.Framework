@@ -33,12 +33,12 @@ Qdrant 默认暴露 REST 6333 和 gRPC 6334，数据持久化在 Docker volume�
 
 ~~~bash
 ollama pull nomic-embed-text
-ollama pull qwen2.5:7b
+ollama pull qwen3-coder
 ~~~
 
 默认配置通过 Ollama 的 OpenAI-compatible API：
 - Embedding：nomic-embed-text
-- Chat：qwen2.5:7b
+- Chat：qwen3-coder
 
 如果本机没有 Ollama，可以将 Embedding 与 Chat 分别切换到任意兼容 OpenAI API 的云端服务。
 
