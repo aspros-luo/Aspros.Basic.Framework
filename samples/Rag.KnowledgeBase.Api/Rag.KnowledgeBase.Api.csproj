@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.15" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.15" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Aspros.Base.Framework.RAG/Aspros.Base.Framework.RAG.csproj" />
+    <ProjectReference Include="../../Aspros.Base.Framework.RAG.EntityFrameworkCore/Aspros.Base.Framework.RAG.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="../../Aspros.Base.Framework.RAG.Hosting/Aspros.Base.Framework.RAG.Hosting.csproj" />
+  </ItemGroup>
+</Project>
