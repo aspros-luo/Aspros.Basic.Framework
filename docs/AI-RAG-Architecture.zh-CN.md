@@ -1,6 +1,6 @@
 # 企业知识库 RAG 架构决策
 
-> 状态：Accepted（截至 2026-11-27，Phase 1 关系型持久化、任务租约、索引代次幂等与原子切换已通过用户本地 Release 定向测试；Worker 宿主和端到端摄取流程仍未实现。仅在 feature/enterprise-rag-foundation 开发，不改变 2.0.0 RC / master）
+> 状态：Accepted（截至 2026-11-27，Phase 1 关系型持久化、任务租约、索引代次幂等与原子切换已通过用户本地 Release 定向测试；可选 Worker Hosting 基础已实现，端到端摄取流程仍未实现。仅在 feature/enterprise-rag-foundation 开发，不改变 2.0.0 RC / master）
 >
 > 适用范围：Aspros.Basic.Framework，目标框架 .NET 10。
 >
@@ -106,6 +106,7 @@ Embedding 模型、维度、Chunking 策略、规范化规则均属于索引兼�
 |---|---|---|
 | `Aspros.Base.Framework.RAG` | RAG 核心契约与 Pipeline：文档/Chunk 模型、摄取编排、检索编排、上下文、引用、权限上下文、索引代次 | Phase 1 无第三方依赖；Phase 2 按需加入 MEAI / VectorData 抽象；Phase 4 再引用 Algorithms |
 | `Aspros.Base.Framework.RAG.EntityFrameworkCore` | 关系型元数据、Chunk、Job、索引代次的 EF Core 映射和持久化实现 | RAG、`Microsoft.EntityFrameworkCore.Relational` 10.x |
+| `Aspros.Base.Framework.RAG.Hosting` | 可选 BackgroundService 宿主：任务轮询、并发执行、租约续期、取消失去租约的处理器、完成/失败回写 | RAG、Microsoft.Extensions.Hosting / Options / Logging abstractions 10.x |
 
 RAG 包不依赖 Infrastructure，也不要求业务服务使用 Framework 自己的 DbContext。Phase 1 的核心包保持零第三方依赖；AI 与 VectorData 抽象在 Phase 2 真正实现模型/向量能力时再加入，RRF 的 Algorithms 引用延后到 Phase 4。EF Core 包提供实体配置/存储实现接入点；业务服务仍负责把配置纳入自己的 DbContext、连接字符串和 Migration。
 
@@ -202,6 +203,8 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 - 已定义 KnowledgeBase、Document、DocumentVersion、DocumentChunk、IngestionJob、IndexGeneration；Document 通过 CurrentVersionId 指向最新已就绪文档版本，通过 ActiveIndexGenerationId 独立指向当前可检索的活动索引代次。设置新版本时不清空旧活动索引指针，因此重建失败或进行中时旧索引仍可用；只有新代索引构建并验证成功后，应用层才在同一关系型事务中切换 ActiveIndexGenerationId，并将旧代标记为 Retired。激活索引时校验其属于当前最新版本、同一文档、租户和知识库。查询必须以 ActiveIndexGenerationId 对应的代次为准，不能简单要求活动索引版本始终等于最新文档版本。
 - EF Core 包通过 `ModelBuilder.ApplyRagModel()` 将映射加入业务服务自有 DbContext；业务服务继续负责连接、DbContext 与 Migration。
 - 已实现基于条件更新和 LeaseToken 的任务租约，包含领取、续租、完成、失败重试与终止失败；租约 Token 防止旧 Worker 在接管后提交完成状态。
+- 新增可选 `Aspros.Base.Framework.RAG.Hosting` 包。业务应用实现 `IIngestionJobHandler` 并调用 `AddRagWorker<THandler>()` 即可启用后台 Worker；队列存储仍需由应用单独注册（例如 `AddRagEntityFrameworkCore<TContext>()`）。Worker 支持配置并发度、轮询间隔、租约时长、心跳间隔和指数退避；`IngestionJobPermanentException` 表示不可重试的永久错误。
+- Worker 对每次队列操作、每个任务处理器和每次租约心跳分别创建 DI Scope，避免 handler 与 heartbeat 并发使用同一个 Scoped DbContext。租约续期失败或心跳异常时会取消 handler，并且不再使用失效租约写入完成/失败状态；宿主关闭时停止处理并让未完成租约自然过期，由后续 Worker 接管。
 - 任务轮询在确有“最后一次尝试已过期”的任务时才执行终止恢复写入；无待恢复任务时只执行存在性查询，避免每个 Worker 的空更新在高频轮询时制造不必要的数据库写锁竞争。
 - IngestionJob 增加租户范围内唯一的 IdempotencyKey，避免同一请求重复创建任务。
 - 每个 IndexGeneration 必须关联一个 IngestionJob；通过 IngestionJobId 唯一索引保证一个任务最多产生一个索引代次，并通过包含 Tenant/KnowledgeBase/Document/DocumentVersion 的复合外键保证任务归属一致。相同文档版本与索引配置下，显式重新索引必须创建新任务，因此允许创建新代次，不会被错误的“配置唯一键”拦截。
@@ -212,7 +215,7 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 
 本地验证（2026-11-27）：
 - `dotnet build Aspros.Base.Framework.sln --configuration Release`：成功；全 Solution 报告 187 条 warning，需单独分类治理，不影响本次编译成功结论。
-- 用户本轮本地执行 `RagPersistenceTests`：12 项通过，0 失败，0 跳过；包含 8 个独立 DbContext/连接并发领取竞争，以及蓝绿索引切换和关系型事务持久化测试。
+- 用户本轮本地执行 `RagPersistenceTests`：15 项通过，0 失败，0 跳过；包含 EF Core DI 注册、8 个独立 DbContext/连接并发领取竞争，以及蓝绿索引切换和关系型事务持久化测试。
 - 新增 `RagMySqlProviderTests`：通过独立的 `ConnectionStrings__RagTestDatabase` 环境变量启用，使用专用 RAG 测试数据库验证 8 个独立 DbContext 并发领取同一任务仅有一个租约；另增加租约过期接管测试，模拟 Worker 进程失联后由新 Worker 重新领取，并验证旧 LeaseToken 无法续租、失败或完成任务。未配置该变量时自动 Skip；不使用或清理共享的 `ConnectionStrings__TestDatabase`，避免破坏 Framework/Category 测试数据。用户本地两项 MySQL Provider 测试均已通过（2/2，0 失败，0 跳过）。
 - MySQL Provider 测试建议先创建独立数据库 `aspros_framework_rag_test`，并将 `ConnectionStrings__RagTestDatabase` 指向该库；例如：`Server=127.0.0.1;Port=13306;Database=aspros_framework_rag_test;User=framework;Password=framework_password;`。该账号需要该独立数据库的建表、删表权限（测试会重建专用 RAG 表结构）。运行命令：`dotnet test --project tests/Aspros.Basic.Framework.IntegrationTests/Aspros.Basic.Framework.IntegrationTests.csproj --configuration Release --filter "FullyQualifiedName~RagMySqlProviderTests"`。
 - RAG Core 与 EF Core 集成项目均在 `net10.0` Release 配置下成功生成。
@@ -220,9 +223,9 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 仍未实现或验证：
 - Document.CurrentVersionId 与 ActiveIndexGenerationId 是有意分离的状态：新版本发布后旧活动代次继续服务，直到新代验证成功并在事务内切换指针。当前 SQLite 与 MySQL 回归测试覆盖重建失败保留旧指针、成功后切换新代并退役旧代，以及两个独立 DbContext 并发激活时单一 CAS 获胜；更广泛的并发读写快照和生产负载行为仍待验证。CurrentVersionId 当前由领域方法维护，尚未配置数据库外键约束，需在真实 Provider/迁移设计中评估一致性边界。
 - 尚未接入真实业务服务 DbContext/Migration；业务服务接入示例目前只验证模型配置方式，未证明任一真实业务数据库迁移可用。
-- 尚未实现文档解析、Chunking Pipeline、Embedding、Vector Store、索引构建/切换服务或 Worker 宿主。
+- Worker Hosting 当前只完成宿主基础和 Fake Queue 的基础集成测试；尚未使用真实 EF Core 队列验证完整 Worker 生命周期、租约丢失取消、失败退避、宿主关闭恢复和多实例端到端行为。文档解析、Chunking Pipeline、Embedding、Vector Store 与索引构建编排仍未实现。
 - 尚未进行独立 Worker 进程/多实例端到端测试，也未验证真实进程崩溃后的自动恢复；目前通过过期租约、独立 DbContext 和模拟时钟验证了数据库层接管逻辑。
-- 已在 MySQL 8.4 上验证任务租约领取、过期接管和并发索引激活/CAS。UTC ticks 转换、复合外键在当前测试路径中已随 MySQL 模型创建/写入经过基础验证，但尚未覆盖全部关系与查询组合。
+- 已在 MySQL 8.4 上验证任务租约领取、过期接管和并发索引激活/CAS。新增 Worker Hosting 后尚未进行 Release build/test；代码需由用户本地验证。UTC ticks 转换、复合外键在当前测试路径中已随 MySQL 模型创建/写入经过基础验证，但尚未覆盖全部关系与查询组合。
 
 Phase 1 后续验收门槛：并发领取测试通过；在目标 MySQL Provider 上验证多 Worker 并发下同一任务只有一个有效租约；真实 Worker 重启后任务可恢复；同一 IngestionJob 不会创建重复索引代次；相同配置的显式重建可创建新代次；MySQL 多 Worker 并发激活时仅一个 CAS 获胜且只有一个 Active 代次；关系型规范数据可用于完整重建向量索引。
 
