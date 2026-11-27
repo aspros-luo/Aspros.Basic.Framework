@@ -80,6 +80,30 @@ public sealed class RagPersistenceTests
     }
 
     [Fact]
+    public async Task ChunkCannotReferenceAnotherDocumentsVersion()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        await using var db = new RagTestDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var knowledgeBase = KnowledgeBase.Create("tenant-a", "engineering");
+        var firstDocument = Document.Create(
+            "tenant-a", knowledgeBase.Id, "first", "file:///first.md", "sha256:first");
+        var secondDocument = Document.Create(
+            "tenant-a", knowledgeBase.Id, "second", "file:///second.md", "sha256:second");
+        var secondVersion = DocumentVersion.Create(
+            secondDocument.Id, 1, "sha256:second", "text/markdown",
+            secondDocument.SourceUri, "plain-text-v1");
+        var invalidChunk = DocumentChunk.Create(
+            "tenant-a", knowledgeBase.Id, firstDocument.Id, secondVersion.Id,
+            0, "This chunk points to a different document version.", "sha256:invalid");
+
+        db.AddRange(knowledgeBase, firstDocument, secondDocument, secondVersion, invalidChunk);
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+    }
+
+    [Fact]
     public async Task IngestionJob_IdempotencyKeyIsUniqueWithinTenant()
     {
         await using var connection = await OpenConnectionAsync();
