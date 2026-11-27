@@ -1,6 +1,6 @@
 # 企业知识库 RAG 架构决策
 
-> 状态：Accepted（架构基线已确认，实施等待 2.0.0 稳定版发布）
+> 状态：Accepted（Phase 1 实施中；仅在 feature/enterprise-rag-foundation 开发，不改变 2.0.0 RC / master）
 >
 > 适用范围：Aspros.Basic.Framework，目标框架 .NET 10。
 >
@@ -186,7 +186,7 @@ RAG 包不依赖 Infrastructure，也不要求业务服务使用 Framework 自�
 
 ## 8. 实施顺序与验收门槛
 
-AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与发布优先；本分支只承载架构决策文档，不修改 master 或 RC。
+AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与发布仍独立进行；Phase 1 在 feature/enterprise-rag-foundation 上开发，基于 RC 代码，不修改 RC 或 master。待 2.0.0 稳定版基线确定后再进行兼容性复核与合并。
 
 ### Phase 0：发布基线
 
@@ -197,11 +197,17 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 
 ### Phase 1：最小 RAG 契约与关系型持久化
 
-- 建立 RAG 与 RAG.EntityFrameworkCore 项目。
-- 定义 Document、DocumentVersion、DocumentChunk、IngestionJob、IndexGeneration。
-- 接入业务服务自有 DbContext 与 Migration。
-- 实现数据库任务租约、幂等和状态迁移。
-- 先使用 Markdown/纯文本输入验证端到端，不急于引入大量解析器。
+实施范围：
+- 已建立 `Aspros.Base.Framework.RAG` 与 `Aspros.Base.Framework.RAG.EntityFrameworkCore` 两个 preview 项目。
+- 已定义 KnowledgeBase、Document、DocumentVersion、DocumentChunk、IngestionJob、IndexGeneration。
+- EF Core 包通过 `ModelBuilder.ApplyRagModel()` 将映射加入业务服务自有 DbContext；业务服务继续负责连接、DbContext 与 Migration。
+- 已实现基于条件更新和 LeaseToken 的任务租约，包含领取、续租、完成、失败重试与终止失败。
+- SQLite 集成测试覆盖关系型 Chunk 正文持久化、单活跃租约、租约过期接管、旧租约失效和重试上限。
+
+待验证：
+- 本地 Release build 与集成测试尚未执行；GitHub 文件写入不等于编译或测试通过。
+- 尚未接入真实业务服务 DbContext/Migration，也未实现文档解析、向量索引或 Worker 宿主。
+- 需要在本地运行后修复编译/SQL Provider 差异，再进入下一阶段。
 
 验收：重启 Worker 后任务可恢复；重复任务不会生成重复活动索引；关系型数据可完整重建向量索引。
 
