@@ -1,68 +1,81 @@
-# .NET 10 正式发布候选与重构计划
+# .NET 10 正式发布候选与发布计划
 
-## 分支决策
+## 发布分支与版本
 
-当前正式候选线为 `release/v2.0.0-rc.1`，以 `feature/framework-net10-upgrade` 为基础。`feature/framework-net10-upgrade` 比 `feature/framework-net10-completion` 多 8 个提交，是后者的直接后续版本；它具备完整的 .NET 10 工程结构、回归夹具、Docker 环境和独立 NuGet 消费者模拟。
+- 发布候选分支：`release/v2.0.0-rc.1`
+- NuGet 候选版本：`2.0.0-rc.1`
+- 目标框架：`net10.0`
+- 所有发布门槛通过并获得用户明确授权前，`master` 保持不变。
+- 本次发布工作不新增、不触发 GitHub Actions。
 
-不整体合并 DDD hardening、business-driven-refactor 或 v10-refactor 分支。这些分支与候选基线存在历史分叉，并包含独立的公开 API 和架构变化。只逐项移植能够证明兼容且有测试覆盖的改进。当前 `master` 还包含单独的 Dashboard/Demo 内容，已保留在归档分支，不作为正式发布基线。
+当前 RC 包含 Framework 核心包、集成基础设施、通用算法 / ClickHouse 能力、Category 参考 API，以及 HTTP resilience 改造。
 
-## 升级目标
+## 必须保持的架构边界
 
-- Framework、示例、CLI、集成测试和 Migration Fixture 项目统一使用 `net10.0`。
-- Framework NuGet 包统一为 `2.0.0-rc.1`；目标框架升级属于破坏性包版本变更。
-- Microsoft EF Core / ASP.NET Core 包对齐到 `10.0.15`。
-- CAP 包对齐到 `10.0.2`。
-- MySQL Migration Fixture 使用 Oracle `MySql.EntityFrameworkCore 10.0.12`。
-- 不新增、不触发 GitHub Actions workflow。
+- 依赖方向为 `Abstractions <- Domain <- Infrastructure`；Domain 不得依赖 Infrastructure。
+- EF Core 是默认事务持久化路径；Dapper 是显式 SQL 场景下的可选路径，适用时应复用当前连接与事务。
+- UnitOfWork 注册操作只暂存变更；`CommitAsync` 才负责持久化。多步骤原子操作显式使用事务。
+- 进程内 / 领域事件不等于可靠跨服务消息传输；持久化消息和 Outbox 策略由业务应用负责选择。
+- gRPC 辅助能力只负责传输接线；protobuf 契约归业务服务所有。
+- 可选基础设施集成保持显式启用，不由基础注册方法隐式强制开启。
+- 保留 xUnit v3 及兼容 Adapter：环境条件测试依赖 v3 的 `SkipUnless` / `SkipType`。
 
-## 必须保留的架构边界
+## 当前验收证据
 
-- 依赖方向为 `Abstractions <- Domain <- Infrastructure`；Domain 不得引用 Infrastructure。
-- EF Core 是默认事务持久化路径；Dapper 仅用于明确需要手写 SQL 的场景，并在适用时复用当前连接和事务。
-- UnitOfWork 的 Register 操作只暂存变更；`CommitAsync` 才负责持久化。多步骤原子操作显式使用事务。
-- 进程内/领域事件不等同于可靠集成消息。跨服务可靠投递应使用业务应用选择的持久化消息与 Outbox 方案。
-- gRPC 辅助能力只负责传输接线；业务服务拥有自己的 protobuf 契约。
-- 可选基础设施保持显式启用，不应被默认注册方法隐式强制开启。
+| 验收项 | 状态 | 证据与边界 |
+|---|---|---|
+| Framework Solution Release 构建 | PASS | 用户已确认 Release 构建成功。 |
+| Category API Release 构建 | PASS | 用户已确认 API 及 ProjectReference 依赖构建成功。 |
+| IntegrationTests | PASS，另有一项明确跳过 | 共 62 项：61 通过、0 失败、1 跳过。 |
+| Redis / MySQL / Nacos 集成覆盖 | PASS | 已在配置好的本地基础设施环境中实际执行对应测试。 |
+| Category API CAP 业务链路 | PASS | 真实 API 链路验证了事务提交、事务回滚、消息重试、重复投递和幂等收据，使用 RabbitMQ、MySQL 与 CAP EF Storage。 |
+| HTTP resilience 回归 | PASS | 8 项重试、熔断和权限中间件针对性测试通过。 |
+| Framework 独立 Generic Host CAP 回归 | 已知缺口 | 显式启用后等待 Subscriber 投递超时，不计为通过。上面的 Category API 业务验证覆盖实际应用路径，但不能证明所有 Generic Host 注册方式均正常。 |
+| 独立 NuGet 消费者验证 | 待执行 | 发布前必须执行 `bash scripts/verify-packaged-consumer.sh`。 |
+| Migration 回归 | 按发布决策排除 | 本次明确不作为发布门槛；这不代表 Migration 已通过。 |
 
-## 测试平台兼容性
+只有真实执行并成功的命令或业务链路才可以标记为 PASS。静态检查、Docker 容器健康，以及使用 ProjectReference 的示例构建，都不能替代独立 NuGet 包消费验证。
 
-集成测试项目使用 xUnit v3，因为按环境条件跳过的测试依赖 `FactAttribute.SkipUnless` 与 `SkipType`。测试框架和 Visual Studio Adapter 必须保持兼容的 v3 包版本；除非同步重写这些测试，否则不能降回 xUnit v2。
+## 必须完成的独立 NuGet 消费验证
 
-## 消费者迁移步骤
-
-1. 安装 .NET 10 SDK；业务消费者准备好接收破坏性升级时，再将目标框架切换为 `net10.0`。
-2. 将消费者使用的 Framework 包成组升级到 `2.0.0-rc.1`：Abstractions、Domain 和 Infrastructure。
-3. 将直接依赖的 EF Core / ASP.NET Core 包对齐到 10.x，并选择支持 EF Core 10 的数据库 Provider。当前 Migration Fixture 使用 Oracle MySQL Provider，现有生产服务可能需要根据实际数据库驱动单独选择。
-4. 对每个消费者执行编译，明确处理源码/API 迁移问题；不要为了兼容而重新引入存在歧义的 Framework 类型别名。
-5. 执行 Framework 集成测试、数据库迁移回归、gRPC smoke test 和独立 NuGet 消费者回归。
-
-## 验收命令
-
-独立 NuGet 消费者：
-
-```bash
-bash dev-environment/run-core-package-consumer-regression.sh
-```
-
-完整临时环境集成与迁移回归：
+在仓库根目录执行：
 
 ```bash
-cd dev-environment
-docker compose --profile infra --profile full-regression run --rm framework-full-regression
+bash scripts/verify-packaged-consumer.sh
 ```
 
-完整回归命令还会打包三个 `2.0.0-rc.1` 包，并验证一个独立 API 消费者。该命令需要 Docker、可用的 .NET 10 SDK 镜像和 NuGet 包源访问。
+脚本会依次：
+1. 以 Release 配置打包 Abstractions、Domain、Infrastructure 三个 NuGet 包。
+2. 检查 `Framework.Core.Api` 使用的是 `PackageReference`，而不是 `ProjectReference`。
+3. 使用本地刚生成的包和 nuget.org 还原依赖，并使用全新的隔离 NuGet 全局缓存。
+4. 编译独立 API 消费者。
+5. 启动 API，检查 `/health` 和 `/framework`，后者验证 Framework DI 能否解析。
 
-## 验收状态
+如果默认本地端口被占用，可以指定：
 
-当前分支是发布候选，不是已经发布的稳定版本。公共类型 `BasicEntity.Status` 的枚举已从根命名空间迁移到 `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`；引用旧根命名空间枚举的消费者需要调整类型引用。
+```bash
+PACKAGED_CONSUMER_URL=http://127.0.0.1:17211 bash scripts/verify-packaged-consumer.sh
+```
 
-静态检查不等于 Runtime PASS。只有真实执行命令并成功后，验收项才可以标记为 PASS。本次会话未能访问你的本地 Docker Runtime，因此 solution build、集成测试、数据库迁移、gRPC smoke test 和独立包消费者启动均尚未获得运行时通过结果。
+需要 .NET 10 SDK、curl，以及访问 nuget.org 下载第三方依赖的网络。脚本退出时会清理临时包目录和隔离 NuGet 缓存。
 
-## 本次升级不包含
+## 发布流程
 
-- 整体合并分叉的 DDD / Application Layer 重构。
-- 应用启动时自动执行数据库迁移。
-- 强制引入 CQRS、Event Sourcing 或领域事件。
-- 新增或触发 GitHub Actions。
-- 在运行时与消费者兼容验收通过前发布稳定版 NuGet 2.0.0。
+1. 完成独立 NuGet 消费者验证，并记录真实执行结果。
+2. 再次核对 RC 分支 HEAD、用户本地工作区 / 未提交修改、Release 构建、IntegrationTests 摘要和已知缺口。
+3. 确保最终回归矩阵与发布说明中的验收状态一致。
+4. 只有获得用户明确授权后，才将已验收 RC 提升到 `master`，并创建稳定版 `2.0.0` 发布 / 包发布；不得把 RC 包冒充稳定包发布。
+5. 在发布记录或说明中保留 Generic Host CAP 测试缺口；不得删除断言或把超时改写成 PASS。
+
+## 兼容性说明
+
+公共类型 `BasicEntity.Status` 的枚举已迁移到 `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`。引用旧根命名空间枚举的消费者需要调整类型引用。.NET 10 是破坏性升级版本线；消费者应成组升级三个 Framework 包，并使用兼容 EF Core / ASP.NET Core 10 的依赖。
+
+## 明确排除项
+
+- 本次发布决策排除 Migration 回归。
+- 不整体合并分叉的 DDD / Application Layer 重构。
+- 不在应用启动时自动执行数据库迁移。
+- 不强制引入 CQRS、Event Sourcing 或领域事件。
+- 不新增、不触发 GitHub Actions。
+- 未完成必需验证并获得明确授权前，不合并到 `master`，也不发布稳定包。

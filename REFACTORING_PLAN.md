@@ -1,68 +1,81 @@
-# .NET 10 Release Candidate and Refactoring Plan
+# .NET 10 Release Candidate and Release Plan
 
-## Decision
+## Release line
 
-Use `release/v2.0.0-rc.1` as the active release-candidate line, based on `feature/framework-net10-upgrade`. The upgrade branch supersedes `feature/framework-net10-completion` by eight commits. It contains the complete .NET 10 project structure, regression fixtures, Docker environment and packaged-consumer simulation.
+- Release candidate: `release/v2.0.0-rc.1`
+- Package version: `2.0.0-rc.1`
+- Target framework: `net10.0`
+- `master` remains unchanged until all release gates are accepted and the user explicitly authorizes promotion.
+- Do not add or trigger GitHub Actions as part of this release.
 
-Do not merge the DDD-hardening, business-driven-refactor, or v10-refactor branches wholesale. They diverge from this baseline and include independent public API and architecture changes. Review their ideas individually and port only changes that are demonstrably compatible and covered by tests. The current `master` also contains a separate dashboard/demo surface and is preserved on an archive branch rather than used as the release baseline.
+The RC includes the Framework packages, integration infrastructure, generic algorithms / ClickHouse support, the Category reference API, and the HTTP resilience migration.
 
-## Target
+## Architecture boundaries
 
-- Framework, sample, CLI, integration-test, and migration-fixture projects target `net10.0`.
-- Framework packages use version `2.0.0-rc.1`; the target-framework change is a breaking package line.
-- Microsoft EF Core / ASP.NET Core packages are aligned to `10.0.15`.
-- CAP packages are aligned to `10.0.2`.
-- The MySQL migration fixture uses Oracle `MySql.EntityFrameworkCore 10.0.12`.
-- No GitHub Actions workflows are to be added or triggered as part of this work.
-
-## Architecture boundaries to preserve
-
-- `Abstractions <- Domain <- Infrastructure`; Domain must not reference Infrastructure.
-- EF Core is the default transactional persistence path. Dapper is an optional path for explicit SQL and should share the active connection/transaction when applicable.
+- Dependency direction: `Abstractions <- Domain <- Infrastructure`; Domain must not depend on Infrastructure.
+- EF Core is the default transactional persistence path. Dapper is an opt-in explicit-SQL path and should share the active connection / transaction when applicable.
 - UnitOfWork registration stages changes; `CommitAsync` persists them. Multi-step atomic operations use explicit transactions.
-- In-process/domain events are not a durable integration-message transport. Cross-service delivery requires the application's durable messaging/Outbox strategy.
-- gRPC helpers provide transport plumbing; business services own their protobuf contracts.
-- Optional infrastructure features remain opt-in and must not be silently enabled by the base registration method.
+- In-process/domain events are not a durable cross-service message transport. Applications own durable messaging and Outbox decisions.
+- gRPC helpers provide transport plumbing; business services own protobuf contracts.
+- Optional infrastructure integrations remain opt-in and must not be silently enabled by base registration.
+- Keep xUnit v3 and its compatible adapter: environment-conditional tests depend on v3 `SkipUnless` / `SkipType`.
 
-## Test platform compatibility
+## Current acceptance evidence
 
-The integration test project uses xUnit v3 because its environment-conditional tests rely on `FactAttribute.SkipUnless` and `SkipType`. Keep the test framework and Visual Studio adapter on compatible v3 package lines; do not downgrade them to xUnit v2 without rewriting those tests.
+| Gate | Status | Evidence / boundary |
+|---|---|---|
+| Framework solution Release build | PASS | User-confirmed Release build succeeded. |
+| Category API Release build | PASS | User-confirmed Release build succeeded with project references. |
+| IntegrationTests | PASS with one documented skip | 62 total; 61 passed, 0 failed, 1 skipped. |
+| Redis / MySQL / Nacos integration coverage | PASS | The corresponding tests ran in the configured local infrastructure environment. |
+| Category API CAP business flow | PASS | Real API flow verified commit, rollback, retry, duplicate delivery and idempotent receipt behavior using RabbitMQ, MySQL and CAP EF Storage. |
+| HTTP resilience regression | PASS | Eight targeted retry, circuit-breaker and permission-middleware tests passed. |
+| Standalone Framework Generic Host CAP regression | KNOWN GAP | The opt-in test timed out while awaiting subscriber delivery. It is not counted as passed. The Category API business flow above validates its actual application path but does not prove every Generic Host registration shape. |
+| Packaged NuGet consumer | PENDING | Run `bash scripts/verify-packaged-consumer.sh`; this gate is required before release approval. |
+| Migration regression | EXCLUDED BY RELEASE DECISION | Deliberately excluded from this release gate; this is not a claim that migration behavior passed. |
 
-## Consumer migration
+A PASS means the command or business flow actually ran and succeeded. Static inspection, a Docker container being healthy, or a ProjectReference sample build is not a substitute for the packaged-consumer gate.
 
-1. Install the .NET 10 SDK and update consumer projects from `net8.0` to `net10.0` when each consumer is ready to take the breaking package line.
-2. Update the three framework package references together to `2.0.0-rc.1`: Abstractions, Domain, and Infrastructure. Confirm the actual package set used by the consumer.
-3. Align direct EF Core and ASP.NET Core dependencies with version 10; select a provider that supports EF Core 10. The migration fixture uses Oracle's MySQL provider, which may differ from the provider chosen by an existing production service.
-4. Compile each consumer and resolve source/API migration errors explicitly. Do not hide business-side compatibility failures by adding ambiguous framework aliases.
-5. Run the framework integration suite, database migration regression, gRPC smoke test, and packaged Core API consumer regression.
+## Required packaged-consumer verification
 
-## Verification commands
-
-Packaged consumer simulation:
+Run from the repository root:
 
 ```bash
-bash dev-environment/run-core-package-consumer-regression.sh
+bash scripts/verify-packaged-consumer.sh
 ```
 
-Full disposable integration and migration regression:
+The script:
+1. Packs Abstractions, Domain and Infrastructure as Release NuGet packages.
+2. Checks that `Framework.Core.Api` uses `PackageReference`, not `ProjectReference`.
+3. Restores using the locally produced packages and nuget.org, with a fresh isolated global package cache.
+4. Builds the standalone API.
+5. Starts it and verifies both `/health` and `/framework` (Framework DI resolution).
+
+If the default local port is occupied, set `PACKAGED_CONSUMER_URL`, for example:
 
 ```bash
-cd dev-environment
-docker compose --profile infra --profile full-regression run --rm framework-full-regression
+PACKAGED_CONSUMER_URL=http://127.0.0.1:17211 bash scripts/verify-packaged-consumer.sh
 ```
 
-The full-regression command also packs the three `2.0.0-rc.1` packages and verifies a standalone API consumer. It requires Docker, a working .NET 10 SDK image and NuGet feed access.
+The script requires the .NET 10 SDK, curl and access to nuget.org for third-party dependencies. Its temporary package feed and isolated NuGet cache are removed on exit.
 
-## Acceptance status
+## Release procedure
 
-The branch is a release candidate, not a published stable release. The public `BasicEntity.Status` enum was moved to `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`; consumers referencing the old root-namespace enum must update that type reference.
+1. Complete the required packaged-consumer gate and record its actual result.
+2. Re-check the RC branch head, working tree / user-local changes, Release builds, IntegrationTests summary and known gaps.
+3. Review the final regression matrix and release notes for consistency with the evidence above.
+4. Only after explicit user approval, promote the accepted RC to `master` and create the stable `2.0.0` release / package publication. Do not publish the RC packages as stable.
+5. Keep the known Generic Host CAP test gap visible in release notes or the release record; do not delete its assertion or relabel its timeout as PASS.
 
-Source and project-file inspection is not a runtime PASS. A gate is PASS only after its command has actually executed and succeeded. This session cannot access your local Docker runtime, so builds, integration tests, migrations, gRPC smoke tests, and external-consumer startup remain BLOCKED until you run the acceptance command.
+## Compatibility notes
 
-## Out of scope for this upgrade
+The public `BasicEntity.Status` enum moved to `Aspros.Base.Framework.Domain.ValueObjects.EntityStatus`. Consumers referencing the old root-namespace enum must update that type reference. The .NET 10 target is a breaking package line; consumers should upgrade the three Framework packages together and use EF Core / ASP.NET Core 10-compatible dependencies.
 
-- Wholesale merge of divergent DDD/application-layer refactors.
+## Explicitly out of scope
+
+- Migration regression for this release decision.
+- Wholesale merge of divergent DDD / application-layer refactors.
 - Automatic schema migration at application startup.
-- Forced CQRS, Event Sourcing, or mandatory domain events.
+- Forced CQRS, Event Sourcing or mandatory domain events.
 - Adding or triggering GitHub Actions.
-- Publishing stable NuGet 2.0.0 before runtime and consumer compatibility gates pass.
+- Merging into `master` or publishing stable packages before the required gate and explicit approval.
