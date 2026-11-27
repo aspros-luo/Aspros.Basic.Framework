@@ -1,6 +1,6 @@
 # 企业知识库 RAG 架构决策
 
-> 状态：Accepted（Phase 1 基础持久化实现已通过本地 Release 构建与定向测试；后续验收项仍在推进。仅在 feature/enterprise-rag-foundation 开发，不改变 2.0.0 RC / master）
+> 状态：Accepted（Phase 1 持久化基础与索引代次幂等/切换实现已提交；本轮新增测试待用户本地 Release 验证。仅在 feature/enterprise-rag-foundation 开发，不改变 2.0.0 RC / master）
 >
 > 适用范围：Aspros.Basic.Framework，目标框架 .NET 10。
 >
@@ -204,6 +204,8 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 - 已实现基于条件更新和 LeaseToken 的任务租约，包含领取、续租、完成、失败重试与终止失败；租约 Token 防止旧 Worker 在接管后提交完成状态。
 - 任务轮询在确有“最后一次尝试已过期”的任务时才执行终止恢复写入；无待恢复任务时只执行存在性查询，避免每个 Worker 的空更新在高频轮询时制造不必要的数据库写锁竞争。
 - IngestionJob 增加租户范围内唯一的 IdempotencyKey，避免同一请求重复创建任务。
+- 每个 IndexGeneration 必须关联一个 IngestionJob；通过 IngestionJobId 唯一索引保证一个任务最多产生一个索引代次，并通过包含 Tenant/KnowledgeBase/Document/DocumentVersion 的复合外键保证任务归属一致。相同文档版本与索引配置下，显式重新索引必须创建新任务，因此允许创建新代次，不会被错误的“配置唯一键”拦截。
+- 新增 EF Core 索引代次激活器：在关系型事务内先按 DocumentId + 观察到的 CurrentVersionId + ActiveIndexGenerationId 执行条件更新（CAS），只有成功取得文档行更新权的执行者才能切换活动指针；随后保存新代 Activate 与旧代 Retire。并发竞争失败返回 false，事务回滚，不会把未获胜代次标为 Active。
 - UTC 时间字段通过 UTC ticks 转换存储，避免 SQLite 等 Provider 对 DateTimeOffset 范围查询的限制。
 - KnowledgeBase 以 (TenantId, Id) 建立备用键；Document、Chunk、IndexGeneration 和 IngestionJob 通过复合外键校验租户与知识库归属，Chunk、IndexGeneration 和 IngestionJob 还会校验 DocumentVersion 必须属于对应 Document。
 - SQLite 集成测试覆盖关系型 Chunk 正文持久化、跨租户知识库关联拒绝、蓝绿索引切换及失败时保留旧活动指针、关系型事务持久化切换、租户内任务幂等键唯一性、顺序领取、8 个独立 DbContext/连接并发竞争同一任务且仅一个获得租约、续租、租约过期接管、旧租约的续租/失败/完成操作全部失效、失败重试上限，以及最后一次尝试后 Worker 崩溃的终止恢复。SQLite 并发测试使用文件数据库和独立连接。
@@ -220,9 +222,9 @@ AI/RAG 实施不阻塞 2.0.0 稳定版发布。当前 RC 的验收、合并与�
 - 尚未接入真实业务服务 DbContext/Migration；业务服务接入示例目前只验证模型配置方式，未证明任一真实业务数据库迁移可用。
 - 尚未实现文档解析、Chunking Pipeline、Embedding、Vector Store、索引构建/切换服务或 Worker 宿主。
 - 尚未进行多进程/多实例并发领取测试，也未验证实际进程崩溃后的端到端恢复；目前通过过期租约和新 DbContext 测试了数据库层接管逻辑。
-- 尚未在 SQLite 以外的目标关系型 Provider 上验证 ExecuteUpdate、UTC ticks 转换和复合外键行为。
+- 已在 MySQL 8.4 上验证任务租约领取与过期接管；本轮新增的 MySQL 并发索引激活/CAS 测试仍待运行。UTC ticks 转换、复合外键在当前测试路径中已随 MySQL Job 模型创建/写入经过基础验证，但尚未覆盖全部关系与查询组合。
 
-Phase 1 后续验收门槛：并发领取测试通过；在目标 MySQL Provider 上验证多 Worker 并发下同一任务只有一个有效租约；真实 Worker 重启后任务可恢复；重复任务不会创建重复的有效索引代次；关系型规范数据可用于完整重建向量索引。
+Phase 1 后续验收门槛：并发领取测试通过；在目标 MySQL Provider 上验证多 Worker 并发下同一任务只有一个有效租约；真实 Worker 重启后任务可恢复；同一 IngestionJob 不会创建重复索引代次；相同配置的显式重建可创建新代次；MySQL 多 Worker 并发激活时仅一个 CAS 获胜且只有一个 Active 代次；关系型规范数据可用于完整重建向量索引。
 
 ### Phase 2：模型与向量索引
 
