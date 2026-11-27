@@ -3,12 +3,30 @@ using Aspros.Base.Framework.RAG.EntityFrameworkCore;
 using Aspros.Base.Framework.RAG.Models;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Aspros.Basic.Framework.IntegrationTests;
 
 public sealed class RagPersistenceTests
 {
+    [Fact]
+    public async Task AddRagEntityFrameworkCore_RegistersQueueAndIndexActivatorForApplicationDbContext()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var services = new ServiceCollection();
+        services.AddDbContext<RagTestDbContext>(options => options.UseSqlite(connection));
+        services.AddRagEntityFrameworkCore<RagTestDbContext>();
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        Assert.IsType<EfCoreIngestionJobQueue<RagTestDbContext>>(
+            scope.ServiceProvider.GetRequiredService<IIngestionJobQueue>());
+        Assert.IsType<EfCoreIndexGenerationActivator<RagTestDbContext>>(
+            scope.ServiceProvider.GetRequiredService<EfCoreIndexGenerationActivator<RagTestDbContext>>());
+    }
+
     [Fact]
     public async Task ApplyRagModel_CreatesRelationalSchemaAndPersistsCanonicalChunkText()
     {
