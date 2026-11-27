@@ -25,12 +25,12 @@ internal sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
     {
         builder.ToTable("rag_documents");
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.TenantId, x.KnowledgeBaseId, x.Id });
         builder.Property(x => x.TenantId).HasMaxLength(128).IsRequired();
         builder.Property(x => x.Title).HasMaxLength(500).IsRequired();
         builder.Property(x => x.SourceUri).HasMaxLength(2048).IsRequired();
         builder.Property(x => x.ContentHash).HasMaxLength(128).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
-        builder.HasIndex(x => x.ActiveIndexGenerationId);
         builder.Property(x => x.CreatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.UpdatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.DeletedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
@@ -39,6 +39,7 @@ internal sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
             .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId })
             .HasPrincipalKey(x => new { x.TenantId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.ActiveIndexGenerationId);
         builder.HasIndex(x => new { x.TenantId, x.KnowledgeBaseId, x.Status });
     }
 }
@@ -49,6 +50,7 @@ internal sealed class DocumentVersionConfiguration : IEntityTypeConfiguration<Do
     {
         builder.ToTable("rag_document_versions");
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.DocumentId, x.Id });
         builder.Property(x => x.ContentHash).HasMaxLength(128).IsRequired();
         builder.Property(x => x.MediaType).HasMaxLength(256).IsRequired();
         builder.Property(x => x.SourceUri).HasMaxLength(2048).IsRequired();
@@ -82,11 +84,13 @@ internal sealed class DocumentChunkConfiguration : IEntityTypeConfiguration<Docu
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Document>()
             .WithMany()
-            .HasForeignKey(x => x.DocumentId)
+            .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId, x.DocumentId })
+            .HasPrincipalKey(x => new { x.TenantId, x.KnowledgeBaseId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<DocumentVersion>()
             .WithMany()
-            .HasForeignKey(x => x.DocumentVersionId)
+            .HasForeignKey(x => new { x.DocumentId, x.DocumentVersionId })
+            .HasPrincipalKey(x => new { x.DocumentId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(x => new { x.DocumentVersionId, x.ChunkIndex }).IsUnique();
         builder.HasIndex(x => new { x.TenantId, x.KnowledgeBaseId, x.DocumentId });
@@ -113,11 +117,13 @@ internal sealed class IndexGenerationConfiguration : IEntityTypeConfiguration<In
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Document>()
             .WithMany()
-            .HasForeignKey(x => x.DocumentId)
+            .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId, x.DocumentId })
+            .HasPrincipalKey(x => new { x.TenantId, x.KnowledgeBaseId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<DocumentVersion>()
             .WithMany()
-            .HasForeignKey(x => x.DocumentVersionId)
+            .HasForeignKey(x => new { x.DocumentId, x.DocumentVersionId })
+            .HasPrincipalKey(x => new { x.DocumentId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(x => new { x.DocumentId, x.DocumentVersionId, x.Status });
         builder.HasIndex(x => new { x.TenantId, x.KnowledgeBaseId, x.Status });
@@ -147,9 +153,15 @@ internal sealed class IngestionJobConfiguration : IEntityTypeConfiguration<Inges
             .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId })
             .HasPrincipalKey(x => new { x.TenantId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Document>()
+            .WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId, x.DocumentId })
+            .HasPrincipalKey(x => new { x.TenantId, x.KnowledgeBaseId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<DocumentVersion>()
             .WithMany()
-            .HasForeignKey(x => x.DocumentVersionId)
+            .HasForeignKey(x => new { x.DocumentId, x.DocumentVersionId })
+            .HasPrincipalKey(x => new { x.DocumentId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique();
         builder.HasIndex(x => new { x.Status, x.NextAttemptAtUtc, x.CreatedAtUtc });
