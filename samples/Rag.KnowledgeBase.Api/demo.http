@@ -1,0 +1,37 @@
+@baseUrl = http://127.0.0.1:7280
+
+### Health
+GET {{baseUrl}}/health
+
+### Create knowledge base
+POST {{baseUrl}}/api/knowledge-bases
+Content-Type: application/json
+
+{
+  "name": "产品与工程知识库"
+}
+
+### Upload a local text or Markdown file
+# Replace the knowledgeBaseId with the ID returned above.
+POST {{baseUrl}}/api/knowledge-bases/{{knowledgeBaseId}}/documents
+Content-Type: multipart/form-data; boundary=rag-demo-boundary
+
+--rag-demo-boundary
+Content-Disposition: form-data; name="file"; filename="sample.md"
+Content-Type: text/markdown
+
+# Sample knowledge
+Aspros RAG stores canonical document and chunk content in a relational database.
+Vector indexes are derived data and can be rebuilt.
+--rag-demo-boundary--
+
+### Check ingestion job
+# Replace jobId with the returned job ID.
+GET {{baseUrl}}/api/ingestion-jobs/{{jobId}}
+
+### List documents
+GET {{baseUrl}}/api/knowledge-bases/{{knowledgeBaseId}}/documents
+
+### Read chunks
+# Replace documentId with the returned document ID.
+GET {{baseUrl}}/api/documents/{{documentId}}/chunks
