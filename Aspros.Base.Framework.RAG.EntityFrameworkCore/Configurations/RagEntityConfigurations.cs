@@ -31,6 +31,8 @@ internal sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(x => x.SourceUri).HasMaxLength(2048).IsRequired();
         builder.Property(x => x.ContentHash).HasMaxLength(128).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(x => x.CurrentVersionId).IsConcurrencyToken();
+        builder.Property(x => x.ActiveIndexGenerationId).IsConcurrencyToken();
         builder.Property(x => x.CreatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.UpdatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.DeletedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
