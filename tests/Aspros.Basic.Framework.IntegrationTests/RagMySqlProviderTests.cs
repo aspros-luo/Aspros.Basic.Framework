@@ -237,7 +237,7 @@ public sealed class RagMySqlProviderTests
         Assert.Contains(candidates, candidate =>
             candidate.Id == persistedDocument.ActiveIndexGenerationId);
         Assert.Single(generations.Where(item => item.Status == IndexGenerationStatus.Active));
-        Assert.Equal(2, generations.Count(item => item.Status == IndexGenerationStatus.Retired));
+        Assert.Single(generations.Where(item => item.Status == IndexGenerationStatus.Retired));
     }
 
     private static async Task ClearRagTablesAsync(DbContext db)
