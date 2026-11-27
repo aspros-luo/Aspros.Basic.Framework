@@ -83,6 +83,13 @@ public sealed class EfCoreIndexGenerationActivator<TContext>
         if (affected != 1)
         {
             await transaction.RollbackAsync(cancellationToken);
+            _dbContext.Entry(document).State = EntityState.Detached;
+            _dbContext.Entry(generation).State = EntityState.Detached;
+            if (previousGeneration is not null)
+            {
+                _dbContext.Entry(previousGeneration).State = EntityState.Detached;
+            }
+
             return false;
         }
 
@@ -101,6 +108,12 @@ public sealed class EfCoreIndexGenerationActivator<TContext>
         catch (DbUpdateConcurrencyException)
         {
             await transaction.RollbackAsync(cancellationToken);
+            _dbContext.Entry(generation).State = EntityState.Detached;
+            if (previousGeneration is not null)
+            {
+                _dbContext.Entry(previousGeneration).State = EntityState.Detached;
+            }
+
             return false;
         }
     }
