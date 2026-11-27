@@ -48,10 +48,14 @@ public sealed class DemoRetrievalService(
             return [];
         }
 
+        // Keep generation in the candidate key. During blue-green rebuilds, Qdrant
+        // intentionally contains the same chunk in both old and new generations; collapsing
+        // by ChunkId before checking SQL could retain an inactive generation's score and
+        // accidentally discard the active generation's valid match.
         var scores = vectorMatches
-            .GroupBy(x => x.ChunkId)
+            .GroupBy(x => (x.ChunkId, x.IndexGenerationId))
             .ToDictionary(group => group.Key, group => group.OrderByDescending(x => x.Score).First());
-        var chunkIds = scores.Keys.ToArray();
+        var chunkIds = scores.Keys.Select(key => key.ChunkId).Distinct().ToArray();
 
         // Qdrant is a candidate generator only. SQL verifies that each result still belongs
         // to the current document version and its currently active index generation.
@@ -78,15 +82,19 @@ public sealed class DemoRetrievalService(
             }).ToListAsync(cancellationToken);
 
         return rows
-            .Where(row => scores.TryGetValue(row.Id, out var match) &&
-                          row.ActiveIndexGenerationId == match.IndexGenerationId)
-            .Select(row => new DemoRetrievedChunk(
-                row.Id,
-                row.DocumentId,
-                row.Title,
-                row.Content,
-                row.SourceLocation,
-                scores[row.Id].Score))
+            .Where(row => row.ActiveIndexGenerationId is Guid activeGenerationId &&
+                          scores.ContainsKey((row.Id, activeGenerationId)))
+            .Select(row =>
+            {
+                var activeGenerationId = row.ActiveIndexGenerationId!.Value;
+                return new DemoRetrievedChunk(
+                    row.Id,
+                    row.DocumentId,
+                    row.Title,
+                    row.Content,
+                    row.SourceLocation,
+                    scores[(row.Id, activeGenerationId)].Score);
+            })
             .OrderByDescending(x => x.Score)
             .Take(boundedTake)
             .ToArray();
