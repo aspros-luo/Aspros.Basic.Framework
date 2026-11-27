@@ -224,6 +224,79 @@ public sealed class RagPersistenceTests
     }
 
     [Fact]
+    public async Task IndexGeneration_IsUniquePerIngestionJob_ButExplicitRebuildCanCreateANewGeneration()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        await using var db = new RagTestDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var (knowledgeBase, document, version) = CreateDocumentGraph();
+        var firstJob = CreateIndexJob(knowledgeBase, document, version);
+        var firstGeneration = IndexGeneration.Create(
+            firstJob, "local-embedding-v1", 768, "plain-text-v1");
+        var duplicateForSameJob = IndexGeneration.Create(
+            firstJob, "local-embedding-v1", 768, "plain-text-v1");
+
+        db.AddRange(knowledgeBase, document, version, firstGeneration);
+        await db.SaveChangesAsync();
+
+        db.Add(duplicateForSameJob);
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+
+        // A deliberate rebuild is a new operation, so it receives a new job and generation
+        // even when the document version and embedding profile are unchanged.
+        var rebuildJob = CreateIndexJob(knowledgeBase, document, version);
+        var rebuildGeneration = IndexGeneration.Create(
+            rebuildJob, "local-embedding-v1", 768, "plain-text-v1");
+        db.ChangeTracker.Clear();
+        db.AddRange(knowledgeBase, document, version, firstGeneration, rebuildGeneration);
+        await db.SaveChangesAsync();
+
+        Assert.Equal(2, await db.Set<IndexGeneration>().CountAsync());
+    }
+
+    [Fact]
+    public async Task IndexGenerationActivator_SwitchesPointerAndRetiresPreviousGenerationAtomically()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        await using var db = new RagTestDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var (knowledgeBase, document, version) = CreateDocumentGraph();
+        var firstJob = CreateIndexJob(knowledgeBase, document, version);
+        var firstGeneration = IndexGeneration.Create(
+            firstJob, "local-embedding-v1", 768, "plain-text-v1");
+        firstGeneration.Activate();
+        document.SetActiveIndexGeneration(firstGeneration);
+
+        var replacementJob = CreateIndexJob(knowledgeBase, document, version);
+        var replacementGeneration = IndexGeneration.Create(
+            replacementJob, "local-embedding-v1", 768, "plain-text-v1");
+
+        db.AddRange(knowledgeBase, document, version, firstGeneration, replacementGeneration);
+        await db.SaveChangesAsync();
+
+        var activator = new EfCoreIndexGenerationActivator<RagTestDbContext>(db);
+        Assert.True(await activator.ActivateAsync(document.Id, replacementGeneration.Id));
+
+        var persistedDocument = await db.Set<Document>()
+            .AsNoTracking()
+            .SingleAsync();
+        var generations = await db.Set<IndexGeneration>()
+            .AsNoTracking()
+            .OrderBy(item => item.CreatedAtUtc)
+            .ToListAsync();
+
+        Assert.Equal(replacementGeneration.Id, persistedDocument.ActiveIndexGenerationId);
+        Assert.Contains(generations, item =>
+            item.Id == firstGeneration.Id && item.Status == IndexGenerationStatus.Retired);
+        Assert.Contains(generations, item =>
+            item.Id == replacementGeneration.Id && item.Status == IndexGenerationStatus.Active);
+    }
+
+    [Fact]
     public async Task IngestionJob_IdempotencyKeyIsUniqueWithinTenant()
     {
         await using var connection = await OpenConnectionAsync();
