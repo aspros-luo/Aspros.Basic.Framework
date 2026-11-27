@@ -104,10 +104,10 @@ Embedding 模型、维度、Chunking 策略、规范化规则均属于索引兼�
 
 | 包 | 职责 | 依赖 |
 |---|---|---|
-| `Aspros.Base.Framework.RAG` | RAG 核心契约与 Pipeline：文档/Chunk 模型、摄取编排、检索编排、上下文、引用、权限上下文、索引代次 | `Microsoft.Extensions.AI.Abstractions`、`Microsoft.Extensions.VectorData.Abstractions`、Framework Algorithms |
+| `Aspros.Base.Framework.RAG` | RAG 核心契约与 Pipeline：文档/Chunk 模型、摄取编排、检索编排、上下文、引用、权限上下文、索引代次 | Phase 1 无第三方依赖；Phase 2 按需加入 MEAI / VectorData 抽象；Phase 4 再引用 Algorithms |
 | `Aspros.Base.Framework.RAG.EntityFrameworkCore` | 关系型元数据、Chunk、Job、索引代次的 EF Core 映射和持久化实现 | RAG、`Microsoft.EntityFrameworkCore.Relational` 10.x |
 
-RAG 包不依赖 Infrastructure，也不要求业务服务使用 Framework 自己的 DbContext。EF Core 包提供实体配置/存储实现接入点；业务服务仍负责把配置纳入自己的 DbContext、连接字符串和 Migration。
+RAG 包不依赖 Infrastructure，也不要求业务服务使用 Framework 自己的 DbContext。Phase 1 的核心包保持零第三方依赖；AI 与 VectorData 抽象在 Phase 2 真正实现模型/向量能力时再加入，RRF 的 Algorithms 引用延后到 Phase 4。EF Core 包提供实体配置/存储实现接入点；业务服务仍负责把配置纳入自己的 DbContext、连接字符串和 Migration。
 
 `Aspros.Base.Framework.AI` 暂不作为首期必建包。RAG 直接使用微软的 `IChatClient` 与 `IEmbeddingGenerator` 标准抽象。只有当 RAG 之外出现多个真实 AI 场景，并且模型路由、策略、用量治理、审计或统一遥测形成跨场景复用能力时，再新增 AI 包。否则单独建 AI 包只是对标准接口的薄包装。
 
