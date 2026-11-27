@@ -1,0 +1,13 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.16.3
+    container_name: aspros-rag-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - rag-qdrant-data:/qdrant/storage
+
+volumes:
+  rag-qdrant-data:
