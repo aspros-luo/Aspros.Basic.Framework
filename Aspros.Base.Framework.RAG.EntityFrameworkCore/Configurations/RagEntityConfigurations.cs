@@ -80,11 +80,6 @@ internal sealed class DocumentChunkConfiguration : IEntityTypeConfiguration<Docu
             .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId })
             .HasPrincipalKey(x => new { x.TenantId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne<KnowledgeBase>()
-            .WithMany()
-            .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId })
-            .HasPrincipalKey(x => new { x.TenantId, x.Id })
-            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Document>()
             .WithMany()
             .HasForeignKey(x => x.DocumentId)
@@ -111,6 +106,11 @@ internal sealed class IndexGenerationConfiguration : IEntityTypeConfiguration<In
         builder.Property(x => x.CreatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.ActivatedAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
         builder.Property(x => x.RetiredAtUtc).HasConversion(new UtcDateTimeOffsetToTicksConverter());
+        builder.HasOne<KnowledgeBase>()
+            .WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.KnowledgeBaseId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Document>()
             .WithMany()
             .HasForeignKey(x => x.DocumentId)
