@@ -2,6 +2,7 @@ using Aspros.Base.Framework.RAG.EntityFrameworkCore;
 using Aspros.Base.Framework.RAG.Hosting;
 using Aspros.Base.Framework.RAG.Models;
 using Microsoft.EntityFrameworkCore;
+using Qdrant.Client;
 using Rag.KnowledgeBase.Api;
 
 const string DemoTenantId = "demo-tenant";
@@ -17,6 +18,16 @@ builder.Services.AddDbContext<DemoRagDbContext>(options =>
     options.UseSqlite($"Data Source={databasePath}"));
 builder.Services.AddSingleton<DemoDocumentStorage>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.Configure<DemoAiOptions>(builder.Configuration.GetSection("Ai"));
+builder.Services.AddHttpClient(nameof(DemoAiClient), client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(3);
+});
+builder.Services.AddSingleton<DemoAiClient>();
+builder.Services.AddSingleton(_ => new QdrantClient(
+    builder.Configuration["Qdrant:Host"] ?? "localhost"));
+builder.Services.AddSingleton<DemoVectorStore>();
+builder.Services.AddScoped<DemoRetrievalService>();
 builder.Services.AddRagEntityFrameworkCore<DemoRagDbContext>();
 builder.Services.AddRagWorker<DemoIngestionJobHandler>(options =>
 {
@@ -53,16 +64,18 @@ li{margin:10px 0} a{color:#2563eb}
 </style></head>
 <body>
 <h1>Aspros 企业知识库 RAG Demo</h1>
-<p class="muted">第一阶段：知识库、文档上传、持久化任务、后台文本切片。</p>
+<p class="muted">第二阶段：真实 Embedding、Qdrant 向量索引、语义检索与模型回答。</p>
 <h2>快速体验</h2>
 <ol>
 <li>创建知识库：<code>POST /api/knowledge-bases</code></li>
 <li>上传 TXT / Markdown：<code>POST /api/knowledge-bases/{id}/documents</code>，multipart 字段名为 <code>file</code></li>
 <li>查看任务：<code>GET /api/ingestion-jobs/{jobId}</code></li>
 <li>查看切片：<code>GET /api/documents/{documentId}/chunks</code></li>
+<li>语义检索：<code>POST /api/knowledge-bases/{id}/search</code></li>
+<li>带来源问答：<code>POST /api/knowledge-bases/{id}/chat</code></li>
 </ol>
 <p>API 描述：<a href="/openapi/v1.json">OpenAPI JSON</a></p>
-<p class="muted">当前版本尚未启用 Embedding、向量索引和 LLM 问答；不会用模拟结果冒充真实 AI 能力。</p>
+<p class="muted">AI 使用 OpenAI-compatible API；云端与本地模型可独立配置。Qdrant 仅保存向量和标识，Chunk 正文仍以 SQLite 为准。</p>
 </body></html>
 """, "text/html; charset=utf-8"));
 
@@ -70,8 +83,8 @@ app.MapGet("/health", () => Results.Ok(new
 {
     service = "rag-knowledge-base-demo",
     status = "ok",
-    phase = "document-ingestion-and-chunking",
-    aiIndexingEnabled = false
+    phase = "embedding-vector-search-and-grounded-chat",
+    aiIndexingEnabled = true
 }));
 
 app.MapPost("/api/knowledge-bases", async (
@@ -307,8 +320,95 @@ app.MapGet("/api/documents/{documentId:guid}/chunks", async (
     return Results.Ok(chunks);
 });
 
+app.MapPost("/api/knowledge-bases/{knowledgeBaseId:guid}/search", async (
+    Guid knowledgeBaseId,
+    SearchKnowledgeBaseRequest request,
+    DemoRagDbContext db,
+    DemoRetrievalService retrieval,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Query))
+    {
+        return Results.BadRequest(new { error = "Query is required." });
+    }
+
+    var exists = await db.Set<KnowledgeBase>()
+        .AnyAsync(x => x.Id == knowledgeBaseId && x.TenantId == DemoTenantId && !x.IsArchived,
+            cancellationToken);
+    if (!exists)
+    {
+        return Results.NotFound(new { error = "Knowledge base not found." });
+    }
+
+    var results = await retrieval.SearchAsync(
+        knowledgeBaseId, request.Query, request.Take, cancellationToken);
+    return Results.Ok(new
+    {
+        query = request.Query,
+        count = results.Count,
+        results
+    });
+});
+
+app.MapPost("/api/knowledge-bases/{knowledgeBaseId:guid}/chat", async (
+    Guid knowledgeBaseId,
+    ChatKnowledgeBaseRequest request,
+    DemoRagDbContext db,
+    DemoRetrievalService retrieval,
+    DemoAiClient aiClient,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Question))
+    {
+        return Results.BadRequest(new { error = "Question is required." });
+    }
+
+    var exists = await db.Set<KnowledgeBase>()
+        .AnyAsync(x => x.Id == knowledgeBaseId && x.TenantId == DemoTenantId && !x.IsArchived,
+            cancellationToken);
+    if (!exists)
+    {
+        return Results.NotFound(new { error = "Knowledge base not found." });
+    }
+
+    var sources = await retrieval.SearchAsync(
+        knowledgeBaseId, request.Question, request.Take, cancellationToken);
+    if (sources.Count == 0)
+    {
+        return Results.Ok(new
+        {
+            answer = "知识库中没有检索到足够相关的资料，暂时无法回答。",
+            sources = Array.Empty<object>()
+        });
+    }
+
+    var context = string.Join("\\n\\n", sources.Select((source, index) =>
+        $"[来源 {index + 1}] 文档：{source.DocumentTitle}；位置：{source.SourceLocation ?? "未知"}\\n{source.Content}"));
+    var answer = await aiClient.CompleteAsync(
+        "你是企业知识库助手。只能依据用户提供的检索资料回答；资料不足时明确说明不知道。回答中的事实应使用 [来源 N] 标注，不得编造来源。",
+        $"检索资料：\\n{context}\\n\\n用户问题：{request.Question}",
+        cancellationToken);
+
+    return Results.Ok(new
+    {
+        answer,
+        sources = sources.Select((source, index) => new
+        {
+            citation = $"[{index + 1}]",
+            source.DocumentId,
+            source.DocumentTitle,
+            source.ChunkId,
+            source.SourceLocation,
+            source.Score,
+            source.Content
+        })
+    });
+});
+
 app.Run();
 
 public sealed record CreateKnowledgeBaseRequest(string Name);
+public sealed record SearchKnowledgeBaseRequest(string Query, int Take = 5);
+public sealed record ChatKnowledgeBaseRequest(string Question, int Take = 5);
 
 public partial class Program { }
