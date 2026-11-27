@@ -35,11 +35,13 @@ public sealed class DemoRetrievalService(
         }
 
         var queryVectors = await aiClient.GenerateEmbeddingsAsync([query], cancellationToken);
+        var boundedTake = Math.Clamp(take, 1, 20);
         var vectorMatches = await vectorStore.SearchAsync(
             "demo-tenant",
             knowledgeBaseId,
+            aiClient.EmbeddingModelKey,
             queryVectors[0],
-            Math.Clamp(take * 4, 10, 50),
+            Math.Clamp(boundedTake * 4, 10, 50),
             cancellationToken);
         if (vectorMatches.Count == 0)
         {
@@ -86,7 +88,7 @@ public sealed class DemoRetrievalService(
                 row.SourceLocation,
                 scores[row.Id].Score))
             .OrderByDescending(x => x.Score)
-            .Take(Math.Clamp(take, 1, 20))
+            .Take(boundedTake)
             .ToArray();
     }
 }
