@@ -42,12 +42,12 @@ public sealed class RagWorkerHostingTests
         }
     }
 
-    private sealed class HandlerSignal
+    public sealed class HandlerSignal
     {
         public Guid? HandledJobId { get; set; }
     }
 
-    private sealed class RecordingHandler(HandlerSignal signal) : IIngestionJobHandler
+    public sealed class RecordingHandler(HandlerSignal signal) : IIngestionJobHandler
     {
         public Task HandleAsync(
             IngestionJobLease lease,
