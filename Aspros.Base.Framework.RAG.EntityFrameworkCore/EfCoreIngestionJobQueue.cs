@@ -34,23 +34,20 @@ public sealed class EfCoreIngestionJobQueue<TContext> : IIngestionJobQueue
         // Reconcile both newly exhausted leases and terminal jobs left behind by an
         // older process version. The latter makes already-persisted Building generations
         // self-heal after deployment instead of requiring manual database repair.
-        var hasUnfinishedTerminalGenerations = await _dbContext.Set<IngestionJob>()
-            .Where(job =>
-                job.Status == IngestionJobStatus.Failed ||
+        var hasRecoveryWork = await _dbContext.Set<IngestionJob>()
+            .AnyAsync(job =>
                 (job.Status == IngestionJobStatus.Processing &&
                  job.LeaseExpiresAtUtc != null &&
                  job.LeaseExpiresAtUtc <= now &&
-                 job.AttemptCount >= job.MaxAttempts))
-            .Join(
-                _dbContext.Set<IndexGeneration>()
-                    .Where(generation => generation.Status == IndexGenerationStatus.Building),
-                job => job.Id,
-                generation => generation.IngestionJobId,
-                (job, generation) => job.Id)
-            .AnyAsync(cancellationToken);
+                 job.AttemptCount >= job.MaxAttempts) ||
+                (job.Status == IngestionJobStatus.Failed &&
+                 _dbContext.Set<IndexGeneration>().Any(generation =>
+                     generation.IngestionJobId == job.Id &&
+                     generation.Status == IndexGenerationStatus.Building)),
+                cancellationToken);
 
         // Keep the polling hot path read-only when no terminal job has unfinished index work.
-        if (hasUnfinishedTerminalGenerations)
+        if (hasRecoveryWork)
         {
             await using var recoveryTransaction =
                 await _dbContext.Database.BeginTransactionAsync(cancellationToken);
