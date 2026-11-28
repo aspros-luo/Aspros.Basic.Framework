@@ -34,17 +34,20 @@ public sealed class EfCoreIngestionJobQueue<TContext> : IIngestionJobQueue
         // Reconcile both newly exhausted leases and terminal jobs left behind by an
         // older process version. The latter makes already-persisted Building generations
         // self-heal after deployment instead of requiring manual database repair.
-        var hasUnfinishedTerminalGenerations = await _dbContext.Set<IndexGeneration>()
-            .AnyAsync(generation =>
-                generation.Status == IndexGenerationStatus.Building &&
-                _dbContext.Set<IngestionJob>().Any(job =>
-                    job.Id == generation.IngestionJobId &&
-                    (job.Status == IngestionJobStatus.Failed ||
-                     (job.Status == IngestionJobStatus.Processing &&
-                      job.LeaseExpiresAtUtc != null &&
-                      job.LeaseExpiresAtUtc <= now &&
-                      job.AttemptCount >= job.MaxAttempts))),
-                cancellationToken);
+        var hasUnfinishedTerminalGenerations = await _dbContext.Set<IngestionJob>()
+            .Where(job =>
+                job.Status == IngestionJobStatus.Failed ||
+                (job.Status == IngestionJobStatus.Processing &&
+                 job.LeaseExpiresAtUtc != null &&
+                 job.LeaseExpiresAtUtc <= now &&
+                 job.AttemptCount >= job.MaxAttempts))
+            .Join(
+                _dbContext.Set<IndexGeneration>()
+                    .Where(generation => generation.Status == IndexGenerationStatus.Building),
+                job => job.Id,
+                generation => generation.IngestionJobId,
+                (job, generation) => job.Id)
+            .AnyAsync(cancellationToken);
 
         // Keep the polling hot path read-only when no terminal job has unfinished index work.
         if (hasUnfinishedTerminalGenerations)
@@ -85,13 +88,14 @@ public sealed class EfCoreIngestionJobQueue<TContext> : IIngestionJobQueue
 
             // Also repair terminal failures written before this lifecycle invariant existed.
             // The status predicate limits this transition to Building generations only.
-            var terminalJobIds = await _dbContext.Set<IndexGeneration>()
-                .Where(generation => generation.Status == IndexGenerationStatus.Building)
+            var terminalJobIds = await _dbContext.Set<IngestionJob>()
+                .Where(job => job.Status == IngestionJobStatus.Failed)
                 .Join(
-                    _dbContext.Set<IngestionJob>().Where(job => job.Status == IngestionJobStatus.Failed),
-                    generation => generation.IngestionJobId,
+                    _dbContext.Set<IndexGeneration>()
+                        .Where(generation => generation.Status == IndexGenerationStatus.Building),
                     job => job.Id,
-                    (_, job) => job.Id)
+                    generation => generation.IngestionJobId,
+                    (job, generation) => job.Id)
                 .Distinct()
                 .ToArrayAsync(cancellationToken);
 
