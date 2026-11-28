@@ -24,7 +24,9 @@ public sealed class RagRetrievalValidationTests
             new Dictionary<(Guid ChunkId, Guid GenerationId), float>
             {
                 [(seeded.ChunkId, seeded.GenerationId)] = 0.91f
-            });
+            },
+            take: 10,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         var result = Assert.Single(results);
         Assert.Equal(seeded.ChunkId, result.ChunkId);
@@ -53,7 +55,9 @@ public sealed class RagRetrievalValidationTests
             new Dictionary<(Guid ChunkId, Guid GenerationId), float>
             {
                 [(seeded.ChunkId, seeded.GenerationId)] = 0.99f
-            });
+            },
+            take: 10,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(results);
     }
@@ -77,7 +81,9 @@ public sealed class RagRetrievalValidationTests
             new Dictionary<(Guid ChunkId, Guid GenerationId), float>
             {
                 [(seeded.ChunkId, seeded.GenerationId)] = 0.99f
-            });
+            },
+            take: 10,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(results);
     }
@@ -109,7 +115,9 @@ public sealed class RagRetrievalValidationTests
             new Dictionary<(Guid ChunkId, Guid GenerationId), float>
             {
                 [(seeded.ChunkId, seeded.GenerationId)] = 0.99f
-            });
+            },
+            take: 10,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(results);
     }
