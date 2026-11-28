@@ -32,7 +32,7 @@ public sealed class EfCoreIngestionJobQueue<TContext> : IIngestionJobQueue
         var now = _timeProvider.GetUtcNow();
 
         // A worker that crashed on its final allowed attempt must not leave a job
-        // in Processing forever. Expired, exhausted leases are terminally closed first.
+        // in Processing forever. Close the job and its unfinished generation atomically.
         var hasExpiredExhaustedJobs = await _dbContext.Set<IngestionJob>()
             .AnyAsync(job =>
                 job.Status == IngestionJobStatus.Processing &&
@@ -41,25 +41,64 @@ public sealed class EfCoreIngestionJobQueue<TContext> : IIngestionJobQueue
                 job.AttemptCount >= job.MaxAttempts,
                 cancellationToken);
 
-        // Avoid issuing a write statement on the hot polling path when there is
-        // nothing to recover. This reduces needless write-lock contention between workers.
+        // Avoid opening a transaction and issuing writes on the hot polling path when
+        // there is nothing to recover.
         if (hasExpiredExhaustedJobs)
         {
-            await _dbContext.Set<IngestionJob>()
+            await using var recoveryTransaction =
+                await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+            var expiredJobIds = await _dbContext.Set<IngestionJob>()
                 .Where(job =>
                     job.Status == IngestionJobStatus.Processing &&
                     job.LeaseExpiresAtUtc != null &&
                     job.LeaseExpiresAtUtc <= now &&
                     job.AttemptCount >= job.MaxAttempts)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(job => job.Status, IngestionJobStatus.Failed)
-                    .SetProperty(job => job.LeaseOwner, (string?)null)
-                    .SetProperty(job => job.LeaseToken, Guid.Empty)
-                    .SetProperty(job => job.LeaseExpiresAtUtc, (DateTimeOffset?)null)
-                    .SetProperty(job => job.LastError, job => job.LastError ?? "Worker lease expired after the maximum number of attempts.")
-                    .SetProperty(job => job.CompletedAtUtc, now)
-                    .SetProperty(job => job.UpdatedAtUtc, now),
-                    cancellationToken);
+                .Select(job => job.Id)
+                .ToArrayAsync(cancellationToken);
+
+            if (expiredJobIds.Length > 0)
+            {
+                await _dbContext.Set<IngestionJob>()
+                    .Where(job =>
+                        expiredJobIds.Contains(job.Id) &&
+                        job.Status == IngestionJobStatus.Processing &&
+                        job.LeaseExpiresAtUtc != null &&
+                        job.LeaseExpiresAtUtc <= now &&
+                        job.AttemptCount >= job.MaxAttempts)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(job => job.Status, IngestionJobStatus.Failed)
+                        .SetProperty(job => job.LeaseOwner, (string?)null)
+                        .SetProperty(job => job.LeaseToken, Guid.Empty)
+                        .SetProperty(job => job.LeaseExpiresAtUtc, (DateTimeOffset?)null)
+                        .SetProperty(job => job.LastError, job => job.LastError ?? "Worker lease expired after the maximum number of attempts.")
+                        .SetProperty(job => job.CompletedAtUtc, now)
+                        .SetProperty(job => job.UpdatedAtUtc, now),
+                        cancellationToken);
+
+                // Only generations whose jobs are now terminal are failed. If another
+                // worker renewed a lease between discovery and the conditional update,
+                // its job remains Processing and its Building generation is preserved.
+                var terminalJobIds = await _dbContext.Set<IngestionJob>()
+                    .Where(job =>
+                        expiredJobIds.Contains(job.Id) &&
+                        job.Status == IngestionJobStatus.Failed)
+                    .Select(job => job.Id)
+                    .ToArrayAsync(cancellationToken);
+
+                if (terminalJobIds.Length > 0)
+                {
+                    await _dbContext.Set<IndexGeneration>()
+                        .Where(generation =>
+                            terminalJobIds.Contains(generation.IngestionJobId) &&
+                            generation.Status == IndexGenerationStatus.Building)
+                        .ExecuteUpdateAsync(setters => setters
+                            .SetProperty(generation => generation.Status, IndexGenerationStatus.Failed),
+                            cancellationToken);
+                }
+            }
+
+            await recoveryTransaction.CommitAsync(cancellationToken);
         }
 
         var candidate = await _dbContext.Set<IngestionJob>()
@@ -180,29 +219,67 @@ public sealed class EfCoreIngestionJobQueue<TContext> : IIngestionJobQueue
         ArgumentException.ThrowIfNullOrWhiteSpace(error);
 
         var now = _timeProvider.GetUtcNow();
-        var affected = await _dbContext.Set<IngestionJob>()
+        await using var transaction =
+            await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        // Read the attempt limit under the same transaction so the generation transition
+        // follows the exact terminal decision made for this owned lease.
+        var job = await _dbContext.Set<IngestionJob>()
+            .AsNoTracking()
             .Where(job =>
                 job.Id == lease.JobId &&
                 job.Status == IngestionJobStatus.Processing &&
                 job.LeaseToken == lease.LeaseToken &&
                 job.LeaseOwner == lease.WorkerId &&
                 job.LeaseExpiresAtUtc > now)
+            .Select(job => new { job.AttemptCount, job.MaxAttempts })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (job is null)
+        {
+            return false;
+        }
+
+        var isTerminal = terminal || job.AttemptCount >= job.MaxAttempts;
+        var affected = await _dbContext.Set<IngestionJob>()
+            .Where(item =>
+                item.Id == lease.JobId &&
+                item.Status == IngestionJobStatus.Processing &&
+                item.LeaseToken == lease.LeaseToken &&
+                item.LeaseOwner == lease.WorkerId &&
+                item.LeaseExpiresAtUtc > now)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(
-                    job => job.Status,
-                    job => terminal || job.AttemptCount >= job.MaxAttempts
-                        ? IngestionJobStatus.Failed
-                        : IngestionJobStatus.Pending)
-                .SetProperty(job => job.LeaseOwner, (string?)null)
-                .SetProperty(job => job.LeaseToken, Guid.Empty)
-                .SetProperty(job => job.LeaseExpiresAtUtc, (DateTimeOffset?)null)
-                .SetProperty(job => job.NextAttemptAtUtc, retryAtUtc)
-                .SetProperty(job => job.LastError, error.Length <= 4000 ? error : error[..4000])
-                .SetProperty(job => job.CompletedAtUtc, job => terminal || job.AttemptCount >= job.MaxAttempts ? now : null)
-                .SetProperty(job => job.UpdatedAtUtc, now),
+                .SetProperty(item => item.Status,
+                    isTerminal ? IngestionJobStatus.Failed : IngestionJobStatus.Pending)
+                .SetProperty(item => item.LeaseOwner, (string?)null)
+                .SetProperty(item => item.LeaseToken, Guid.Empty)
+                .SetProperty(item => item.LeaseExpiresAtUtc, (DateTimeOffset?)null)
+                .SetProperty(item => item.NextAttemptAtUtc, retryAtUtc)
+                .SetProperty(item => item.LastError, error.Length <= 4000 ? error : error[..4000])
+                .SetProperty(item => item.CompletedAtUtc, isTerminal ? now : null)
+                .SetProperty(item => item.UpdatedAtUtc, now),
                 cancellationToken);
 
-        return affected == 1;
+        if (affected != 1)
+        {
+            return false;
+        }
+
+        if (isTerminal)
+        {
+            // Keep job and generation lifecycle consistent even if the process crashes
+            // immediately after recording the terminal job failure.
+            await _dbContext.Set<IndexGeneration>()
+                .Where(generation =>
+                    generation.IngestionJobId == lease.JobId &&
+                    generation.Status == IndexGenerationStatus.Building)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(generation => generation.Status, IndexGenerationStatus.Failed),
+                    cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return true;
     }
 
     private static void ValidateLeaseDuration(TimeSpan leaseDuration)

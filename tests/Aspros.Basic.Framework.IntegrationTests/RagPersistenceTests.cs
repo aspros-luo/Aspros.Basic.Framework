@@ -549,6 +549,111 @@ public sealed class RagPersistenceTests
         Assert.Null(await queue.TryAcquireNextAsync("another-worker", TimeSpan.FromMinutes(1)));
     }
 
+    [Fact]
+    public async Task FailAsync_MarksBuildingGenerationFailedOnlyWhenJobBecomesTerminal()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        var seeded = await SeedJobWithGenerationAsync(options, maxAttempts: 2);
+
+        await using var db = new RagTestDbContext(options);
+        var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
+
+        var firstLease = await queue.TryAcquireNextAsync("worker", TimeSpan.FromMinutes(1));
+        Assert.NotNull(firstLease);
+        Assert.Equal(seeded.JobId, firstLease!.JobId);
+
+        Assert.True(await queue.FailAsync(
+            firstLease,
+            "temporary vector-store outage",
+            DateTimeOffset.UtcNow.AddMilliseconds(-1)));
+
+        var generationAfterRetryableFailure = await db.Set<IndexGeneration>()
+            .AsNoTracking()
+            .SingleAsync(item => item.Id == seeded.GenerationId);
+        Assert.Equal(IndexGenerationStatus.Building, generationAfterRetryableFailure.Status);
+
+        var finalLease = await queue.TryAcquireNextAsync("worker", TimeSpan.FromMinutes(1));
+        Assert.NotNull(finalLease);
+        Assert.Equal(2, finalLease!.AttemptCount);
+
+        Assert.True(await queue.FailAsync(
+            finalLease,
+            "retry limit reached",
+            DateTimeOffset.UtcNow,
+            terminal: false));
+
+        var persistedJob = await db.Set<IngestionJob>()
+            .AsNoTracking()
+            .SingleAsync(item => item.Id == seeded.JobId);
+        var persistedGeneration = await db.Set<IndexGeneration>()
+            .AsNoTracking()
+            .SingleAsync(item => item.Id == seeded.GenerationId);
+
+        Assert.Equal(IngestionJobStatus.Failed, persistedJob.Status);
+        Assert.Equal(IndexGenerationStatus.Failed, persistedGeneration.Status);
+    }
+
+    [Fact]
+    public async Task ExpiredFinalLease_MarksAssociatedBuildingGenerationFailed()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        var seeded = await SeedJobWithGenerationAsync(options, maxAttempts: 1);
+
+        await using (var db = new RagTestDbContext(options))
+        {
+            var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
+            var lease = await queue.TryAcquireNextAsync("worker-crash", TimeSpan.FromMilliseconds(1));
+            Assert.NotNull(lease);
+        }
+
+        await Task.Delay(25);
+
+        await using (var db = new RagTestDbContext(options))
+        {
+            var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
+            Assert.Null(await queue.TryAcquireNextAsync("recovery-worker", TimeSpan.FromMinutes(1)));
+
+            var persistedJob = await db.Set<IngestionJob>()
+                .AsNoTracking()
+                .SingleAsync(item => item.Id == seeded.JobId);
+            var persistedGeneration = await db.Set<IndexGeneration>()
+                .AsNoTracking()
+                .SingleAsync(item => item.Id == seeded.GenerationId);
+
+            Assert.Equal(IngestionJobStatus.Failed, persistedJob.Status);
+            Assert.Equal(IndexGenerationStatus.Failed, persistedGeneration.Status);
+        }
+    }
+
+    private static async Task<(Guid JobId, Guid GenerationId)> SeedJobWithGenerationAsync(
+        DbContextOptions<RagTestDbContext> options,
+        int maxAttempts)
+    {
+        await using var db = new RagTestDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var (knowledgeBase, document, version) = CreateDocumentGraph();
+        var job = IngestionJob.Create(
+            document.TenantId,
+            knowledgeBase.Id,
+            document.Id,
+            version.Id,
+            $"index:{Guid.NewGuid():N}",
+            IngestionJobType.RebuildIndex,
+            maxAttempts);
+        var generation = IndexGeneration.Create(
+            job,
+            "local-embedding-v1",
+            768,
+            "plain-text-v1");
+
+        db.AddRange(knowledgeBase, document, version, job, generation);
+        await db.SaveChangesAsync();
+        return (job.Id, generation.Id);
+    }
+
     private static IngestionJob CreateIndexJob(
         KnowledgeBase knowledgeBase,
         Document document,
