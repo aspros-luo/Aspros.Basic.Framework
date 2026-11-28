@@ -29,7 +29,8 @@ builder.Services.AddSingleton(_ => new QdrantClient(
 builder.Services.AddSingleton<DemoVectorStore>();
 builder.Services.AddScoped<DemoRetrievalService>();
 builder.Services.AddRagEntityFrameworkCore<DemoRagDbContext>();
-builder.Services.AddHostedService<DemoVectorCleanupService>();\nbuilder.Services.AddRagWorker<DemoIngestionJobHandler>(options =>
+builder.Services.AddHostedService<DemoVectorCleanupService>();
+builder.Services.AddRagWorker<DemoIngestionJobHandler>(options =>
 {
     options.MaxConcurrency = 2;
     options.LeaseDuration = TimeSpan.FromMinutes(2);
