@@ -10,5 +10,10 @@ public sealed class DemoRagDbContext(DbContextOptions<DemoRagDbContext> options)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyRagModel();
+        modelBuilder.Entity<DemoVectorCleanupRecord>(entity =>
+        {
+            entity.HasKey(receipt => receipt.IndexGenerationId);
+            entity.Property(receipt => receipt.CompletedAtUtc).IsRequired();
+        });
     }
 }
