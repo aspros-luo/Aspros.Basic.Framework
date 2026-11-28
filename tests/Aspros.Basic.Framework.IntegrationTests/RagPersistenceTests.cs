@@ -507,7 +507,7 @@ public sealed class RagPersistenceTests
         await using (var db = new RagTestDbContext(options))
         {
             var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
-            Assert.Null(await queue.TryAcquireNextAsync("recovery-worker", TimeSpan.FromMinutes(1), cancellationToken));
+            Assert.Null(await queue.TryAcquireNextAsync("recovery-worker", TimeSpan.FromMinutes(1)));
 
             var persisted = await db.Set<IngestionJob>().AsNoTracking().SingleAsync();
             Assert.Equal(IngestionJobStatus.Failed, persisted.Status);
@@ -570,7 +570,7 @@ public sealed class RagPersistenceTests
 
         var generationAfterRetryableFailure = await db.Set<IndexGeneration>()
             .AsNoTracking()
-            .SingleAsync(item => item.Id == seeded.GenerationId, cancellationToken);
+            .SingleAsync(item => item.Id == seeded.GenerationId);
         Assert.Equal(IndexGenerationStatus.Building, generationAfterRetryableFailure.Status);
 
         var finalLease = await queue.TryAcquireNextAsync("worker", TimeSpan.FromMinutes(1));
@@ -631,7 +631,7 @@ public sealed class RagPersistenceTests
     public async Task QueuePoll_ReconcilesPreviouslyFailedJobWithStaleBuildingGeneration()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var connection = await OpenConnectionAsync();
         var options = CreateOptions(connection);
         var seeded = await SeedJobWithGenerationAsync(options, maxAttempts: 5);
 
@@ -644,11 +644,11 @@ public sealed class RagPersistenceTests
 
         var generationBeforeReconciliation = await db.Set<IndexGeneration>()
             .AsNoTracking()
-            .SingleAsync(item => item.Id == seeded.GenerationId);
+            .SingleAsync(item => item.Id == seeded.GenerationId, cancellationToken);
         Assert.Equal(IndexGenerationStatus.Building, generationBeforeReconciliation.Status);
 
         var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
-        Assert.Null(await queue.TryAcquireNextAsync("recovery-worker", TimeSpan.FromMinutes(1)));
+        Assert.Null(await queue.TryAcquireNextAsync("recovery-worker", TimeSpan.FromMinutes(1), cancellationToken));
 
         var generationAfterReconciliation = await db.Set<IndexGeneration>()
             .AsNoTracking()
