@@ -34,6 +34,52 @@ public sealed class RagRetrievalValidationTests
     }
 
     [Fact]
+    public async Task ResolveActiveMatchesAsync_PrefersCurrentGenerationWhenOldAndNewVectorsCoexist()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync();
+        var seeded = await SeedDocumentAsync(db);
+        var document = await db.Set<Document>().SingleAsync(x => x.Id == seeded.DocumentId);
+
+        // Model the blue-green overlap window: old vectors may remain in Qdrant
+        // after the document has switched to its new active generation.
+        var oldJob = IngestionJob.Create(
+            "tenant-a",
+            seeded.KnowledgeBaseId,
+            seeded.DocumentId,
+            document.CurrentVersionId!.Value,
+            $"index-old:{Guid.NewGuid():N}",
+            IngestionJobType.RebuildIndex);
+        var oldGeneration = IndexGeneration.Create(
+            oldJob,
+            "previous-embedding-v1",
+            768,
+            "plain-text-v1");
+        oldGeneration.Activate();
+        oldGeneration.Retire();
+        db.AddRange(oldJob, oldGeneration);
+        await db.SaveChangesAsync();
+
+        var results = await DemoRetrievalService.ResolveActiveMatchesAsync(
+            db,
+            "tenant-a",
+            seeded.KnowledgeBaseId,
+            new Dictionary<(Guid ChunkId, Guid GenerationId), float>
+            {
+                // The stale generation deliberately has the higher score.
+                [(seeded.ChunkId, oldGeneration.Id)] = 0.99f,
+                [(seeded.ChunkId, seeded.GenerationId)] = 0.71f
+            },
+            take: 10,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var result = Assert.Single(results);
+        Assert.Equal(seeded.ChunkId, result.ChunkId);
+        Assert.Equal(0.71f, result.Score);
+    }
+
+    [Fact]
     public async Task ResolveActiveMatchesAsync_RejectsGenerationWhoseStatusIsNotActive()
     {
         await using var connection = await OpenConnectionAsync();
