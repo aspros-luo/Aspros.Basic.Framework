@@ -103,7 +103,7 @@ public sealed class DemoRetrievalService(
                   document.Status == DocumentStatus.Active &&
                   document.CurrentVersionId == chunk.DocumentVersionId &&
                   document.ActiveIndexGenerationId != null &&
-                  dbContext.Set<KnowledgeBase>().Any(knowledgeBase =>
+                  dbContext.Set<RagKnowledgeBase>().Any(knowledgeBase =>
                       knowledgeBase.Id == knowledgeBaseId &&
                       knowledgeBase.TenantId == tenantId &&
                       !knowledgeBase.IsArchived) &&
