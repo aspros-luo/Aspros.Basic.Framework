@@ -627,6 +627,34 @@ public sealed class RagPersistenceTests
         }
     }
 
+    [Fact]
+    public async Task QueuePoll_ReconcilesPreviouslyFailedJobWithStaleBuildingGeneration()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var options = CreateOptions(connection);
+        var seeded = await SeedJobWithGenerationAsync(options, maxAttempts: 5);
+
+        await using var db = new RagTestDbContext(options);
+        await db.Set<IngestionJob>()
+            .Where(job => job.Id == seeded.JobId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(job => job.Status, IngestionJobStatus.Failed)
+                .SetProperty(job => job.CompletedAtUtc, DateTimeOffset.UtcNow));
+
+        var generationBeforeReconciliation = await db.Set<IndexGeneration>()
+            .AsNoTracking()
+            .SingleAsync(item => item.Id == seeded.GenerationId);
+        Assert.Equal(IndexGenerationStatus.Building, generationBeforeReconciliation.Status);
+
+        var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
+        Assert.Null(await queue.TryAcquireNextAsync("recovery-worker", TimeSpan.FromMinutes(1)));
+
+        var generationAfterReconciliation = await db.Set<IndexGeneration>()
+            .AsNoTracking()
+            .SingleAsync(item => item.Id == seeded.GenerationId);
+        Assert.Equal(IndexGenerationStatus.Failed, generationAfterReconciliation.Status);
+    }
+
     private static async Task<(Guid JobId, Guid GenerationId)> SeedJobWithGenerationAsync(
         DbContextOptions<RagTestDbContext> options,
         int maxAttempts)

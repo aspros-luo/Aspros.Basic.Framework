@@ -31,23 +31,29 @@ public sealed class EfCoreIngestionJobQueue<TContext> : IIngestionJobQueue
 
         var now = _timeProvider.GetUtcNow();
 
-        // A worker that crashed on its final allowed attempt must not leave a job
-        // in Processing forever. Close the job and its unfinished generation atomically.
-        var hasExpiredExhaustedJobs = await _dbContext.Set<IngestionJob>()
-            .AnyAsync(job =>
-                job.Status == IngestionJobStatus.Processing &&
-                job.LeaseExpiresAtUtc != null &&
-                job.LeaseExpiresAtUtc <= now &&
-                job.AttemptCount >= job.MaxAttempts,
+        // Reconcile both newly exhausted leases and terminal jobs left behind by an
+        // older process version. The latter makes already-persisted Building generations
+        // self-heal after deployment instead of requiring manual database repair.
+        var hasUnfinishedTerminalGenerations = await _dbContext.Set<IndexGeneration>()
+            .AnyAsync(generation =>
+                generation.Status == IndexGenerationStatus.Building &&
+                _dbContext.Set<IngestionJob>().Any(job =>
+                    job.Id == generation.IngestionJobId &&
+                    (job.Status == IngestionJobStatus.Failed ||
+                     (job.Status == IngestionJobStatus.Processing &&
+                      job.LeaseExpiresAtUtc != null &&
+                      job.LeaseExpiresAtUtc <= now &&
+                      job.AttemptCount >= job.MaxAttempts))),
                 cancellationToken);
 
-        // Avoid opening a transaction and issuing writes on the hot polling path when
-        // there is nothing to recover.
-        if (hasExpiredExhaustedJobs)
+        // Keep the polling hot path read-only when no terminal job has unfinished index work.
+        if (hasUnfinishedTerminalGenerations)
         {
             await using var recoveryTransaction =
                 await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
+            // A worker that crashed on its final allowed attempt must not leave a job
+            // in Processing forever.
             var expiredJobIds = await _dbContext.Set<IngestionJob>()
                 .Where(job =>
                     job.Status == IngestionJobStatus.Processing &&
@@ -75,27 +81,29 @@ public sealed class EfCoreIngestionJobQueue<TContext> : IIngestionJobQueue
                         .SetProperty(job => job.CompletedAtUtc, now)
                         .SetProperty(job => job.UpdatedAtUtc, now),
                         cancellationToken);
+            }
 
-                // Only generations whose jobs are now terminal are failed. If another
-                // worker renewed a lease between discovery and the conditional update,
-                // its job remains Processing and its Building generation is preserved.
-                var terminalJobIds = await _dbContext.Set<IngestionJob>()
-                    .Where(job =>
-                        expiredJobIds.Contains(job.Id) &&
-                        job.Status == IngestionJobStatus.Failed)
-                    .Select(job => job.Id)
-                    .ToArrayAsync(cancellationToken);
+            // Also repair terminal failures written before this lifecycle invariant existed.
+            // The status predicate limits this transition to Building generations only.
+            var terminalJobIds = await _dbContext.Set<IndexGeneration>()
+                .Where(generation => generation.Status == IndexGenerationStatus.Building)
+                .Join(
+                    _dbContext.Set<IngestionJob>().Where(job => job.Status == IngestionJobStatus.Failed),
+                    generation => generation.IngestionJobId,
+                    job => job.Id,
+                    (_, job) => job.Id)
+                .Distinct()
+                .ToArrayAsync(cancellationToken);
 
-                if (terminalJobIds.Length > 0)
-                {
-                    await _dbContext.Set<IndexGeneration>()
-                        .Where(generation =>
-                            terminalJobIds.Contains(generation.IngestionJobId) &&
-                            generation.Status == IndexGenerationStatus.Building)
-                        .ExecuteUpdateAsync(setters => setters
-                            .SetProperty(generation => generation.Status, IndexGenerationStatus.Failed),
-                            cancellationToken);
-                }
+            if (terminalJobIds.Length > 0)
+            {
+                await _dbContext.Set<IndexGeneration>()
+                    .Where(generation =>
+                        terminalJobIds.Contains(generation.IngestionJobId) &&
+                        generation.Status == IndexGenerationStatus.Building)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(generation => generation.Status, IndexGenerationStatus.Failed),
+                        cancellationToken);
             }
 
             await recoveryTransaction.CommitAsync(cancellationToken);
