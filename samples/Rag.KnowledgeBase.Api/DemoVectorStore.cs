@@ -108,7 +108,7 @@ public sealed class DemoVectorStore(QdrantClient client)
             }
         };
 
-        await client.DeleteAsync(collection, filter, cancellationToken);
+        await client.DeleteAsync(collection, filter, cancellationToken: cancellationToken);
     }
 
     public async Task<IReadOnlyList<DemoVectorMatch>> SearchAsync(
