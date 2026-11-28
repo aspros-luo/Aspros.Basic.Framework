@@ -1,4 +1,5 @@
 using Aspros.Base.Framework.RAG.Models;
+using RagKnowledgeBase = global::Aspros.Base.Framework.RAG.Models.KnowledgeBase;
 using Microsoft.EntityFrameworkCore;
 
 namespace Rag.KnowledgeBase.Api;
@@ -25,7 +26,7 @@ public sealed class DemoRetrievalService(
         ArgumentException.ThrowIfNullOrWhiteSpace(query);
 
         const string tenantId = "demo-tenant";
-        var knowledgeBaseExists = await dbContext.Set<KnowledgeBase>()
+        var knowledgeBaseExists = await dbContext.Set<RagKnowledgeBase>()
             .AnyAsync(x => x.Id == knowledgeBaseId &&
                            x.TenantId == tenantId &&
                            !x.IsArchived,
