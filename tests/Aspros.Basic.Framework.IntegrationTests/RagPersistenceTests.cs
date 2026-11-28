@@ -507,7 +507,7 @@ public sealed class RagPersistenceTests
         await using (var db = new RagTestDbContext(options))
         {
             var queue = new EfCoreIngestionJobQueue<RagTestDbContext>(db);
-            Assert.Null(await queue.TryAcquireNextAsync("recovery-worker", TimeSpan.FromMinutes(1)));
+            Assert.Null(await queue.TryAcquireNextAsync("recovery-worker", TimeSpan.FromMinutes(1), cancellationToken));
 
             var persisted = await db.Set<IngestionJob>().AsNoTracking().SingleAsync();
             Assert.Equal(IngestionJobStatus.Failed, persisted.Status);
@@ -570,7 +570,7 @@ public sealed class RagPersistenceTests
 
         var generationAfterRetryableFailure = await db.Set<IndexGeneration>()
             .AsNoTracking()
-            .SingleAsync(item => item.Id == seeded.GenerationId);
+            .SingleAsync(item => item.Id == seeded.GenerationId, cancellationToken);
         Assert.Equal(IndexGenerationStatus.Building, generationAfterRetryableFailure.Status);
 
         var finalLease = await queue.TryAcquireNextAsync("worker", TimeSpan.FromMinutes(1));
@@ -630,7 +630,8 @@ public sealed class RagPersistenceTests
     [Fact]
     public async Task QueuePoll_ReconcilesPreviouslyFailedJobWithStaleBuildingGeneration()
     {
-        await using var connection = await OpenConnectionAsync();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var connection = await OpenConnectionAsync(cancellationToken);
         var options = CreateOptions(connection);
         var seeded = await SeedJobWithGenerationAsync(options, maxAttempts: 5);
 
@@ -639,7 +640,7 @@ public sealed class RagPersistenceTests
             .Where(job => job.Id == seeded.JobId)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(job => job.Status, IngestionJobStatus.Failed)
-                .SetProperty(job => job.CompletedAtUtc, DateTimeOffset.UtcNow));
+                .SetProperty(job => job.CompletedAtUtc, DateTimeOffset.UtcNow), cancellationToken);
 
         var generationBeforeReconciliation = await db.Set<IndexGeneration>()
             .AsNoTracking()
