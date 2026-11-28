@@ -75,6 +75,42 @@ public sealed class DemoVectorStore(QdrantClient client)
         await client.UpsertAsync(collection, points, cancellationToken: cancellationToken);
     }
 
+    public async Task DeleteGenerationAsync(
+        string tenantId,
+        Guid knowledgeBaseId,
+        string embeddingModelKey,
+        int dimension,
+        Guid indexGenerationId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(embeddingModelKey);
+        if (knowledgeBaseId == Guid.Empty || indexGenerationId == Guid.Empty || dimension < 1)
+        {
+            throw new ArgumentException("A valid knowledge base, generation, and vector dimension are required.");
+        }
+
+        var collection = GetCollectionName(embeddingModelKey, dimension);
+        if (!await client.CollectionExistsAsync(collection, cancellationToken))
+        {
+            return;
+        }
+
+        // All three predicates are required: never delete another tenant's or
+        // knowledge base's points while reclaiming one retired generation.
+        var filter = new Filter
+        {
+            Must =
+            {
+                MatchKeyword("tenant_id", tenantId),
+                MatchKeyword("knowledge_base_id", knowledgeBaseId.ToString("D")),
+                MatchKeyword("index_generation_id", indexGenerationId.ToString("D"))
+            }
+        };
+
+        await client.DeleteAsync(collection, filter, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<DemoVectorMatch>> SearchAsync(
         string tenantId,
         Guid knowledgeBaseId,
