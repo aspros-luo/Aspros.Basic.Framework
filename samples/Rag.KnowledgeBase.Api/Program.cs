@@ -45,6 +45,15 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DemoRagDbContext>();
     await db.Database.EnsureCreatedAsync();
+
+    // EnsureCreated does not evolve an existing demo database. Create the demo-owned
+    // cleanup receipt table explicitly so users with an earlier SQLite file can upgrade.
+    await db.Database.ExecuteSqlRawAsync("""
+        CREATE TABLE IF NOT EXISTS "DemoVectorCleanupRecords" (
+            "IndexGenerationId" TEXT NOT NULL CONSTRAINT "PK_DemoVectorCleanupRecords" PRIMARY KEY,
+            "CompletedAtUtc" TEXT NOT NULL
+        );
+        """);
 }
 
 if (app.Environment.IsDevelopment())
