@@ -652,7 +652,7 @@ public sealed class RagPersistenceTests
 
         var generationAfterReconciliation = await db.Set<IndexGeneration>()
             .AsNoTracking()
-            .SingleAsync(item => item.Id == seeded.GenerationId);
+            .SingleAsync(item => item.Id == seeded.GenerationId, cancellationToken);
         Assert.Equal(IndexGenerationStatus.Failed, generationAfterReconciliation.Status);
     }
 
